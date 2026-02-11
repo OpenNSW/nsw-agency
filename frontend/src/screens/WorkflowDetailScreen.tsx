@@ -8,7 +8,7 @@ import { customRenderers } from '../renderers'
 import { vanillaCells } from '@jsonforms/vanilla-renderers'
 import type { UISchemaElement } from '@jsonforms/core'
 
-export function ConsignmentDetailScreen() {
+export function WorkflowDetailScreen() {
   const navigate = useNavigate()
 
   // Extract taskId from URL params
@@ -78,11 +78,11 @@ export function ConsignmentDetailScreen() {
         comments: comments.trim() || undefined,
         reviewerName: reviewerName.trim(),
         formData: formData,
-        consignmentId: application.consignmentId,
+        workflowId: application.workflowId,
       }
-      await approveTask(taskId, application.consignmentId, requestBody)
+      await approveTask(taskId, application.workflowId, requestBody)
       setSuccess(true)
-      setTimeout(() => navigate('/consignments'), 2000)
+      setTimeout(() => navigate('/workflows'), 2000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit review')
     } finally {
@@ -109,7 +109,7 @@ export function ConsignmentDetailScreen() {
           <Callout.Icon><ExclamationTriangleIcon /></Callout.Icon>
           <Callout.Text>{error}</Callout.Text>
         </Callout.Root>
-        <Button variant="soft" mt="4" onClick={() => { void navigate('/consignments') }}>
+        <Button variant="soft" mt="4" onClick={() => { void navigate('/workflows') }}>
           <ArrowLeftIcon /> Back to List
         </Button>
       </Box>
@@ -123,7 +123,7 @@ export function ConsignmentDetailScreen() {
           <Callout.Icon><ExclamationTriangleIcon /></Callout.Icon>
           <Callout.Text>Application not found</Callout.Text>
         </Callout.Root>
-        <Button variant="soft" mt="4" onClick={() => { void navigate('/consignments') }}>
+        <Button variant="soft" mt="4" onClick={() => { void navigate('/workflows') }}>
           <ArrowLeftIcon /> Back to List
         </Button>
       </Box>
@@ -133,8 +133,8 @@ export function ConsignmentDetailScreen() {
   return (
     <div className="animate-fade-in max-w-5xl mx-auto">
       <Flex justify="between" align="center" mb="6">
-        <Button variant="ghost" color="gray" onClick={() => { void navigate('/consignments') }}>
-          <ArrowLeftIcon /> Back to Consignments
+        <Button variant="ghost" color="gray" onClick={() => { void navigate('/workflows') }}>
+          <ArrowLeftIcon /> Back to Workflows
         </Button>
         <Flex gap="3">
           <Badge size="2" color={
@@ -171,8 +171,8 @@ export function ConsignmentDetailScreen() {
             <div className="space-y-4 mt-4">
 
               <Box>
-                <Text size="1" color="gray" as="div" mb="1">Consignment ID</Text>
-                <Text size="2" weight="medium" className="break-all font-mono">{application.consignmentId}</Text>
+                <Text size="1" color="gray" as="div" mb="1">Workflow ID</Text>
+                <Text size="2" weight="medium" className="break-all font-mono">{application.workflowId}</Text>
               </Box>
               <Box>
                 <Text size="1" color="gray" as="div" mb="1">Status</Text>

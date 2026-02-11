@@ -6,7 +6,7 @@ import { fetchPendingApplications, type OGAApplication } from '../api'
 
 
 
-export function ConsignmentListScreen() {
+export function WorkflowListScreen() {
   const navigate = useNavigate()
   const [applications, setApplications] = useState<OGAApplication[]>([])
   const [loading, setLoading] = useState(true)
@@ -35,7 +35,7 @@ export function ConsignmentListScreen() {
 
   const filteredApplications = applications.filter((app) => {
     return searchQuery === '' ||
-      app.consignmentId.toLowerCase().includes(searchQuery.toLowerCase())
+      app.workflowId.toLowerCase().includes(searchQuery.toLowerCase())
   })
 
   // Format date: Jan 27, 2026
@@ -64,8 +64,8 @@ export function ConsignmentListScreen() {
     <div className="animate-fade-in max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Consignments</h1>
-          <p className="text-gray-500 text-sm mt-1">Manage and review trader consignments</p>
+          <h1 className="text-2xl font-semibold text-gray-900">Workflows</h1>
+          <p className="text-gray-500 text-sm mt-1">Manage and review trader workflows</p>
         </div>
         <div className="flex items-center gap-4">
           <Badge color="blue" variant="soft" size="2">
@@ -80,7 +80,7 @@ export function ConsignmentListScreen() {
           <div className="flex-1">
             <TextField.Root
               size="2"
-              placeholder="Search by Consignment ID..."
+              placeholder="Search by Workflow ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             >
@@ -109,7 +109,7 @@ export function ConsignmentListScreen() {
                 <ArchiveIcon className="w-8 h-8 text-gray-300" />
               </div>
               <Text size="3" color="gray" weight="medium">
-                No consignments pending review at the moment.
+                No workflows pending review at the moment.
               </Text>
             </div>
           ) : (
@@ -118,7 +118,7 @@ export function ConsignmentListScreen() {
                 <thead>
                   <tr className="bg-gray-50/50 border-b border-gray-200 text-left">
                     <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Consignment ID
+                      Workflow ID
                     </th>
 
                     <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -136,11 +136,11 @@ export function ConsignmentListScreen() {
                   {filteredApplications.map((app) => (
                     <tr
                       key={app.taskId}
-                      onClick={() => { void navigate(`/consignments/${app.consignmentId}?taskId=${app.taskId}`) }}
+                      onClick={() => { void navigate(`/workflows/${app.workflowId}?taskId=${app.taskId}`) }}
                       className="hover:bg-blue-50/30 cursor-pointer transition-colors group text-sm"
                     >
                       <td className="px-6 py-4 break-all font-mono text-blue-600 font-medium hover:underline">
-                        {app.consignmentId}
+                        {app.workflowId}
                       </td>
 
                       <td className="px-6 py-4 whitespace-nowrap">
