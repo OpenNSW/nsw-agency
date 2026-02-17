@@ -1,10 +1,11 @@
-package oga
+package internal
 
 import (
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/google/uuid"
 )
@@ -64,7 +65,7 @@ func (h *OGAHandler) HandleInjectData(w http.ResponseWriter, r *http.Request) {
 		"taskID", req.TaskID,
 		"workflowID", req.WorkflowID)
 
-	WriteJSONResponse(w, http.StatusCreated, map[string]interface{}{
+	WriteJSONResponse(w, http.StatusCreated, map[string]any{
 		"success": true,
 		"message": "Data injected successfully",
 		"taskId":  req.TaskID,
@@ -81,15 +82,25 @@ func (h *OGAHandler) HandleGetApplications(w http.ResponseWriter, r *http.Reques
 
 	ctx := r.Context()
 	status := r.URL.Query().Get("status")
+	page, err := strconv.Atoi(r.URL.Query().Get("page"))
 
-	applications, err := h.service.GetApplications(ctx, status)
+	if err != nil {
+		WriteJSONError(w, http.StatusBadRequest, "Invalid page number")
+	}
+	pageSize, err := strconv.Atoi(r.URL.Query().Get("pageSize"))
+
+	if err != nil {
+		WriteJSONError(w, http.StatusBadRequest, "Invalid page size")
+	}
+
+	result, err := h.service.GetApplications(ctx, status, page, pageSize)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get applications", "error", err)
 		WriteJSONError(w, http.StatusInternalServerError, "Failed to get applications")
 		return
 	}
 
-	WriteJSONResponse(w, http.StatusOK, applications)
+	WriteJSONResponse(w, http.StatusOK, result)
 }
 
 // HandleGetApplication handles GET /api/oga/applications/{taskId}
@@ -125,7 +136,7 @@ func (h *OGAHandler) HandleGetApplication(w http.ResponseWriter, r *http.Request
 // HandleHealth handles GET /health
 // Simple health check endpoint
 func (h *OGAHandler) HandleHealth(w http.ResponseWriter, r *http.Request) {
-	WriteJSONResponse(w, http.StatusOK, map[string]interface{}{
+	WriteJSONResponse(w, http.StatusOK, map[string]any{
 		"status":  "ok",
 		"service": "oga-portal",
 	})
@@ -148,24 +159,28 @@ func (h *OGAHandler) HandleReviewApplication(w http.ResponseWriter, r *http.Requ
 	ctx := r.Context()
 
 	// Parse request body
-	var requestBody struct {
-		Decision      string `json:"decision"`      // "APPROVED" or "REJECTED"
-		ReviewerNotes string `json:"reviewerNotes"` // Optional notes
-	}
+	var requestBody map[string]any
 
 	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
 		WriteJSONError(w, http.StatusBadRequest, "Invalid request body: "+err.Error())
 		return
 	}
 
-	// Validate decision
-	if requestBody.Decision != "APPROVED" && requestBody.Decision != "REJECTED" {
-		WriteJSONError(w, http.StatusBadRequest, "Decision must be either APPROVED or REJECTED")
+	// Validate that decision field is present and valid
+	// TODO: Can't check from a hardcoded field, should be made configurable based on the form.
+	decision, ok := requestBody["decision"].(string)
+	if !ok || decision == "" {
+		WriteJSONError(w, http.StatusBadRequest, "Request body must contain a non-empty 'decision' string")
+		return
+	}
+
+	if decision != "APPROVED" && decision != "REJECTED" {
+		WriteJSONError(w, http.StatusBadRequest, "Invalid decision value")
 		return
 	}
 
 	// Process review and send response to service
-	if err := h.service.ReviewApplication(ctx, taskID, requestBody.Decision, requestBody.ReviewerNotes); err != nil {
+	if err := h.service.ReviewApplication(ctx, taskID, requestBody); err != nil {
 		if errors.Is(err, ErrApplicationNotFound) {
 			WriteJSONError(w, http.StatusNotFound, "Application not found")
 		} else {
@@ -179,9 +194,9 @@ func (h *OGAHandler) HandleReviewApplication(w http.ResponseWriter, r *http.Requ
 
 	slog.InfoContext(ctx, "application reviewed",
 		"taskID", taskID,
-		"decision", requestBody.Decision)
+	)
 
-	WriteJSONResponse(w, http.StatusOK, map[string]interface{}{
+	WriteJSONResponse(w, http.StatusOK, map[string]any{
 		"success": true,
 		"message": "Application reviewed successfully",
 	})

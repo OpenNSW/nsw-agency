@@ -1,4 +1,4 @@
-package oga
+package internal
 
 import (
 	"encoding/json"

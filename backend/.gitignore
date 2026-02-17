@@ -1,0 +1,27 @@
+# Go binaries
+server
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go test binaries
+*.test
+
+# Go coverage files
+*.out
+
+# Dependency directories
+vendor/
+
+# Environment files
+.env
+.env.local
+
+# Local data directories
+data/
+!data/forms/default.json
+
+# OS-specific files
+.DS_Store
+Thumbs.db

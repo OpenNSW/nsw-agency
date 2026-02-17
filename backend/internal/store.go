@@ -1,6 +1,7 @@
-package oga
+package internal
 
 import (
+	"context"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
@@ -12,7 +13,7 @@ import (
 )
 
 // JSONB is a custom type for storing JSON data in SQLite
-type JSONB map[string]interface{}
+type JSONB map[string]any
 
 // Value implements the driver.Valuer interface
 func (j JSONB) Value() (driver.Value, error) {
@@ -23,7 +24,7 @@ func (j JSONB) Value() (driver.Value, error) {
 }
 
 // Scan implements the sql.Scanner interface
-func (j *JSONB) Scan(value interface{}) error {
+func (j *JSONB) Scan(value any) error {
 	if value == nil {
 		*j = nil
 		return nil
@@ -37,15 +38,16 @@ func (j *JSONB) Scan(value interface{}) error {
 
 // ApplicationRecord represents an application in the OGA database
 type ApplicationRecord struct {
-	TaskID        uuid.UUID  `gorm:"type:uuid;primaryKey"`
-	WorkflowID    uuid.UUID  `gorm:"type:uuid;index;not null"`
-	ServiceURL    string     `gorm:"type:varchar(512);not null"`                  // URL to send response back to
-	Data          JSONB      `gorm:"type:text"`                                   // Injected data from service
-	Status        string     `gorm:"type:varchar(50);not null;default:'PENDING'"` // PENDING, APPROVED, REJECTED
-	ReviewerNotes string     `gorm:"type:text"`                                   // Optional notes from reviewer
-	ReviewedAt    *time.Time `gorm:"type:datetime"`                               // When it was reviewed
-	CreatedAt     time.Time  `gorm:"autoCreateTime"`
-	UpdatedAt     time.Time  `gorm:"autoUpdateTime"`
+	TaskID           uuid.UUID  `gorm:"type:uuid;primaryKey"`
+	WorkflowID       uuid.UUID  `gorm:"type:uuid;index;not null"`
+	ServiceURL       string     `gorm:"type:varchar(512);not null"`                  // URL to send response back to
+	Data             JSONB      `gorm:"type:text"`                                   // Injected data from service
+	Meta             JSONB      `gorm:"type:text"`                                   // Meta Information on Rendering the form
+	ReviewerResponse JSONB      `gorm:"type:text"`                                   // Response from reviewer
+	Status           string     `gorm:"type:varchar(50);not null;default:'PENDING'"` // PENDING, APPROVED, REJECTED
+	ReviewedAt       *time.Time `gorm:"type:datetime"`                               // When it was reviewed
+	CreatedAt        time.Time  `gorm:"autoCreateTime"`
+	UpdatedAt        time.Time  `gorm:"autoUpdateTime"`
 }
 
 // TableName returns the table name for ApplicationRecord
@@ -91,35 +93,51 @@ func (s *ApplicationStore) GetByTaskID(taskID uuid.UUID) (*ApplicationRecord, er
 	return &app, nil
 }
 
-// GetAll retrieves all applications
-func (s *ApplicationStore) GetAll() ([]ApplicationRecord, error) {
+// List retrieves applications with optional status filter and pagination.
+func (s *ApplicationStore) List(ctx context.Context, status string, offset, limit int) ([]ApplicationRecord, int64, error) {
 	var apps []ApplicationRecord
-	if err := s.db.Find(&apps).Error; err != nil {
-		return nil, err
+	var total int64
+
+	query := s.db.WithContext(ctx).Model(&ApplicationRecord{})
+	if status != "" {
+		query = query.Where("status = ?", status)
 	}
-	return apps, nil
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	if err := query.Order("created_at DESC").Offset(offset).Limit(limit).Find(&apps).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return apps, total, nil
 }
 
-// GetByStatus retrieves applications by status
-func (s *ApplicationStore) GetByStatus(status string) ([]ApplicationRecord, error) {
-	var apps []ApplicationRecord
-	if err := s.db.Where("status = ?", status).Order("created_at DESC").Find(&apps).Error; err != nil {
-		return nil, err
-	}
-	return apps, nil
-}
-
-// UpdateStatus updates the status of an application
-func (s *ApplicationStore) UpdateStatus(taskID uuid.UUID, status string, reviewerNotes string) error {
+func (s *ApplicationStore) UpdateStatus(taskID uuid.UUID, status string, reviewerResponse map[string]any) error {
 	now := time.Now()
-	return s.db.Model(&ApplicationRecord{}).
+
+	// Marshal the map to JSON
+	jsonResponse, err := json.Marshal(reviewerResponse)
+	if err != nil {
+		return fmt.Errorf("failed to marshal reviewer response: %w", err)
+	}
+
+	result := s.db.Model(&ApplicationRecord{}).
 		Where("task_id = ?", taskID).
-		Updates(map[string]interface{}{
-			"status":         status,
-			"reviewer_notes": reviewerNotes,
-			"reviewed_at":    now,
-			"updated_at":     now,
-		}).Error
+		Updates(map[string]any{
+			"status":            status,
+			"reviewed_at":       now,
+			"updated_at":        now,
+			"reviewer_response": jsonResponse,
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("application with task_id %s not found", taskID)
+	}
+	return nil
 }
 
 // Delete removes an application by task ID
