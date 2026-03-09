@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/OpenNSW/nsw/oga/internal"
+	"github.com/OpenNSW/nsw/oga/internal/feedback"
 )
 
 func main() {
@@ -42,8 +43,9 @@ func main() {
 		}
 	}()
 
-	// Initialize handler
+	// Initialize handlers
 	handler := internal.NewOGAHandler(service)
+	feedbackHandler := feedback.NewHandler(service)
 
 	// Set up HTTP routes
 	mux := http.NewServeMux()
@@ -55,6 +57,7 @@ func main() {
 	mux.HandleFunc("GET /api/oga/applications", handler.HandleGetApplications)
 	mux.HandleFunc("GET /api/oga/applications/{taskId}", handler.HandleGetApplication)
 	mux.HandleFunc("POST /api/oga/applications/{taskId}/review", handler.HandleReviewApplication)
+	mux.HandleFunc("POST /api/oga/applications/{taskId}/feedback", feedbackHandler.HandleFeedback)
 
 	// Set up graceful shutdown
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)

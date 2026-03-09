@@ -45,16 +45,17 @@ func (j *JSONB) Scan(value any) error {
 
 // ApplicationRecord represents an application in the OGA database
 type ApplicationRecord struct {
-	TaskID           uuid.UUID  `gorm:"type:uuid;primaryKey"`
-	WorkflowID       uuid.UUID  `gorm:"type:uuid;index;not null"`
-	ServiceURL       string     `gorm:"type:varchar(512);not null"`                  // URL to send response back to
-	Data             JSONB      `gorm:"type:text"`                                   // Injected data from service
-	Meta             JSONB      `gorm:"type:text"`                                   // Meta Information on Rendering the form
-	ReviewerResponse JSONB      `gorm:"type:text"`                                   // Response from reviewer
-	Status           string     `gorm:"type:varchar(50);not null;default:'PENDING'"` // PENDING, APPROVED, REJECTED
-	ReviewedAt       *time.Time `gorm:"type:datetime"`                               // When it was reviewed
-	CreatedAt        time.Time  `gorm:"autoCreateTime"`
-	UpdatedAt        time.Time  `gorm:"autoUpdateTime"`
+	TaskID             uuid.UUID        `gorm:"type:uuid;primaryKey"`
+	WorkflowID         uuid.UUID        `gorm:"type:uuid;index;not null"`
+	ServiceURL         string           `gorm:"type:varchar(512);not null"`                  // URL to send response back to
+	Data               JSONB            `gorm:"type:text"`                                   // Injected data from service
+	Meta               JSONB            `gorm:"type:text"`                                   // Meta Information on Rendering the form
+	ReviewerResponse   JSONB            `gorm:"type:text"`                                   // Response from reviewer
+	Status             string           `gorm:"type:varchar(50);not null;default:'PENDING'"` // PENDING, APPROVED, REJECTED
+	OGAFeedbackHistory []map[string]any `gorm:"type:text;serializer:json"`
+	ReviewedAt         *time.Time       `gorm:"type:datetime"` // When it was reviewed
+	CreatedAt          time.Time        `gorm:"autoCreateTime"`
+	UpdatedAt          time.Time        `gorm:"autoUpdateTime"`
 }
 
 // TableName returns the table name for ApplicationRecord
@@ -145,6 +146,45 @@ func (s *ApplicationStore) UpdateStatus(taskID uuid.UUID, status string, reviewe
 		return fmt.Errorf("application with task_id %s not found", taskID)
 	}
 	return nil
+}
+
+// AppendFeedback appends a feedback entry to the application's history and sets
+// the status to FEEDBACK_REQUESTED.
+func (s *ApplicationStore) AppendFeedback(taskID uuid.UUID, entry map[string]any) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		var app ApplicationRecord
+		if err := tx.First(&app, "task_id = ?", taskID).Error; err != nil {
+			return err
+		}
+		updated := append(app.OGAFeedbackHistory, entry)
+		updatedJSON, err := json.Marshal(updated)
+		if err != nil {
+			return fmt.Errorf("failed to marshal feedback history: %w", err)
+		}
+		return tx.Model(&ApplicationRecord{}).
+			Where("task_id = ?", taskID).
+			Updates(map[string]any{
+				"oga_feedback_history": string(updatedJSON),
+				"status":               "FEEDBACK_REQUESTED",
+				"updated_at":           time.Now(),
+			}).Error
+	})
+}
+
+// UpdateDataAndResetStatus updates the submitted data and resets status to PENDING.
+// Called when a trader resubmits after receiving feedback.
+func (s *ApplicationStore) UpdateDataAndResetStatus(taskID uuid.UUID, data map[string]any) error {
+	dataJSON, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("failed to marshal data: %w", err)
+	}
+	return s.db.Model(&ApplicationRecord{}).
+		Where("task_id = ?", taskID).
+		Updates(map[string]any{
+			"data":       string(dataJSON),
+			"status":     "PENDING",
+			"updated_at": time.Now(),
+		}).Error
 }
 
 // Delete removes an application by task ID

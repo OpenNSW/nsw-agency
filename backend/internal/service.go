@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/OpenNSW/nsw/oga/internal/feedback"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -31,6 +32,10 @@ type OGAService interface {
 	// ReviewApplication approves or rejects an application and sends response back to service
 	ReviewApplication(ctx context.Context, taskID uuid.UUID, reviewerData map[string]any) error
 
+	// FeedbackApplication sends a change-request feedback to the trader via the NSW task API
+	// and updates the application status to FEEDBACK_REQUESTED.
+	FeedbackApplication(ctx context.Context, taskID uuid.UUID, content map[string]any) error
+
 	// Close closes the service and releases resources
 	Close() error
 }
@@ -42,25 +47,27 @@ type Meta struct {
 
 // InjectRequest represents the incoming data from services
 type InjectRequest struct {
-	TaskID     uuid.UUID      `json:"taskId"`
-	WorkflowID uuid.UUID      `json:"workflowId"`
-	Data       map[string]any `json:"data"`
-	ServiceURL string         `json:"serviceUrl"` // URL to send response back to
-	Meta       *Meta          `json:"meta,omitempty"`
+	TaskID             uuid.UUID        `json:"taskId"`
+	WorkflowID         uuid.UUID        `json:"workflowId"`
+	Data               map[string]any   `json:"data"`
+	ServiceURL         string           `json:"serviceUrl"` // URL to send response back to
+	Meta               *Meta            `json:"meta,omitempty"`
+	OGAFeedbackHistory []map[string]any `json:"ogafeedbackhistory,omitempty"`
 }
 
 // Application represents an application for display in the UI
 type Application struct {
-	TaskID     uuid.UUID       `json:"taskId"`
-	WorkflowID uuid.UUID       `json:"workflowId"`
-	ServiceURL string          `json:"serviceUrl"`
-	Data       map[string]any  `json:"data"`
-	Meta       *Meta           `json:"meta,omitempty"`
-	Form       json.RawMessage `json:"form,omitempty"`
-	Status     string          `json:"status"`
-	ReviewedAt *time.Time      `json:"reviewedAt,omitempty"`
-	CreatedAt  time.Time       `json:"createdAt"`
-	UpdatedAt  time.Time       `json:"updatedAt"`
+	TaskID          uuid.UUID        `json:"taskId"`
+	WorkflowID      uuid.UUID        `json:"workflowId"`
+	ServiceURL      string           `json:"serviceUrl"`
+	Data            map[string]any   `json:"data"`
+	Meta            *Meta            `json:"meta,omitempty"`
+	Form            json.RawMessage  `json:"form,omitempty"`
+	Status          string           `json:"status"`
+	FeedbackHistory []feedback.Entry `json:"feedbackHistory,omitempty"`
+	ReviewedAt      *time.Time       `json:"reviewedAt,omitempty"`
+	CreatedAt       time.Time        `json:"createdAt"`
+	UpdatedAt       time.Time        `json:"updatedAt"`
 }
 
 // PagedResponse is a generic paginated response wrapper.
@@ -127,7 +134,9 @@ func NewOGAService(store *ApplicationStore, formStore *FormStore) OGAService {
 	}
 }
 
-// CreateApplication creates a new application from injected data
+// CreateApplication creates a new application from injected data.
+// When a trader resubmits after receiving feedback (FEEDBACK_REQUESTED), it updates
+// the submitted data and resets the status to PENDING for re-review.
 func (s *ogaService) CreateApplication(ctx context.Context, req *InjectRequest) error {
 	// Validate required fields
 	if req.TaskID == uuid.Nil {
@@ -138,6 +147,14 @@ func (s *ogaService) CreateApplication(ctx context.Context, req *InjectRequest) 
 	}
 	if req.ServiceURL == "" {
 		return fmt.Errorf("serviceUrl is required")
+	}
+
+	// Re-submission after feedback: preserve history, only update data and reset status.
+	existing, err := s.store.GetByTaskID(req.TaskID)
+	if err == nil && existing.Status == "FEEDBACK_REQUESTED" {
+		slog.InfoContext(ctx, "trader resubmitted after feedback, resetting to PENDING",
+			"taskID", req.TaskID)
+		return s.store.UpdateDataAndResetStatus(req.TaskID, req.Data)
 	}
 
 	metaJSON, err := metaToJSONB(req.Meta)
@@ -216,15 +233,16 @@ func (s *ogaService) GetApplication(ctx context.Context, taskID uuid.UUID) (*App
 
 	meta := metaFromJSONB(record.Meta)
 	app := &Application{
-		TaskID:     record.TaskID,
-		WorkflowID: record.WorkflowID,
-		ServiceURL: record.ServiceURL,
-		Data:       record.Data,
-		Meta:       meta,
-		Status:     record.Status,
-		ReviewedAt: record.ReviewedAt,
-		CreatedAt:  record.CreatedAt,
-		UpdatedAt:  record.UpdatedAt,
+		TaskID:          record.TaskID,
+		WorkflowID:      record.WorkflowID,
+		ServiceURL:      record.ServiceURL,
+		Data:            record.Data,
+		Meta:            meta,
+		Status:          record.Status,
+		FeedbackHistory: feedbackHistoryFromRaw(record.OGAFeedbackHistory),
+		ReviewedAt:      record.ReviewedAt,
+		CreatedAt:       record.CreatedAt,
+		UpdatedAt:       record.UpdatedAt,
 	}
 
 	// Attach form: look up by meta, fall back to default
@@ -289,6 +307,71 @@ func (s *ogaService) ReviewApplication(ctx context.Context, taskID uuid.UUID, re
 		"serviceURL", app.ServiceURL)
 
 	return nil
+}
+
+// FeedbackApplication sends OGA feedback to the trader via the NSW task API
+// and appends the entry to the application's feedback history.
+func (s *ogaService) FeedbackApplication(ctx context.Context, taskID uuid.UUID, content map[string]any) error {
+	app, err := s.GetApplication(ctx, taskID)
+	if err != nil {
+		return err
+	}
+
+	entry := feedback.Entry{
+		Content:   content,
+		Timestamp: time.Now().UTC(),
+		Round:     len(app.FeedbackHistory) + 1,
+	}
+
+	entryRaw, err := json.Marshal(entry)
+	if err != nil {
+		return fmt.Errorf("failed to marshal feedback entry: %w", err)
+	}
+	var entryMap map[string]any
+	if err := json.Unmarshal(entryRaw, &entryMap); err != nil {
+		return fmt.Errorf("failed to convert feedback entry: %w", err)
+	}
+
+	if err := s.store.AppendFeedback(taskID, entryMap); err != nil {
+		return fmt.Errorf("failed to store feedback: %w", err)
+	}
+
+	response := TaskResponse{
+		TaskID:     app.TaskID,
+		WorkflowID: app.WorkflowID,
+		Payload: map[string]any{
+			"action":  "OGA_VERIFICATION_FEEDBACK",
+			"content": content,
+		},
+	}
+
+	if err := s.sendToService(ctx, app.ServiceURL, response); err != nil {
+		slog.ErrorContext(ctx, "failed to send feedback to NSW service",
+			"taskID", taskID, "serviceURL", app.ServiceURL, "error", err)
+		return fmt.Errorf("failed to send feedback to service: %w", err)
+	}
+
+	slog.InfoContext(ctx, "feedback sent", "taskID", taskID, "round", entry.Round)
+	return nil
+}
+
+// feedbackHistoryFromRaw converts the raw JSONB slice from the store into typed feedback entries.
+func feedbackHistoryFromRaw(raw []map[string]any) []feedback.Entry {
+	entries := make([]feedback.Entry, 0, len(raw))
+	for _, m := range raw {
+		b, err := json.Marshal(m)
+		if err != nil {
+			slog.Error("failed to marshal feedback history entry from raw", "error", err)
+			continue
+		}
+		var e feedback.Entry
+		if err := json.Unmarshal(b, &e); err != nil {
+			slog.Error("failed to unmarshal feedback history entry", "error", err)
+			continue
+		}
+		entries = append(entries, e)
+	}
+	return entries
 }
 
 // sendToService sends the task response to the originating service
