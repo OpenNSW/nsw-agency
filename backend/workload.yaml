@@ -17,8 +17,9 @@ configurations:
       value: "8081"
     - name: OGA_DB_PATH
       value: /data/oga_applications.db
+    - name: OGA_FORMS_PATH
+      value: ./data/forms
+    - name: OGA_DEFAULT_FORM_ID
+      value: default
     - name: OGA_ALLOWED_ORIGINS
-      valueFrom:
-        secretKeyRef:
-          name: nsw-oga-secrets
-          key: allowed-origins
+      value: http://localhost:5174,http://localhost:5175,http://localhost:5176
