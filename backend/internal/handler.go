@@ -14,15 +14,13 @@ var storageKeyRx = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F
 
 // OGAHandler handles HTTP requests for OGA portal operations
 type OGAHandler struct {
-	service       OGAService
-	nswAPIBaseURL string
+	service OGAService
 }
 
 // NewOGAHandler creates a new OGA handler instance
-func NewOGAHandler(service OGAService, nswAPIBaseURL string) *OGAHandler {
+func NewOGAHandler(service OGAService) *OGAHandler {
 	return &OGAHandler{
-		service:       service,
-		nswAPIBaseURL: nswAPIBaseURL,
+		service: service,
 	}
 }
 
@@ -202,10 +200,10 @@ func (h *OGAHandler) HandleGetUploadURL(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	downloadURL, err := h.service.GetUploadURL(r.Context(), key, h.nswAPIBaseURL)
+	downloadURL, err := h.service.GetDownloadURL(r.Context(), key)
 	if err != nil {
-		slog.ErrorContext(r.Context(), "failed to get upload URL from backend", "key", key, "error", err)
-		WriteJSONError(w, http.StatusInternalServerError, "failed to get upload URL")
+		slog.ErrorContext(r.Context(), "failed to get download URL from backend", "key", key, "error", err)
+		WriteJSONError(w, http.StatusInternalServerError, "failed to get download URL")
 		return
 	}
 

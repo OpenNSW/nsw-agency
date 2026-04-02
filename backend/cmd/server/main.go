@@ -13,6 +13,7 @@ import (
 
 	"github.com/OpenNSW/nsw/oga/internal"
 	"github.com/OpenNSW/nsw/oga/internal/feedback"
+	"github.com/OpenNSW/nsw/oga/pkg/httpclient"
 )
 
 func main() {
@@ -39,8 +40,13 @@ func main() {
 		log.Fatalf("failed to create form store: %v", err)
 	}
 
+	// TODO: Once M2M Auth Implemented, Uncomment this and pass it to nswHttpClient for automatic token management
+	//nswOAuth2Client := httpclient.NewOAuth2Authenticator(cfg.NSW.ClientID, cfg.NSW.ClientSecret, cfg.NSW.TokenURL, cfg.NSW.Scopes)
+	// Initialize HTTP client for NSW API integration
+	nswHttpClient := httpclient.NewClient(cfg.NSW.BaseURL, 10*time.Second, nil)
+
 	// Initialize OGA service
-	service := internal.NewOGAService(cfg, store, formStore)
+	service := internal.NewOGAService(store, formStore, nswHttpClient)
 	defer func() {
 		if err := service.Close(); err != nil {
 			slog.Error("failed to close service", "error", err)
@@ -48,7 +54,7 @@ func main() {
 	}()
 
 	// Initialize handlers
-	handler := internal.NewOGAHandler(service, cfg.NSWAPIBaseURL)
+	handler := internal.NewOGAHandler(service)
 	feedbackHandler := feedback.NewHandler(service)
 
 	// Set up HTTP routes

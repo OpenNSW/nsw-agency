@@ -8,13 +8,21 @@ import (
 	"github.com/OpenNSW/nsw/oga/internal/database"
 )
 
+type NSWConfig struct {
+	BaseURL      string
+	ClientID     string
+	ClientSecret string
+	TokenURL     string
+	Scopes       []string
+}
+
 type Config struct {
 	Port           string
 	DB             database.Config
 	FormsPath      string
 	DefaultFormID  string
 	AllowedOrigins []string
-	NSWAPIBaseURL  string
+	NSW            NSWConfig
 }
 
 // LoadConfig loads configuration from environment variables
@@ -57,7 +65,12 @@ func LoadConfig() (Config, error) {
 		FormsPath:      envOrDefault("OGA_FORMS_PATH", "./data/forms"),
 		DefaultFormID:  envOrDefault("OGA_DEFAULT_FORM_ID", "default"),
 		AllowedOrigins: parseOrigins(envOrDefault("OGA_ALLOWED_ORIGINS", "*")),
-		NSWAPIBaseURL:  envOrDefault("NSW_API_BASE_URL", "http://localhost:8080/api/v1"),
+		NSW: NSWConfig{
+			BaseURL:      envOrDefault("NSW_API_BASE_URL", "http://localhost:8080/api/v1"),
+			ClientID:     os.Getenv("NSW_CLIENT_ID"),
+			ClientSecret: os.Getenv("NSW_CLIENT_SECRET"),
+			TokenURL:     os.Getenv("NSW_TOKEN_URL"),
+		},
 	}
 
 	return cfg, nil

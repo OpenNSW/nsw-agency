@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/OpenNSW/nsw/oga/internal/feedback"
+	"github.com/OpenNSW/nsw/oga/pkg/httpclient"
 	"gorm.io/gorm"
 )
 
@@ -35,8 +36,8 @@ type OGAService interface {
 	// and updates the application status to FEEDBACK_REQUESTED.
 	FeedbackApplication(ctx context.Context, taskID string, content map[string]any) error
 
-	// GetUploadURL fetches a download URL for a key from the main backend.
-	GetUploadURL(ctx context.Context, key string, nswAPIBaseURL string) (string, error)
+	// GetDownloadURL fetches a download URL for a key from the main backend.
+	GetDownloadURL(ctx context.Context, key string) (string, error)
 
 	// Close closes the service and releases resources
 	Close() error
@@ -121,19 +122,17 @@ func metaFromJSONB(j JSONB) *Meta {
 }
 
 type ogaService struct {
-	store         *ApplicationStore
-	formStore     *FormStore
-	httpClient    *http.Client
-	nswAPIBaseURL string
+	store      *ApplicationStore
+	formStore  *FormStore
+	httpClient *httpclient.Client
 }
 
 // NewOGAService creates a new OGA service instance with database storage
-func NewOGAService(cfg Config, store *ApplicationStore, formStore *FormStore) OGAService {
+func NewOGAService(store *ApplicationStore, formStore *FormStore, httpClient *httpclient.Client) OGAService {
 	return &ogaService{
-		store:         store,
-		formStore:     formStore,
-		httpClient:    &http.Client{Timeout: 30 * time.Second},
-		nswAPIBaseURL: cfg.NSWAPIBaseURL,
+		store:      store,
+		formStore:  formStore,
+		httpClient: httpClient,
 	}
 }
 
@@ -363,18 +362,35 @@ func (s *ogaService) FeedbackApplication(ctx context.Context, taskID string, con
 	return nil
 }
 
-// GetUploadURL returns a download URL for a file stored in the main backend.
-//
-// For local development (LocalFSDriver), the backend serves file content at
-// GET /uploads/{key}/content without authentication, so we construct the URL
-// directly and avoid the authenticated GET /uploads/{key} metadata endpoint.
-//
-// TODO: In production with S3, this should call GET /uploads/{key} with
-// service-to-service auth headers to obtain a presigned download URL.
-func (s *ogaService) GetUploadURL(ctx context.Context, key string, nswAPIBaseURL string) (string, error) {
-	downloadURL := fmt.Sprintf("%s/uploads/%s/content", nswAPIBaseURL, key)
-	slog.InfoContext(ctx, "resolved upload URL", "key", key, "downloadURL", downloadURL)
-	return downloadURL, nil
+// GetDownloadURL returns a download URL for a file stored in the main backend.
+// It calls the backend's metadata endpoint to retrieve a (possibly presigned) download URL.
+func (s *ogaService) GetDownloadURL(ctx context.Context, key string) (string, error) {
+	apiURL := fmt.Sprintf("uploads/%s", key)
+	resp, err := s.httpClient.Get(apiURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch upload metadata: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		slog.WarnContext(ctx, "failed to fetch upload metadata, falling back to local content URL",
+			"key", key, "status", resp.Status)
+		return "", fmt.Errorf("failed to fetch upload metadata, status code: %d", resp.StatusCode)
+	}
+
+	var metadata struct {
+		DownloadURL string `json:"download_url"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&metadata); err != nil {
+		return "", fmt.Errorf("failed to decode upload metadata: %w", err)
+	}
+
+	if metadata.DownloadURL == "" {
+		return "", fmt.Errorf("metadata response missing download_url")
+	}
+
+	slog.InfoContext(ctx, "resolved download URL from metadata", "key", key, "downloadURL", metadata.DownloadURL)
+	return metadata.DownloadURL, nil
 }
 
 // feedbackHistoryFromRaw converts the raw JSONB slice from the store into typed feedback entries.
@@ -409,7 +425,9 @@ func (s *ogaService) sendToService(ctx context.Context, serviceURL string, respo
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := s.httpClient.Do(req)
+	// Note: We use the authenticated httpClient here too, in case the serviceURL requires it.
+	// If it shouldn't, we might need a separate client or use the raw http.Client inside.
+	resp, err := s.httpClient.Post(serviceURL, "application/json", jsonData)
 	if err != nil {
 		return fmt.Errorf("failed to execute request: %w", err)
 	}
