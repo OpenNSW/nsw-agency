@@ -312,10 +312,6 @@ func (s *ogaService) ReviewApplication(ctx context.Context, taskID string, revie
 	}
 	status := decision
 
-	if err := s.store.UpdateStatus(taskID, status, reviewerResponse); err != nil {
-		return fmt.Errorf("failed to update application status: %w", err)
-	}
-
 	// Prepare response payload for the service
 	response := TaskResponse{
 		TaskID:     app.TaskID,
@@ -333,6 +329,12 @@ func (s *ogaService) ReviewApplication(ctx context.Context, taskID string, revie
 			"serviceURL", app.ServiceURL,
 			"error", err)
 		return fmt.Errorf("failed to send response to service: %w", err)
+	}
+
+	if err := s.store.UpdateStatus(taskID, status, reviewerResponse); err != nil {
+		// TODO: If this fails, we have already sent the response to the service but failed to update our record of it. We should consider how to handle this edge case - for now we just log an error.
+		slog.ErrorContext(ctx, "failed to update application status in database after successful service call", "taskID", taskID, "status", status, "error", err)
+		return fmt.Errorf("failed to update application status in database after successful service call: %w", err)
 	}
 
 	slog.InfoContext(ctx, "application reviewed and response sent",
@@ -365,10 +367,6 @@ func (s *ogaService) FeedbackApplication(ctx context.Context, taskID string, con
 		return fmt.Errorf("failed to convert feedback entry: %w", err)
 	}
 
-	if err := s.store.AppendFeedback(taskID, entryMap); err != nil {
-		return fmt.Errorf("failed to store feedback: %w", err)
-	}
-
 	response := TaskResponse{
 		TaskID:     app.TaskID,
 		WorkflowID: app.WorkflowID,
@@ -382,6 +380,12 @@ func (s *ogaService) FeedbackApplication(ctx context.Context, taskID string, con
 		slog.ErrorContext(ctx, "failed to send feedback to NSW service",
 			"taskID", taskID, "serviceURL", app.ServiceURL, "error", err)
 		return fmt.Errorf("failed to send feedback to service: %w", err)
+	}
+
+	if err := s.store.AppendFeedback(taskID, entryMap); err != nil {
+		// TODO: If this fails, we have already sent the feedback to the service but failed to update our record of it. We should consider how to handle this edge case - for now we just log an error.
+		slog.ErrorContext(ctx, "failed to store feedback in database after successful service call", "taskID", taskID, "round", entry.Round, "error", err)
+		return fmt.Errorf("failed to store feedback in database after successful service call: %w", err)
 	}
 
 	slog.InfoContext(ctx, "feedback sent", "taskID", taskID, "round", entry.Round)
