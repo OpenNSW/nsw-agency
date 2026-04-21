@@ -40,12 +40,20 @@ func main() {
 		log.Fatalf("failed to create form store: %v", err)
 	}
 
-	// TODO: Once M2M Auth Implemented, Uncomment this and pass it to nswHttpClient for automatic token management
-	//nswOAuth2Client := httpclient.NewOAuth2Authenticator(cfg.NSW.ClientID, cfg.NSW.ClientSecret, cfg.NSW.TokenURL, cfg.NSW.Scopes)
-	// Initialize HTTP client for NSW API integration
+	// Create OAuth2 Authenticator for NSW API
+	nswOAuth2Client := httpclient.NewOAuth2Authenticator(
+		cfg.NSW.ClientID,
+		cfg.NSW.ClientSecret,
+		cfg.NSW.TokenURL,
+		cfg.NSW.Scopes,
+	)
+
+	// Initialize HTTP client for NSW API integration with optional TLS configuration
 	nswHttpClient := httpclient.NewClientBuilder().
 		WithBaseURL(cfg.NSW.BaseURL).
 		WithTimeout(10 * time.Second).
+		WithAuthenticator(nswOAuth2Client).
+		WithTLS(&httpclient.TLSConfig{InsecureSkipVerify: cfg.NSW.TokenInsecureSkipVerify}).
 		Build()
 
 	// Initialize OGA service

@@ -48,3 +48,15 @@ configurations:
         secretKeyRef:
           name: nsw-db-secrets
           key: database
+    - name: OGA_NSW_API_BASE_URL
+    - name: OGA_NSW_CLIENT_ID
+      valueFrom:
+        secretKeyRef:
+          name: nsw-api-secrets
+          key: client_id
+    - name: OGA_NSW_CLIENT_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: nsw-api-secrets
+          key: client_secret
+    - name: OGA_NSW_SCOPES

@@ -96,6 +96,12 @@ All configuration is via environment variables:
 | `OGA_FORMS_PATH`      | Directory containing form JSON files    | `./data/forms`          |
 | `OGA_DEFAULT_FORM_ID` | Fallback form ID when no metadata match | `default`               |
 | `OGA_ALLOWED_ORIGINS` | Comma-separated CORS origins (`*` to allow all) | `*`               |
+| `OGA_NSW_API_BASE_URL`    | NSW API base URL for calling NSW endpoints | `http://localhost:8080/api/v1` |
+| `OGA_NSW_CLIENT_ID`       | OAuth2 client ID for OGA -> NSW         | required                |
+| `OGA_NSW_CLIENT_SECRET`   | OAuth2 client secret for OGA -> NSW     | required                |
+| `OGA_NSW_TOKEN_URL`       | OAuth2 token endpoint URL               | required                |
+| `OGA_NSW_SCOPES`          | Optional comma-separated OAuth2 scopes  | empty                   |
+| `OGA_NSW_TOKEN_INSECURE_SKIP_VERIFY` | DEV-only: skip TLS verification for token fetch | `false` |
 
 See [`.env.example`](.env.example) for a template.
 

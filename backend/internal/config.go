@@ -3,17 +3,19 @@ package internal
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/OpenNSW/nsw/oga/internal/database"
 )
 
 type NSWConfig struct {
-	BaseURL      string
-	ClientID     string
-	ClientSecret string
-	TokenURL     string
-	Scopes       []string
+	BaseURL                 string
+	ClientID                string
+	ClientSecret            string
+	TokenURL                string
+	Scopes                  []string
+	TokenInsecureSkipVerify bool
 }
 
 type Config struct {
@@ -64,16 +66,43 @@ func LoadConfig() (Config, error) {
 		DB:             dbConfig,
 		FormsPath:      envOrDefault("OGA_FORMS_PATH", "./data/forms"),
 		DefaultFormID:  envOrDefault("OGA_DEFAULT_FORM_ID", "default"),
-		AllowedOrigins: parseOrigins(envOrDefault("OGA_ALLOWED_ORIGINS", "*")),
+		AllowedOrigins: parseCommaSeparated(envOrDefault("OGA_ALLOWED_ORIGINS", "*")),
 		NSW: NSWConfig{
-			BaseURL:      envOrDefault("NSW_API_BASE_URL", "http://localhost:8080/api/v1"),
-			ClientID:     os.Getenv("NSW_CLIENT_ID"),
-			ClientSecret: os.Getenv("NSW_CLIENT_SECRET"),
-			TokenURL:     os.Getenv("NSW_TOKEN_URL"),
+			BaseURL:      os.Getenv("OGA_NSW_API_BASE_URL"),
+			ClientID:     os.Getenv("OGA_NSW_CLIENT_ID"),
+			ClientSecret: os.Getenv("OGA_NSW_CLIENT_SECRET"),
+			TokenURL:     os.Getenv("OGA_NSW_TOKEN_URL"),
+			Scopes:       parseCommaSeparated(os.Getenv("OGA_NSW_SCOPES")),
 		},
 	}
 
+	tokenInsecureSkipVerify, err := parseBoolEnv("OGA_NSW_TOKEN_INSECURE_SKIP_VERIFY", false)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.NSW.TokenInsecureSkipVerify = tokenInsecureSkipVerify
+
+	if err := cfg.validateNSWOAuth2Config(); err != nil {
+		return Config{}, err
+	}
+
 	return cfg, nil
+}
+
+func (c Config) validateNSWOAuth2Config() error {
+	if strings.TrimSpace(c.NSW.BaseURL) == "" {
+		return fmt.Errorf("OGA_NSW_API_BASE_URL is required")
+	}
+	if strings.TrimSpace(c.NSW.ClientID) == "" {
+		return fmt.Errorf("OGA_NSW_CLIENT_ID is required")
+	}
+	if strings.TrimSpace(c.NSW.ClientSecret) == "" {
+		return fmt.Errorf("OGA_NSW_CLIENT_SECRET is required")
+	}
+	if strings.TrimSpace(c.NSW.TokenURL) == "" {
+		return fmt.Errorf("OGA_NSW_TOKEN_URL is required")
+	}
+	return nil
 }
 
 func envOrDefault(key, defaultValue string) string {
@@ -83,13 +112,28 @@ func envOrDefault(key, defaultValue string) string {
 	return defaultValue
 }
 
-func parseOrigins(origins string) []string {
-	if origins == "" {
-		return []string{}
+func parseCommaSeparated(value string) []string {
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
 	}
-	parts := strings.Split(origins, ",")
-	for i, part := range parts {
-		parts[i] = strings.TrimSpace(part)
+	return result
+}
+
+func parseBoolEnv(key string, defaultValue bool) (bool, error) {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return defaultValue, nil
 	}
-	return parts
+
+	value, err := strconv.ParseBool(raw)
+	if err != nil {
+		return false, fmt.Errorf("invalid value for %s: %q", key, raw)
+	}
+
+	return value, nil
 }
