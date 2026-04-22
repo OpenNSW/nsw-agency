@@ -19,12 +19,13 @@ type NSWConfig struct {
 }
 
 type Config struct {
-	Port           string
-	DB             database.Config
-	FormsPath      string
-	DefaultFormID  string
-	AllowedOrigins []string
-	NSW            NSWConfig
+	Port            string
+	DB              database.Config
+	FormsPath       string
+	DefaultFormID   string
+	AllowedOrigins  []string
+	NSW             NSWConfig
+	MaxRequestBytes int64
 }
 
 // LoadConfig loads configuration from environment variables
@@ -75,6 +76,12 @@ func LoadConfig() (Config, error) {
 			Scopes:       parseCommaSeparated(os.Getenv("OGA_NSW_SCOPES")),
 		},
 	}
+
+	maxRequestBytes, err := parseInt64Env("OGA_MAX_REQUEST_BYTES", 32<<20)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.MaxRequestBytes = maxRequestBytes
 
 	tokenInsecureSkipVerify, err := parseBoolEnv("OGA_NSW_TOKEN_INSECURE_SKIP_VERIFY", false)
 	if err != nil {
@@ -133,6 +140,20 @@ func parseBoolEnv(key string, defaultValue bool) (bool, error) {
 	value, err := strconv.ParseBool(raw)
 	if err != nil {
 		return false, fmt.Errorf("invalid value for %s: %q", key, raw)
+	}
+
+	return value, nil
+}
+
+func parseInt64Env(key string, defaultValue int64) (int64, error) {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return defaultValue, nil
+	}
+
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid value for %s: %q", key, raw)
 	}
 
 	return value, nil
