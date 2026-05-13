@@ -106,20 +106,28 @@ export interface FeedbackEntry {
   round: number
 }
 
+export interface FormDefinition {
+  schema: JsonSchema
+  uiSchema: UISchemaElement
+}
+
 export interface OGAApplication {
   taskId: string
   workflowId: string
   serviceUrl: string
   data: Record<string, unknown>
   ogaActionData?: Record<string, unknown>
-  dataForm?: {
-    schema: JsonSchema
-    uiSchema: UISchemaElement
-  }
-  ogaForm?: {
-    schema: JsonSchema
-    uiSchema: UISchemaElement
-  }
+
+  // Task metadata from config
+  title?: string
+  description?: string
+  icon?: string
+  category?: string
+
+  // Form definitions
+  dataForm?: FormDefinition
+  ogaForm?: FormDefinition
+
   status: string
   feedbackHistory?: FeedbackEntry[]
   reviewerNotes?: string

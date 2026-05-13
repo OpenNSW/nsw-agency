@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Badge, Text, Spinner, IconButton, Button } from '@radix-ui/themes'
+import { Badge, Text, Spinner, IconButton, Button, Flex } from '@radix-ui/themes'
 import { ChevronLeftIcon, ChevronRightIcon, ArrowLeftIcon, ArchiveIcon } from '@radix-ui/react-icons'
 import { fetchApplications, type OGAApplication } from '../api'
 import { useApi } from '../services/useApi'
@@ -74,7 +74,7 @@ export function WorkflowTasksScreen() {
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">Consignment Tasks</h1>
             <Text size="2" color="gray" className="font-mono">
-              Workflow: {workflowId}
+              ConsignmentId: {workflowId}
             </Text>
           </div>
           <Badge color="blue" variant="soft" size="2">
@@ -98,10 +98,8 @@ export function WorkflowTasksScreen() {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50/50 border-b border-gray-200 text-left">
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Task ID</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Verification Type
-                  </th>
+                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Task</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Category</th>
                   <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Last Updated
@@ -117,12 +115,24 @@ export function WorkflowTasksScreen() {
                     }}
                     className="hover:bg-blue-50/30 cursor-pointer transition-colors group text-sm"
                   >
-                    <td className="px-6 py-4 break-all font-mono text-blue-600 font-medium hover:underline">
-                      {app.taskId}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Flex align="center" gap="2">
+                        {app.icon?.startsWith('emoji:') && (
+                          <span className="text-xl" role="img" aria-label="task-icon">
+                            {app.icon.slice('emoji:'.length)}
+                          </span>
+                        )}
+                        <Text size="2" weight="bold" className="text-gray-900">
+                          {app.title || 'Standard Review'}
+                        </Text>
+                      </Flex>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-700 capitalize">
-                      {/* TODO: For now we only have one verification type, but this should be dynamic in the future */}
-                      Standard
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {app.category && (
+                        <Text size="1" color="gray" className="uppercase tracking-tight">
+                          {app.category}
+                        </Text>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Badge

@@ -174,15 +174,31 @@ export function WorkflowDetailScreen() {
           variant="ghost"
           color="gray"
           onClick={() => {
-            void navigate('/workflows')
+            void navigate(`/workflows/${application.workflowId}/tasks`)
           }}
         >
-          <ArrowLeftIcon /> Back to Workflows
+          <ArrowLeftIcon /> Back to Tasks
         </Button>
         <Badge size="2" color={statusColor} highContrast>
           {application.status}
         </Badge>
       </Flex>
+
+      <Box mb="6">
+        <Flex align="center" gap="3" mb="1">
+          {application.icon?.startsWith('emoji:') && (
+            <span className="text-3xl" role="img" aria-label="task-icon">
+              {application.icon.slice('emoji:'.length)}
+            </span>
+          )}
+          <h1 className="text-2xl font-bold text-gray-900">{application.title || 'Task Review'}</h1>
+        </Flex>
+        {application.description && (
+          <Text size="2" color="gray">
+            {application.description}
+          </Text>
+        )}
+      </Box>
 
       {error && (
         <Callout.Root color="red" mb="6">
