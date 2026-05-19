@@ -33,6 +33,43 @@ pnpm install
 pnpm dev
 ```
 
+### Running a specific OGA
+
+Use [run-oga.sh](run-oga.sh) at the repo root to launch the per-agency backend and/or frontend with the right ports, DB file, IdP client id, and branding:
+
+```bash
+./run-oga.sh npqs              # backend + frontend for NPQS
+./run-oga.sh fcau backend      # only backend for FCAU
+./run-oga.sh ird frontend      # only frontend for IRD
+./run-oga.sh cda               # backend + frontend for CDA
+./run-oga.sh default           # generic branding/ports
+
+# Fleet mode: bring up every agency at once
+./run-oga.sh all               # all 4 backends (8081-8084) + frontends (5174-5177)
+./run-oga.sh all backend       # only the backends
+./run-oga.sh all frontend      # only the frontends
+```
+
+Every process runs in its own process group (`set -m`), so `Ctrl-C` cleanly stops the whole fleet — including the compiled binary `go run` spawns underneath. Logs from all processes interleave on the same terminal.
+
+| OGA | Backend port | DB file | NSW M2M client | Frontend port | Branding config | IdP client id |
+|-----|--------------|---------|----------------|---------------|-----------------|---------------|
+| NPQS | 8081 | `backend/npqs_applications.db` | `NPQS_TO_NSW` | 5174 | [npqs.branding.json](frontend/public/configs/npqs.branding.json) | `OGA_PORTAL_APP_NPQS` |
+| FCAU | 8082 | `backend/fcau_applications.db` | `FCAU_TO_NSW` | 5175 | [fcau.branding.json](frontend/public/configs/fcau.branding.json) | `OGA_PORTAL_APP_FCAU` |
+| IRD  | 8083 | `backend/ird_applications.db`  | `IRD_TO_NSW`  | 5176 | [ird.branding.json](frontend/public/configs/ird.branding.json) | `OGA_PORTAL_APP_IRD` |
+| CDA  | 8084 | `backend/cda_applications.db`  | `CDA_TO_NSW`  | 5177 | [cda.branding.json](frontend/public/configs/cda.branding.json) | `OGA_PORTAL_APP_CDA` |
+
+The script sets `OGA_PORT`, `OGA_DB_PATH`, `OGA_NSW_CLIENT_ID` for the backend and `VITE_PORT`, `VITE_BRANDING_NAME`, `VITE_API_BASE_URL`, `VITE_IDP_CLIENT_ID`, `VITE_APP_URL` for the frontend. Any of these can be overridden by exporting them before invoking the script (other backend/frontend env vars — OAuth secrets, IdP base URL, etc. — still come from `backend/.env` and `frontend/.env`).
+
+Only [default.branding.json](frontend/public/configs/default.branding.json) is tracked in git — per-agency branding files (`npqs.branding.json`, `fcau.branding.json`, `ird.branding.json`, `cda.branding.json`) are gitignored because branding is deployment-specific. To run an agency locally, copy the default and edit it:
+
+```bash
+cd frontend/public/configs
+cp default.branding.json npqs.branding.json   # then edit appName, portalName, description, etc.
+```
+
+To add a brand-new OGA, create `<name>.branding.json` the same way and add a matching `case` to [run-oga.sh](run-oga.sh).
+
 ## Prerequisites
 
 ### 1. NSW backend reachable

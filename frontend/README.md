@@ -64,3 +64,18 @@ branding:
 pnpm install
 pnpm run dev
 ```
+
+### Running a specific OGA
+
+Use the repo-root [../run-oga.sh](../run-oga.sh) to start the frontend (and optionally the backend) with the per-agency port, branding name, API URL, and IdP client id:
+
+```bash
+# From the repo root
+./run-oga.sh npqs frontend     # NPQS frontend on port 5174
+./run-oga.sh fcau frontend     # FCAU frontend on port 5175
+./run-oga.sh ird  frontend     # IRD  frontend on port 5176
+./run-oga.sh cda  frontend     # CDA  frontend on port 5177
+./run-oga.sh npqs              # also start the matching backend
+```
+
+Each name maps to a JSON file under [public/configs/](public/configs/) (`<name>.branding.json`). To onboard a new agency, copy [public/configs/default.branding.json](public/configs/default.branding.json), edit the `branding.*` fields, and add a new `case` to [../run-oga.sh](../run-oga.sh).
