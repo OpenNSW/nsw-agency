@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Layout } from './components/Layout'
-import { WorkflowListScreen } from './screens/WorkflowListScreen'
-import { WorkflowTasksScreen } from './screens/WorkflowTasksScreen'
-import { WorkflowDetailScreen } from './screens/WorkflowDetailScreen'
+import { ConsignmentListScreen } from './screens/ConsignmentListScreen'
+import { ConsignmentTasksScreen } from './screens/ConsignmentTasksScreen'
+import { ConsignmentDetailScreen } from './screens/ConsignmentDetailScreen'
 import { appConfig } from './config.ts'
 import { useEffect } from 'react'
 import { SignedOut, useAsgardeo } from '@asgardeo/react'
@@ -60,10 +60,10 @@ function App() {
       />
 
       <Route element={<ProtectedLayout />}>
-        <Route path="/" element={<Navigate to="/workflows" replace />} />
-        <Route path="/workflows" element={<WorkflowListScreen />} />
-        <Route path="/workflows/:workflowId/tasks" element={<WorkflowTasksScreen />} />
-        <Route path="/workflows/:workflowId" element={<WorkflowDetailScreen />} />
+        <Route path="/" element={<Navigate to="/consignments" replace />} />
+        <Route path="/consignments" element={<ConsignmentListScreen />} />
+        <Route path="/consignments/:consignmentId/tasks" element={<ConsignmentTasksScreen />} />
+        <Route path="/consignments/:consignmentId" element={<ConsignmentDetailScreen />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />

@@ -92,7 +92,7 @@ Single table: `applications`
 | Column              | Type         | Description                                        |
 |---------------------|--------------|----------------------------------------------------|
 | `task_id`           | TEXT         | Primary key (provided by NSW workflow)             |
-| `workflow_id`       | TEXT         | Related workflow identifier                        |
+| `consignment_id`    | TEXT         | Related consignment identifier                     |
 | `service_url`       | VARCHAR(512) | Callback URL for review responses                  |
 | `data`              | TEXT (JSON)  | Trader-submitted data                              |
 | `meta`              | TEXT (JSON)  | Form selection metadata (`type`, `verificationId`) |

@@ -14,7 +14,7 @@ import { radixRenderers } from '@opennsw/jsonforms-renderers'
 import type { JsonSchema, UISchemaElement } from '@jsonforms/core'
 import { useApi } from '../services/useApi'
 
-export function WorkflowDetailScreen() {
+export function ConsignmentDetailScreen() {
   const navigate = useNavigate()
   const apiClient = useApi()
 
@@ -43,7 +43,7 @@ export function WorkflowDetailScreen() {
     try {
       await submitFeedback(apiClient, taskId, { feedback: feedbackText.trim() })
       setSuccess(true)
-      setTimeout(() => navigate('/workflows'), 2000)
+      setTimeout(() => navigate('/consignments'), 2000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send feedback')
     } finally {
@@ -66,7 +66,7 @@ export function WorkflowDetailScreen() {
     try {
       await submitReview(apiClient, taskId, ogaFormData)
       setSuccess(true)
-      setTimeout(() => navigate('/workflows'), 2000)
+      setTimeout(() => navigate('/consignments'), 2000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit review')
     } finally {
@@ -124,7 +124,7 @@ export function WorkflowDetailScreen() {
           variant="soft"
           mt="4"
           onClick={() => {
-            void navigate('/workflows')
+            void navigate('/consignments')
           }}
         >
           <ArrowLeftIcon /> Back to List
@@ -146,7 +146,7 @@ export function WorkflowDetailScreen() {
           variant="soft"
           mt="4"
           onClick={() => {
-            void navigate('/workflows')
+            void navigate('/consignments')
           }}
         >
           <ArrowLeftIcon /> Back to List
@@ -174,7 +174,7 @@ export function WorkflowDetailScreen() {
           variant="ghost"
           color="gray"
           onClick={() => {
-            void navigate(`/workflows/${application.workflowId}/tasks`)
+            void navigate(`/consignments/${application.consignmentId}/tasks`)
           }}
         >
           <ArrowLeftIcon /> Back to Tasks
@@ -228,10 +228,10 @@ export function WorkflowDetailScreen() {
             <div className="space-y-4 mt-4">
               <Box>
                 <Text size="1" color="gray" as="div" mb="1">
-                  Workflow ID
+                  Consignment ID
                 </Text>
                 <Text size="2" weight="medium" className="break-all font-mono">
-                  {application.workflowId}
+                  {application.consignmentId}
                 </Text>
               </Box>
               <Box>
@@ -412,7 +412,7 @@ export function WorkflowDetailScreen() {
                           variant="soft"
                           color="gray"
                           onClick={() => {
-                            void navigate('/workflows')
+                            void navigate('/consignments')
                           }}
                           disabled={isSubmitting || isSendingFeedback}
                           type="button"

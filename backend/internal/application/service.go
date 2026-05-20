@@ -24,11 +24,11 @@ type Service interface {
 	// CreateApplication creates a new application from injected data
 	CreateApplication(ctx context.Context, req *InjectRequest) error
 
-	// GetApplications returns a paginated list of applications (optionally filtered by status, workflow, or search)
-	GetApplications(ctx context.Context, status string, workflowID string, search string, page, pageSize int) (*PagedResponse[Application], error)
+	// GetApplications returns a paginated list of applications (optionally filtered by status, consignment, or search)
+	GetApplications(ctx context.Context, status string, consignmentID string, search string, page, pageSize int) (*PagedResponse[Application], error)
 
-	// GetWorkflows returns a paginated list of unique workflows with their latest status (optionally filtered by search)
-	GetWorkflows(ctx context.Context, search string, page, pageSize int) (*PagedResponse[WorkflowSummary], error)
+	// GetConsignments returns a paginated list of unique consignments with their latest status (optionally filtered by search)
+	GetConsignments(ctx context.Context, search string, page, pageSize int) (*PagedResponse[ConsignmentSummary], error)
 
 	// GetApplication returns a specific application by task ID
 	GetApplication(ctx context.Context, taskID string) (*Application, error)
@@ -48,7 +48,7 @@ type Service interface {
 type InjectRequest struct {
 	TaskID             string           `json:"taskId"`
 	TaskCode           string           `json:"taskCode"`
-	WorkflowID         string           `json:"workflowId"`
+	ConsignmentID         string           `json:"consignmentId"`
 	Data               map[string]any   `json:"data"`
 	ServiceURL         string           `json:"serviceUrl"` // URL to send response back to
 	OGAFeedbackHistory []map[string]any `json:"ogaFeedbackHistory,omitempty"`
@@ -58,7 +58,7 @@ type InjectRequest struct {
 type Application struct {
 	TaskID        string         `json:"taskId"`
 	TaskCode      string         `json:"taskCode"`
-	WorkflowID    string         `json:"workflowId"`
+	ConsignmentID    string         `json:"consignmentId"`
 	ServiceURL    string         `json:"serviceUrl"`
 	Data          map[string]any `json:"data"`                    // Data from NSW service to be rendered in the UI
 	OgaActionData map[string]any `json:"ogaActionData,omitempty"` // Copy of the payload sent back to the NSW after review, for display in the UI
@@ -89,7 +89,7 @@ type PagedResponse[T any] struct {
 // TaskResponse represents the response sent back to the service
 type TaskResponse struct {
 	TaskID     string `json:"task_id"`
-	WorkflowID string `json:"workflow_id"`
+	ConsignmentID string `json:"consignment_id"`
 	Payload    any    `json:"payload"`
 }
 
@@ -115,7 +115,7 @@ func NewService(store *ApplicationStore, configStore *taskconfig.TaskConfigStore
 
 // CreateApplication creates a new application from injected data.
 func (s *service) CreateApplication(ctx context.Context, req *InjectRequest) error {
-	if req.TaskID == "" || req.TaskCode == "" || req.WorkflowID == "" || req.ServiceURL == "" {
+	if req.TaskID == "" || req.TaskCode == "" || req.ConsignmentID == "" || req.ServiceURL == "" {
 		return fmt.Errorf("missing required fields in InjectRequest")
 	}
 
@@ -133,7 +133,7 @@ func (s *service) CreateApplication(ctx context.Context, req *InjectRequest) err
 	appRecord := &ApplicationRecord{
 		TaskID:     req.TaskID,
 		TaskCode:   req.TaskCode,
-		WorkflowID: req.WorkflowID,
+		ConsignmentID: req.ConsignmentID,
 		ServiceURL: req.ServiceURL,
 		Data:       req.Data,
 		Status:     "PENDING",
@@ -143,7 +143,7 @@ func (s *service) CreateApplication(ctx context.Context, req *InjectRequest) err
 }
 
 // GetApplications returns a paginated list of applications
-func (s *service) GetApplications(ctx context.Context, status string, workflowID string, search string, page, pageSize int) (*PagedResponse[Application], error) {
+func (s *service) GetApplications(ctx context.Context, status string, consignmentID string, search string, page, pageSize int) (*PagedResponse[Application], error) {
 	if page < 1 {
 		page = 1
 	}
@@ -152,7 +152,7 @@ func (s *service) GetApplications(ctx context.Context, status string, workflowID
 	}
 
 	offset := (page - 1) * pageSize
-	records, total, err := s.store.List(ctx, status, workflowID, search, offset, pageSize)
+	records, total, err := s.store.List(ctx, status, consignmentID, search, offset, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func (s *service) GetApplications(ctx context.Context, status string, workflowID
 		app := Application{
 			TaskID:     record.TaskID,
 			TaskCode:   record.TaskCode,
-			WorkflowID: record.WorkflowID,
+			ConsignmentID: record.ConsignmentID,
 			ServiceURL: record.ServiceURL,
 			Data:       record.Data,
 			Status:     record.Status,
@@ -189,8 +189,8 @@ func (s *service) GetApplications(ctx context.Context, status string, workflowID
 	}, nil
 }
 
-// GetWorkflows returns a paginated list of unique workflows
-func (s *service) GetWorkflows(ctx context.Context, search string, page, pageSize int) (*PagedResponse[WorkflowSummary], error) {
+// GetConsignments returns a paginated list of unique consignments
+func (s *service) GetConsignments(ctx context.Context, search string, page, pageSize int) (*PagedResponse[ConsignmentSummary], error) {
 	if page < 1 {
 		page = 1
 	}
@@ -199,12 +199,12 @@ func (s *service) GetWorkflows(ctx context.Context, search string, page, pageSiz
 	}
 
 	offset := (page - 1) * pageSize
-	summaries, total, err := s.store.ListWorkflows(ctx, search, offset, pageSize)
+	summaries, total, err := s.store.ListConsignments(ctx, search, offset, pageSize)
 	if err != nil {
 		return nil, err
 	}
 
-	return &PagedResponse[WorkflowSummary]{
+	return &PagedResponse[ConsignmentSummary]{
 		Items:    summaries,
 		Total:    total,
 		Page:     page,
@@ -225,7 +225,7 @@ func (s *service) GetApplication(ctx context.Context, taskID string) (*Applicati
 	app := &Application{
 		TaskID:          record.TaskID,
 		TaskCode:        record.TaskCode,
-		WorkflowID:      record.WorkflowID,
+		ConsignmentID:      record.ConsignmentID,
 		ServiceURL:      record.ServiceURL,
 		Data:            record.Data,
 		OgaActionData:   record.ReviewerResponse,
@@ -274,7 +274,7 @@ func (s *service) ReviewApplication(ctx context.Context, taskID string, reviewer
 
 	response := TaskResponse{
 		TaskID:     app.TaskID,
-		WorkflowID: app.WorkflowID,
+		ConsignmentID: app.ConsignmentID,
 		Payload: map[string]any{
 			"action":  "OGA_VERIFICATION",
 			"content": reviewerResponse,
@@ -316,7 +316,7 @@ func (s *service) FeedbackApplication(ctx context.Context, taskID string, conten
 
 	response := TaskResponse{
 		TaskID:     app.TaskID,
-		WorkflowID: app.WorkflowID,
+		ConsignmentID: app.ConsignmentID,
 		Payload: map[string]any{
 			"action":  "OGA_VERIFICATION_FEEDBACK",
 			"content": content,

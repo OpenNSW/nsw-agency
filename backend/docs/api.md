@@ -30,7 +30,7 @@ POST /api/oga/inject
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `taskId` | string | Yes | Task identifier from the workflow |
-| `workflowId` | string | Yes | Parent workflow identifier |
+| `consignmentId` | string | Yes | Parent consignment identifier |
 | `serviceUrl` | string | Yes | Callback URL where review results will be POSTed |
 | `data` | object | No | Trader-submitted data to display during review |
 | `meta` | object | No | Metadata for form selection (see [Dynamic Forms](dynamic-forms.md)) |
@@ -44,7 +44,7 @@ curl -X POST http://localhost:8081/api/oga/inject \
   -H "Content-Type: application/json" \
   -d '{
     "taskId": "927adaaa-b959-4648-880a-16508acafc12",
-    "workflowId": "cefda05e-3071-4e94-b001-328094e570a7",
+    "consignmentId": "cefda05e-3071-4e94-b001-328094e570a7",
     "serviceUrl": "http://localhost:8080/api/v1/tasks",
     "data": {
       "countryOfOrigin": "LK",
@@ -104,7 +104,7 @@ curl "http://localhost:8081/api/oga/applications?status=PENDING&page=1&pageSize=
   "items": [
     {
       "taskId": "927adaaa-b959-4648-880a-16508acafc12",
-      "workflowId": "cefda05e-3071-4e94-b001-328094e570a7",
+      "consignmentId": "cefda05e-3071-4e94-b001-328094e570a7",
       "serviceUrl": "http://localhost:8080/api/v1/tasks",
       "data": {
         "countryOfOrigin": "LK",
@@ -150,7 +150,7 @@ curl "http://localhost:8081/api/oga/applications/927adaaa-b959-4648-880a-16508ac
 ```json
 {
   "taskId": "927adaaa-b959-4648-880a-16508acafc12",
-  "workflowId": "cefda05e-3071-4e94-b001-328094e570a7",
+  "consignmentId": "cefda05e-3071-4e94-b001-328094e570a7",
   "serviceUrl": "http://localhost:8080/api/v1/tasks",
   "data": {
     "countryOfOrigin": "LK",
@@ -251,7 +251,7 @@ After a successful review, the service POSTs the following to the `serviceUrl`:
 ```json
 {
   "task_id": "927adaaa-b959-4648-880a-16508acafc12",
-  "workflow_id": "cefda05e-3071-4e94-b001-328094e570a7",
+  "consignment_id": "cefda05e-3071-4e94-b001-328094e570a7",
   "payload": {
     "action": "OGA_VERIFICATION",
     "content": {

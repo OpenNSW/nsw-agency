@@ -34,7 +34,7 @@ export function LoginScreen() {
             <div className="flex flex-col xl:flex-row items-center gap-8 xl:gap-12">
               <div className="flex flex-col items-center xl:items-start text-center xl:text-left">
                 <h2 className="text-2xl font-bold text-white tracking-wide">{portalName || appName}</h2>
-                <p className="text-white/60 text-xs mt-1">Sign in to continue to your workflows.</p>
+                <p className="text-white/60 text-xs mt-1">Sign in to continue to your consignments.</p>
               </div>
 
               <button

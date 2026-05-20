@@ -143,7 +143,7 @@ func (h *serviceHarness) seed(taskID, taskCode string, data JSONB) {
 	err := h.store.CreateOrUpdate(&ApplicationRecord{
 		TaskID:     taskID,
 		TaskCode:   taskCode,
-		WorkflowID: "wf-test",
+		ConsignmentID: "wf-test",
 		ServiceURL: h.callbackURL,
 		Data:       data,
 		Status:     "PENDING",

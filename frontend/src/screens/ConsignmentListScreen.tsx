@@ -2,15 +2,15 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Badge, Text, TextField, Spinner, IconButton } from '@radix-ui/themes'
 import { MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, ArchiveIcon } from '@radix-ui/react-icons'
-import { fetchWorkflows, type WorkflowSummary } from '../api'
+import { fetchConsignments, type ConsignmentSummary } from '../api'
 import { useApi } from '../services/useApi'
 
 const PAGE_SIZE = 20
 
-export function WorkflowListScreen() {
+export function ConsignmentListScreen() {
   const navigate = useNavigate()
   const apiClient = useApi()
-  const [workflows, setWorkflows] = useState<WorkflowSummary[]>([])
+  const [consignments, setConsignments] = useState<ConsignmentSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [page, setPage] = useState(1)
@@ -22,12 +22,12 @@ export function WorkflowListScreen() {
     async function fetchData(isSilent = false) {
       try {
         if (!isSilent) setLoading(true)
-        const result = await fetchWorkflows(apiClient, {
+        const result = await fetchConsignments(apiClient, {
           page,
           pageSize: PAGE_SIZE,
           q: searchQuery,
         })
-        setWorkflows(result.items || [])
+        setConsignments(result.items || [])
         setTotal(result.total || 0)
         // Reset to page 1 if current page is out of bounds
         const maxPages = Math.max(1, Math.ceil((result.total || 0) / PAGE_SIZE))
@@ -35,13 +35,13 @@ export function WorkflowListScreen() {
           setPage(1)
         }
       } catch (error) {
-        console.error('Failed to fetch workflows:', error)
+        console.error('Failed to fetch consignments:', error)
       } finally {
         if (!isSilent) setLoading(false)
       }
     }
     void fetchData()
-    // Poll for new workflows every 15 seconds
+    // Poll for new consignments every 15 seconds
     const interval = setInterval(() => void fetchData(true), 15000)
     return () => clearInterval(interval)
   }, [apiClient, page, searchQuery])
@@ -102,7 +102,7 @@ export function WorkflowListScreen() {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          {workflows.length === 0 ? (
+          {consignments.length === 0 ? (
             <div className="p-12 text-center">
               <div className="bg-white w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-gray-100">
                 <ArchiveIcon className="w-8 h-8 text-gray-300" />
@@ -131,16 +131,16 @@ export function WorkflowListScreen() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
-                  {workflows.map((wf) => (
+                  {consignments.map((wf) => (
                     <tr
-                      key={wf.workflowId}
+                      key={wf.consignmentId}
                       onClick={() => {
-                        void navigate(`/workflows/${wf.workflowId}/tasks`)
+                        void navigate(`/consignments/${wf.consignmentId}/tasks`)
                       }}
                       className="hover:bg-blue-50/30 cursor-pointer transition-colors group text-sm"
                     >
                       <td className="px-6 py-4 break-all font-mono text-blue-600 font-medium hover:underline">
-                        {wf.workflowId}
+                        {wf.consignmentId}
                       </td>
 
                       <td className="px-6 py-4 whitespace-nowrap text-center">{wf.taskCount}</td>

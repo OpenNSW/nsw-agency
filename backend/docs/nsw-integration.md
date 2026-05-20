@@ -89,7 +89,7 @@ When an OGA officer reviews an application, the OGA service POSTs a callback to 
 ```json
 {
   "task_id": "927adaaa-b959-4648-880a-16508acafc12",
-  "workflow_id": "cefda05e-3071-4e94-b001-328094e570a7",
+  "consignment_id": "cefda05e-3071-4e94-b001-328094e570a7",
   "payload": {
     "action": "OGA_VERIFICATION",
     "content": {
@@ -105,7 +105,7 @@ When an OGA officer reviews an application, the OGA service POSTs a callback to 
 The NSW backend processes this callback:
 
 1. Looks up the task by `task_id`
-2. Validates that `workflow_id` matches
+2. Validates that `consignment_id` matches
 3. Passes the payload to `plugin.Execute()` with action `OGA_VERIFICATION`
 4. The SimpleForm plugin stores the OGA response in its local state
 5. Based on the `decision` field:

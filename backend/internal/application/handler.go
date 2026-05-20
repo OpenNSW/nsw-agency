@@ -70,7 +70,7 @@ func (h *Handler) HandleInjectData(w http.ResponseWriter, r *http.Request) {
 
 	slog.InfoContext(ctx, "data injected successfully",
 		"taskID", req.TaskID,
-		"workflowID", req.WorkflowID)
+		"consignmentID", req.ConsignmentID)
 
 	httputil.WriteJSONResponse(w, http.StatusCreated, map[string]any{
 		"success": true,
@@ -80,7 +80,7 @@ func (h *Handler) HandleInjectData(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleGetApplications handles GET /api/oga/applications
-// Returns all applications, optionally filtered by status, workflowId, or q query parameter
+// Returns all applications, optionally filtered by status, consignmentId, or q query parameter
 func (h *Handler) HandleGetApplications(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		httputil.WriteJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
@@ -89,7 +89,7 @@ func (h *Handler) HandleGetApplications(w http.ResponseWriter, r *http.Request) 
 
 	ctx := r.Context()
 	status := r.URL.Query().Get("status")
-	workflowID := r.URL.Query().Get("workflowId")
+	consignmentID := r.URL.Query().Get("consignmentId")
 	search := r.URL.Query().Get("q")
 
 	page, err := strconv.Atoi(r.URL.Query().Get("page"))
@@ -103,7 +103,7 @@ func (h *Handler) HandleGetApplications(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	result, err := h.service.GetApplications(ctx, status, workflowID, search, page, pageSize)
+	result, err := h.service.GetApplications(ctx, status, consignmentID, search, page, pageSize)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get applications", "error", err)
 		httputil.WriteJSONError(w, http.StatusInternalServerError, "Failed to get applications")
@@ -113,9 +113,9 @@ func (h *Handler) HandleGetApplications(w http.ResponseWriter, r *http.Request) 
 	httputil.WriteJSONResponse(w, http.StatusOK, result)
 }
 
-// HandleGetWorkflows handles GET /api/oga/workflows
-// Returns a paginated list of unique workflows with their latest status, optionally filtered by q
-func (h *Handler) HandleGetWorkflows(w http.ResponseWriter, r *http.Request) {
+// HandleGetConsignments handles GET /api/oga/consignments
+// Returns a paginated list of unique consignments with their latest status, optionally filtered by q
+func (h *Handler) HandleGetConsignments(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		httputil.WriteJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
@@ -135,10 +135,10 @@ func (h *Handler) HandleGetWorkflows(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.service.GetWorkflows(ctx, search, page, pageSize)
+	result, err := h.service.GetConsignments(ctx, search, page, pageSize)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get workflows", "error", err)
-		httputil.WriteJSONError(w, http.StatusInternalServerError, "Failed to get workflows")
+		slog.ErrorContext(ctx, "failed to get consignments", "error", err)
+		httputil.WriteJSONError(w, http.StatusInternalServerError, "Failed to get consignments")
 		return
 	}
 

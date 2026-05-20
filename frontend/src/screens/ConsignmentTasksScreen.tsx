@@ -7,8 +7,8 @@ import { useApi } from '../services/useApi'
 
 const PAGE_SIZE = 20
 
-export function WorkflowTasksScreen() {
-  const { workflowId } = useParams<{ workflowId: string }>()
+export function ConsignmentTasksScreen() {
+  const { consignmentId } = useParams<{ consignmentId: string }>()
   const navigate = useNavigate()
   const apiClient = useApi()
   const [applications, setApplications] = useState<OGAApplication[]>([])
@@ -20,11 +20,11 @@ export function WorkflowTasksScreen() {
 
   useEffect(() => {
     async function fetchData() {
-      if (!workflowId) return
+      if (!consignmentId) return
       try {
         setLoading(true)
         const result = await fetchApplications(apiClient, {
-          workflowId,
+          consignmentId,
           page,
           pageSize: PAGE_SIZE,
         })
@@ -38,7 +38,7 @@ export function WorkflowTasksScreen() {
     }
 
     void fetchData()
-  }, [apiClient, workflowId, page])
+  }, [apiClient, consignmentId, page])
 
   const formatDateForTable = (dateString?: string) => {
     if (!dateString) return '-'
@@ -66,7 +66,7 @@ export function WorkflowTasksScreen() {
         <Button
           variant="ghost"
           onClick={() => {
-            void navigate('/workflows')
+            void navigate('/consignments')
           }}
           className="mb-4 -ml-2 text-gray-600 hover:text-blue-600"
         >
@@ -76,7 +76,7 @@ export function WorkflowTasksScreen() {
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">Consignment Tasks</h1>
             <Text size="2" color="gray" className="font-mono">
-              ConsignmentId: {workflowId}
+              ConsignmentId: {consignmentId}
             </Text>
           </div>
           <Badge color="blue" variant="soft" size="2">
@@ -113,7 +113,7 @@ export function WorkflowTasksScreen() {
                   <tr
                     key={app.taskId}
                     onClick={() => {
-                      void navigate(`/workflows/${app.workflowId}?taskId=${app.taskId}`)
+                      void navigate(`/consignments/${app.consignmentId}?taskId=${app.taskId}`)
                     }}
                     className="hover:bg-blue-50/30 cursor-pointer transition-colors group text-sm"
                   >

@@ -23,7 +23,7 @@ interface NavGroup {
 type NavItemOrGroup = NavItem | NavGroup
 
 const navStructure: NavItemOrGroup[] = [
-  { name: 'Workflows', path: '/workflows', icon: <ArchiveIcon className="w-5 h-5" /> },
+  { name: 'Consignments', path: '/consignments', icon: <ArchiveIcon className="w-5 h-5" /> },
 ]
 
 function isNavGroup(item: NavItemOrGroup): item is NavGroup {

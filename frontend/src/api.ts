@@ -113,7 +113,7 @@ export interface FormDefinition {
 
 export interface OGAApplication {
   taskId: string
-  workflowId: string
+  consignmentId: string
   serviceUrl: string
   data: Record<string, unknown>
   ogaActionData?: Record<string, unknown>
@@ -136,8 +136,8 @@ export interface OGAApplication {
   updatedAt: string
 }
 
-export interface WorkflowSummary {
-  workflowId: string
+export interface ConsignmentSummary {
+  consignmentId: string
   updatedAt: string
   status: string
   taskCount: number
@@ -150,13 +150,13 @@ export interface PaginatedResponse<T> {
   pageSize: number
 }
 
-export async function fetchWorkflows(
+export async function fetchConsignments(
   apiClient: ApiClient,
   params?: { q?: string; page?: number; pageSize?: number },
   signal?: AbortSignal,
-): Promise<PaginatedResponse<WorkflowSummary>> {
-  return apiClient.get<PaginatedResponse<WorkflowSummary>>(
-    '/api/oga/workflows',
+): Promise<PaginatedResponse<ConsignmentSummary>> {
+  return apiClient.get<PaginatedResponse<ConsignmentSummary>>(
+    '/api/oga/consignments',
     {
       q: params?.q,
       page: params?.page,
@@ -168,14 +168,14 @@ export async function fetchWorkflows(
 
 export async function fetchApplications(
   apiClient: ApiClient,
-  params?: { status?: string; workflowId?: string; q?: string; page?: number; pageSize?: number },
+  params?: { status?: string; consignmentId?: string; q?: string; page?: number; pageSize?: number },
   signal?: AbortSignal,
 ): Promise<PaginatedResponse<OGAApplication>> {
   return apiClient.get<PaginatedResponse<OGAApplication>>(
     '/api/oga/applications',
     {
       status: params?.status,
-      workflowId: params?.workflowId,
+      consignmentId: params?.consignmentId,
       q: params?.q,
       page: params?.page,
       pageSize: params?.pageSize,

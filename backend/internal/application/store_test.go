@@ -58,7 +58,7 @@ func seedRecord(t *testing.T, store *ApplicationStore, taskID string, data JSONB
 	err := store.CreateOrUpdate(&ApplicationRecord{
 		TaskID:     taskID,
 		TaskCode:   "verification:123",
-		WorkflowID: "wf-seed",
+		ConsignmentID: "wf-seed",
 		ServiceURL: "http://test",
 		Data:       data,
 		Status:     "PENDING",
@@ -220,7 +220,7 @@ func TestApplicationStore_JSONB_NilData(t *testing.T) {
 	err := store.CreateOrUpdate(&ApplicationRecord{
 		TaskID:     "task-nil-data",
 		TaskCode:   "verification:123",
-		WorkflowID: "wf-1",
+		ConsignmentID: "wf-1",
 		ServiceURL: "http://test",
 		Data:       nil,
 	})
@@ -290,17 +290,17 @@ func TestApplicationStore_List_Pagination(t *testing.T) {
 	}
 }
 
-func TestApplicationStore_List_WorkflowFilter(t *testing.T) {
+func TestApplicationStore_List_ConsignmentFilter(t *testing.T) {
 	store := newTestStore(t)
 	ctx := context.Background()
 
-	seedRecord(t, store, "t1", nil) // workflow: wf-seed (default from seedRecord)
+	seedRecord(t, store, "t1", nil) // consignment: wf-seed (default from seedRecord)
 	seedRecord(t, store, "t2", nil)
 
-	// Create another workflow
+	// Create another consignment
 	err := store.CreateOrUpdate(&ApplicationRecord{
 		TaskID:     "t3",
-		WorkflowID: "wf-custom",
+		ConsignmentID: "wf-custom",
 		Status:     "PENDING",
 	})
 	if err != nil {
@@ -329,30 +329,30 @@ func TestApplicationStore_List_WorkflowFilter(t *testing.T) {
 	}
 }
 
-func TestApplicationStore_ListWorkflows(t *testing.T) {
+func TestApplicationStore_ListConsignments(t *testing.T) {
 	store := newTestStore(t)
 	ctx := context.Background()
 
-	// Seed records across 3 workflows
+	// Seed records across 3 consignments
 	// WF1: 2 tasks
 	seedRecord(t, store, "wf1-t1", nil)
-	_ = store.CreateOrUpdate(&ApplicationRecord{TaskID: "wf1-t1", WorkflowID: "wf1", Status: "PENDING"})
-	_ = store.CreateOrUpdate(&ApplicationRecord{TaskID: "wf1-t2", WorkflowID: "wf1", Status: "APPROVED"})
+	_ = store.CreateOrUpdate(&ApplicationRecord{TaskID: "wf1-t1", ConsignmentID: "wf1", Status: "PENDING"})
+	_ = store.CreateOrUpdate(&ApplicationRecord{TaskID: "wf1-t2", ConsignmentID: "wf1", Status: "APPROVED"})
 
 	// WF2: 1 task
-	_ = store.CreateOrUpdate(&ApplicationRecord{TaskID: "wf2-t1", WorkflowID: "wf2", Status: "PENDING"})
+	_ = store.CreateOrUpdate(&ApplicationRecord{TaskID: "wf2-t1", ConsignmentID: "wf2", Status: "PENDING"})
 
 	// WF3: 1 task
-	_ = store.CreateOrUpdate(&ApplicationRecord{TaskID: "wf3-t1", WorkflowID: "wf3", Status: "REJECTED"})
+	_ = store.CreateOrUpdate(&ApplicationRecord{TaskID: "wf3-t1", ConsignmentID: "wf3", Status: "REJECTED"})
 
-	// List workflows
-	summaries, total, err := store.ListWorkflows(ctx, "", 0, 10)
+	// List consignments
+	summaries, total, err := store.ListConsignments(ctx, "", 0, 10)
 	if err != nil {
-		t.Fatalf("ListWorkflows failed: %v", err)
+		t.Fatalf("ListConsignments failed: %v", err)
 	}
 
 	if total != 3 {
-		t.Errorf("expected 3 unique workflows, got %d", total)
+		t.Errorf("expected 3 unique consignments, got %d", total)
 	}
 	if len(summaries) != 3 {
 		t.Errorf("expected 3 summaries returned, got %d", len(summaries))
@@ -361,7 +361,7 @@ func TestApplicationStore_ListWorkflows(t *testing.T) {
 	// Verify task counts
 	foundWF1 := false
 	for _, s := range summaries {
-		if s.WorkflowID == "wf1" {
+		if s.ConsignmentID == "wf1" {
 			foundWF1 = true
 			if s.TaskCount != 2 {
 				t.Errorf("expected 2 tasks for wf1, got %d", s.TaskCount)
@@ -373,23 +373,23 @@ func TestApplicationStore_ListWorkflows(t *testing.T) {
 	}
 }
 
-func TestApplicationStore_ListWorkflows_Search(t *testing.T) {
+func TestApplicationStore_ListConsignments_Search(t *testing.T) {
 	store := newTestStore(t)
 	ctx := context.Background()
 
-	_ = store.CreateOrUpdate(&ApplicationRecord{TaskID: "t1", WorkflowID: "alpha-wf", Status: "PENDING"})
-	_ = store.CreateOrUpdate(&ApplicationRecord{TaskID: "t2", WorkflowID: "beta-wf", Status: "PENDING"})
+	_ = store.CreateOrUpdate(&ApplicationRecord{TaskID: "t1", ConsignmentID: "alpha-wf", Status: "PENDING"})
+	_ = store.CreateOrUpdate(&ApplicationRecord{TaskID: "t2", ConsignmentID: "beta-wf", Status: "PENDING"})
 
-	summaries, total, err := store.ListWorkflows(ctx, "alpha", 0, 10)
+	summaries, total, err := store.ListConsignments(ctx, "alpha", 0, 10)
 	if err != nil {
-		t.Fatalf("ListWorkflows failed: %v", err)
+		t.Fatalf("ListConsignments failed: %v", err)
 	}
 
 	if total != 1 {
 		t.Errorf("expected total 1, got %d", total)
 	}
-	if summaries[0].WorkflowID != "alpha-wf" {
-		t.Errorf("expected alpha-wf, got %s", summaries[0].WorkflowID)
+	if summaries[0].ConsignmentID != "alpha-wf" {
+		t.Errorf("expected alpha-wf, got %s", summaries[0].ConsignmentID)
 	}
 }
 

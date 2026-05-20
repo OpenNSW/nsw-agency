@@ -33,7 +33,7 @@ export async function initAppConfig(): Promise<void> {
           systemName: 'NSW',
           appName: 'OGA Officer Portal',
           portalName: 'OGA Portal',
-          description: 'A unified digital platform enabling regulatory workflows.',
+          description: 'A unified digital platform enabling regulatory consignments.',
         },
       }
     }
