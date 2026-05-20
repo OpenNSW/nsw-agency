@@ -1,6 +1,9 @@
 package application
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -37,4 +40,41 @@ func TestNewHandler(t *testing.T) {
 			t.Error("expected error for zero MaxRequestBytes, got nil")
 		}
 	})
+}
+
+func TestHandleInjectData_BodyTooLarge(t *testing.T) {
+	handler, err := NewHandler(&mockService{}, 10)
+	if err != nil {
+		t.Fatalf("unexpected error creating handler: %v", err)
+	}
+
+	// Valid JSON prefix that forces the decoder to read past the 10-byte limit.
+	body := strings.NewReader(`{"key":"` + strings.Repeat("a", 100) + `"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/oga/inject", body)
+	w := httptest.NewRecorder()
+
+	handler.HandleInjectData(w, req)
+
+	if w.Code != http.StatusRequestEntityTooLarge {
+		t.Errorf("expected status %d, got %d", http.StatusRequestEntityTooLarge, w.Code)
+	}
+}
+
+func TestHandleReviewApplication_BodyTooLarge(t *testing.T) {
+	handler, err := NewHandler(&mockService{}, 10)
+	if err != nil {
+		t.Fatalf("unexpected error creating handler: %v", err)
+	}
+
+	// Valid JSON prefix that forces the decoder to read past the 10-byte limit.
+	body := strings.NewReader(`{"key":"` + strings.Repeat("a", 100) + `"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/oga/applications/task-123/review", body)
+	req.SetPathValue("taskId", "task-123")
+	w := httptest.NewRecorder()
+
+	handler.HandleReviewApplication(w, req)
+
+	if w.Code != http.StatusRequestEntityTooLarge {
+		t.Errorf("expected status %d, got %d", http.StatusRequestEntityTooLarge, w.Code)
+	}
 }
