@@ -48,8 +48,15 @@ func (h *Handler) HandleInjectData(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
+	r.Body = http.MaxBytesReader(w, r.Body, h.MaxRequestBytes)
+
 	var req InjectRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			httputil.WriteJSONError(w, http.StatusRequestEntityTooLarge, "Request body too large")
+			return
+		}
 		httputil.WriteJSONError(w, http.StatusBadRequest, "Invalid request body: "+err.Error())
 		return
 	}
@@ -193,10 +200,17 @@ func (h *Handler) HandleReviewApplication(w http.ResponseWriter, r *http.Request
 
 	ctx := r.Context()
 
+	r.Body = http.MaxBytesReader(w, r.Body, h.MaxRequestBytes)
+
 	// Parse request body
 	var requestBody map[string]any
 
 	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			httputil.WriteJSONError(w, http.StatusRequestEntityTooLarge, "Request body too large")
+			return
+		}
 		httputil.WriteJSONError(w, http.StatusBadRequest, "Invalid request body: "+err.Error())
 		return
 	}
