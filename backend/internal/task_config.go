@@ -10,7 +10,7 @@ import (
 )
 
 // TaskConfig is the per-taskCode configuration: UI metadata, references to
-// forms in the FormStore, and outcome-to-status behavior.
+// forms in the form.FormStore, and outcome-to-status behavior.
 type TaskConfig struct {
 	TaskCode string        `json:"taskCode"`
 	Meta     TaskMeta      `json:"meta"`
@@ -26,7 +26,7 @@ type TaskMeta struct {
 	Category    string `json:"category,omitempty"`
 }
 
-// TaskForms holds form IDs (filenames without .json) resolved against the FormStore.
+// TaskForms holds form IDs (filenames without .json) resolved against the form.FormStore.
 type TaskForms struct {
 	View   string `json:"view,omitempty"`
 	Review string `json:"review,omitempty"`

@@ -11,8 +11,18 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/OpenNSW/nsw-agency/backend/internal/form"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 )
+
+// writeFormFile writes content to <root>/forms/<name>.
+func writeFormFile(t *testing.T, root, name, content string) {
+	t.Helper()
+	path := filepath.Join(root, form.FormsSubdir, name)
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("failed to write %s: %v", path, err)
+	}
+}
 
 // ---------- service test harness ----------
 
@@ -59,7 +69,7 @@ type serviceHarness struct {
 	t           *testing.T
 	store       *ApplicationStore
 	configStore *TaskConfigStore
-	formStore   *FormStore
+	formStore   *form.FormStore
 	httpClient  *httpclient.Client
 	callbackURL string
 	capture     *callbackCapture
@@ -75,7 +85,7 @@ func newServiceHarness(t *testing.T, writeFn func(root string), defaultConfigID 
 	t.Helper()
 
 	root := t.TempDir()
-	for _, sub := range []string{TaskConfigsSubdir, FormsSubdir} {
+	for _, sub := range []string{TaskConfigsSubdir, form.FormsSubdir} {
 		if err := os.MkdirAll(filepath.Join(root, sub), 0o755); err != nil {
 			t.Fatalf("failed to create %s dir: %v", sub, err)
 		}
@@ -91,7 +101,7 @@ func newServiceHarness(t *testing.T, writeFn func(root string), defaultConfigID 
 		t.Fatalf("NewTaskConfigStore failed: %v", err)
 	}
 
-	formStore, err := NewFormStore(root)
+	formStore, err := form.NewFormStore(root)
 	if err != nil {
 		t.Fatalf("NewFormStore failed: %v", err)
 	}

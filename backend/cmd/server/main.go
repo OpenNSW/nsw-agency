@@ -13,6 +13,7 @@ import (
 
 	"github.com/OpenNSW/nsw-agency/backend/internal"
 	"github.com/OpenNSW/nsw-agency/backend/internal/feedback"
+	"github.com/OpenNSW/nsw-agency/backend/internal/form"
 	"github.com/OpenNSW/nsw-agency/backend/internal/storage"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 )
@@ -41,7 +42,7 @@ func main() {
 		log.Fatalf("failed to create task config store: %v", err)
 	}
 	// Initialize form store
-	formStore, err := internal.NewFormStore(cfg.ConfigDir)
+	formStore, err := form.NewFormStore(cfg.ConfigDir)
 	if err != nil {
 		log.Fatalf("failed to create form store: %v", err)
 	}
