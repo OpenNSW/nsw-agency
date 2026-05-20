@@ -101,6 +101,9 @@ type ogaService struct {
 
 // NewOGAService creates a new OGA service instance with database storage
 func NewOGAService(store *ApplicationStore, configStore *TaskConfigStore, formStore *form.FormStore, httpClient *httpclient.Client) OGAService {
+	if store == nil || configStore == nil || formStore == nil || httpClient == nil {
+		panic("NewOGAService: all dependencies must be non-nil")
+	}
 	return &ogaService{
 		store:       store,
 		configStore: configStore,
