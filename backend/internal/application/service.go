@@ -48,7 +48,7 @@ type Service interface {
 type InjectRequest struct {
 	TaskID             string           `json:"taskId"`
 	TaskCode           string           `json:"taskCode"`
-	ConsignmentID         string           `json:"consignmentId"`
+	ConsignmentID      string           `json:"consignmentId"`
 	Data               map[string]any   `json:"data"`
 	ServiceURL         string           `json:"serviceUrl"` // URL to send response back to
 	OGAFeedbackHistory []map[string]any `json:"ogaFeedbackHistory,omitempty"`
@@ -58,7 +58,7 @@ type InjectRequest struct {
 type Application struct {
 	TaskID        string         `json:"taskId"`
 	TaskCode      string         `json:"taskCode"`
-	ConsignmentID    string         `json:"consignmentId"`
+	ConsignmentID string         `json:"consignmentId"`
 	ServiceURL    string         `json:"serviceUrl"`
 	Data          map[string]any `json:"data"`                    // Data from NSW service to be rendered in the UI
 	OgaActionData map[string]any `json:"ogaActionData,omitempty"` // Copy of the payload sent back to the NSW after review, for display in the UI
@@ -88,9 +88,9 @@ type PagedResponse[T any] struct {
 
 // TaskResponse represents the response sent back to the service
 type TaskResponse struct {
-	TaskID     string `json:"task_id"`
+	TaskID        string `json:"task_id"`
 	ConsignmentID string `json:"consignment_id"`
-	Payload    any    `json:"payload"`
+	Payload       any    `json:"payload"`
 }
 
 type service struct {
@@ -131,12 +131,12 @@ func (s *service) CreateApplication(ctx context.Context, req *InjectRequest) err
 	}
 
 	appRecord := &ApplicationRecord{
-		TaskID:     req.TaskID,
-		TaskCode:   req.TaskCode,
+		TaskID:        req.TaskID,
+		TaskCode:      req.TaskCode,
 		ConsignmentID: req.ConsignmentID,
-		ServiceURL: req.ServiceURL,
-		Data:       req.Data,
-		Status:     "PENDING",
+		ServiceURL:    req.ServiceURL,
+		Data:          req.Data,
+		Status:        "PENDING",
 	}
 
 	return s.store.CreateOrUpdate(appRecord)
@@ -160,15 +160,15 @@ func (s *service) GetApplications(ctx context.Context, status string, consignmen
 	applications := make([]Application, len(records))
 	for i, record := range records {
 		app := Application{
-			TaskID:     record.TaskID,
-			TaskCode:   record.TaskCode,
+			TaskID:        record.TaskID,
+			TaskCode:      record.TaskCode,
 			ConsignmentID: record.ConsignmentID,
-			ServiceURL: record.ServiceURL,
-			Data:       record.Data,
-			Status:     record.Status,
-			ReviewedAt: record.ReviewedAt,
-			CreatedAt:  record.CreatedAt,
-			UpdatedAt:  record.UpdatedAt,
+			ServiceURL:    record.ServiceURL,
+			Data:          record.Data,
+			Status:        record.Status,
+			ReviewedAt:    record.ReviewedAt,
+			CreatedAt:     record.CreatedAt,
+			UpdatedAt:     record.UpdatedAt,
 		}
 
 		// Attach basic metadata for the list view
@@ -225,7 +225,7 @@ func (s *service) GetApplication(ctx context.Context, taskID string) (*Applicati
 	app := &Application{
 		TaskID:          record.TaskID,
 		TaskCode:        record.TaskCode,
-		ConsignmentID:      record.ConsignmentID,
+		ConsignmentID:   record.ConsignmentID,
 		ServiceURL:      record.ServiceURL,
 		Data:            record.Data,
 		OgaActionData:   record.ReviewerResponse,
@@ -273,7 +273,7 @@ func (s *service) ReviewApplication(ctx context.Context, taskID string, reviewer
 	}
 
 	response := TaskResponse{
-		TaskID:     app.TaskID,
+		TaskID:        app.TaskID,
 		ConsignmentID: app.ConsignmentID,
 		Payload: map[string]any{
 			"action":  "OGA_VERIFICATION",
@@ -315,7 +315,7 @@ func (s *service) FeedbackApplication(ctx context.Context, taskID string, conten
 	}
 
 	response := TaskResponse{
-		TaskID:     app.TaskID,
+		TaskID:        app.TaskID,
 		ConsignmentID: app.ConsignmentID,
 		Payload: map[string]any{
 			"action":  "OGA_VERIFICATION_FEEDBACK",

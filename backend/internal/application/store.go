@@ -48,7 +48,7 @@ func (j *JSONB) Scan(value any) error {
 type ApplicationRecord struct {
 	TaskID             string           `gorm:"type:text;primaryKey"`
 	TaskCode           string           `gorm:"type:varchar(100);not null"`
-	ConsignmentID         string           `gorm:"type:text;index;not null"`
+	ConsignmentID      string           `gorm:"type:text;index;not null"`
 	ServiceURL         string           `gorm:"type:varchar(512);not null"`                  // URL to send response back to
 	Data               JSONB            `gorm:"type:text"`                                   // Injected data from service
 	ReviewerResponse   JSONB            `gorm:"type:text"`                                   // Response from reviewer
@@ -133,9 +133,9 @@ func (s *ApplicationStore) List(ctx context.Context, status string, consignmentI
 // ConsignmentSummary represents a unique consignment with its most recent activity.
 type ConsignmentSummary struct {
 	ConsignmentID string    `json:"consignmentId"`
-	UpdatedAt  time.Time `json:"updatedAt"`
-	Status     string    `json:"status"`    // Status of the most recent application
-	TaskCount  int       `json:"taskCount"` // Total number of applications in this consignment
+	UpdatedAt     time.Time `json:"updatedAt"`
+	Status        string    `json:"status"`    // Status of the most recent application
+	TaskCount     int       `json:"taskCount"` // Total number of applications in this consignment
 }
 
 // ListConsignments returns a paginated list of unique consignment IDs with their latest status, update time, and task count, with optional search.

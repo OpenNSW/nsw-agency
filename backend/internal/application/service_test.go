@@ -141,12 +141,12 @@ func (h *serviceHarness) seed(taskID, taskCode string, data JSONB) {
 		data = JSONB{"field": "value"}
 	}
 	err := h.store.CreateOrUpdate(&ApplicationRecord{
-		TaskID:     taskID,
-		TaskCode:   taskCode,
+		TaskID:        taskID,
+		TaskCode:      taskCode,
 		ConsignmentID: "wf-test",
-		ServiceURL: h.callbackURL,
-		Data:       data,
-		Status:     "PENDING",
+		ServiceURL:    h.callbackURL,
+		Data:          data,
+		Status:        "PENDING",
 	})
 	if err != nil {
 		h.t.Fatalf("failed to seed record: %v", err)

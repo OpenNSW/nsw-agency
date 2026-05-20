@@ -131,38 +131,38 @@ export function ConsignmentListScreen() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
-                  {consignments.map((wf) => (
+                  {consignments.map((consignment) => (
                     <tr
-                      key={wf.consignmentId}
+                      key={consignment.consignmentId}
                       onClick={() => {
-                        void navigate(`/consignments/${wf.consignmentId}/tasks`)
+                        void navigate(`/consignments/${consignment.consignmentId}/tasks`)
                       }}
                       className="hover:bg-blue-50/30 cursor-pointer transition-colors group text-sm"
                     >
                       <td className="px-6 py-4 break-all font-mono text-blue-600 font-medium hover:underline">
-                        {wf.consignmentId}
+                        {consignment.consignmentId}
                       </td>
 
-                      <td className="px-6 py-4 whitespace-nowrap text-center">{wf.taskCount}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">{consignment.taskCount}</td>
 
                       <td className="px-6 py-4 whitespace-nowrap">
                         <Badge
                           size="1"
                           color={
-                            wf.status === 'APPROVED'
+                            consignment.status === 'APPROVED'
                               ? 'green'
-                              : wf.status === 'REJECTED'
+                              : consignment.status === 'REJECTED'
                                 ? 'red'
-                                : wf.status === 'FEEDBACK_REQUESTED'
+                                : consignment.status === 'FEEDBACK_REQUESTED'
                                   ? 'amber'
                                   : 'blue'
                           }
                           variant="surface"
                         >
-                          {wf.status}
+                          {consignment.status}
                         </Badge>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-600">{formatDateForTable(wf.updatedAt)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-600">{formatDateForTable(consignment.updatedAt)}</td>
                     </tr>
                   ))}
                 </tbody>

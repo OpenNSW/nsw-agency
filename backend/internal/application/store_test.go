@@ -56,12 +56,12 @@ func seedRecord(t *testing.T, store *ApplicationStore, taskID string, data JSONB
 		data = JSONB{"key": "value"}
 	}
 	err := store.CreateOrUpdate(&ApplicationRecord{
-		TaskID:     taskID,
-		TaskCode:   "verification:123",
+		TaskID:        taskID,
+		TaskCode:      "verification:123",
 		ConsignmentID: "wf-seed",
-		ServiceURL: "http://test",
-		Data:       data,
-		Status:     "PENDING",
+		ServiceURL:    "http://test",
+		Data:          data,
+		Status:        "PENDING",
 	})
 	if err != nil {
 		t.Fatalf("seedRecord(%s) failed: %v", taskID, err)
@@ -218,11 +218,11 @@ func TestApplicationStore_JSONB_NilData(t *testing.T) {
 	store := newTestStore(t)
 
 	err := store.CreateOrUpdate(&ApplicationRecord{
-		TaskID:     "task-nil-data",
-		TaskCode:   "verification:123",
+		TaskID:        "task-nil-data",
+		TaskCode:      "verification:123",
 		ConsignmentID: "wf-1",
-		ServiceURL: "http://test",
-		Data:       nil,
+		ServiceURL:    "http://test",
+		Data:          nil,
 	})
 	if err != nil {
 		t.Fatalf("CreateOrUpdate with nil JSONB failed: %v", err)
@@ -299,9 +299,9 @@ func TestApplicationStore_List_ConsignmentFilter(t *testing.T) {
 
 	// Create another consignment
 	err := store.CreateOrUpdate(&ApplicationRecord{
-		TaskID:     "t3",
+		TaskID:        "t3",
 		ConsignmentID: "wf-custom",
-		Status:     "PENDING",
+		Status:        "PENDING",
 	})
 	if err != nil {
 		t.Fatalf("failed to seed wf-custom: %v", err)
