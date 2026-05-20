@@ -1,5 +1,5 @@
 name: "🚀 Improvement Request"
-description: "Create new issue in OpenNSW/nsw: 🚀 Improvement Request"
+description: "Create new issue in OpenNSW/nsw-agency: 🚀 Improvement Request"
 labels: ["Type/Improvement"]
 body:
   - type: textarea
