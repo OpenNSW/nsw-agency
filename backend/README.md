@@ -1,21 +1,21 @@
-# OGA Portal Backend
+# NSW Agency Backend
 
-A standalone Go microservice that acts as a verification hub for external government agencies within the [NSW (National Single Window)](../README.md) trade facilitation platform. It enables the NSW core service to inject data for review, supports configurable dynamic forms per agency, and sends callback responses to the originating service upon review completion.
+A standalone Go microservice that acts as a verification hub for external agencies within the [NSW (National Single Window)](../README.md) trade facilitation platform. It enables the NSW core service to inject data for review, supports configurable dynamic forms per agency, and sends callback responses to the originating service upon review completion.
 
 ## How It Fits Into NSW
 
-The OGA service is an implementation of the **OGA Service Module (OGA SM)** described in the NSW architecture. It embodies the "state vs. data decoupling" principle:
+The NSW Agency service is an implementation of the **NSW Agency Service Module** described in the NSW architecture. It embodies the "state vs. data decoupling" principle:
 
 - **NSW Core Workflow Engine (CWE)** manages process state (e.g., "Waiting for Approval")
-- **OGA Service Module** manages domain data (e.g., phytosanitary inspection details)
+- **NSW Agency Service Module** manages domain data (e.g., phytosanitary inspection details)
 
-Each government agency runs its own OGA instance with its own database, ensuring data isolation and sovereignty.
+Each NSW Agency runs its own instance with its own database, ensuring data isolation and sovereignty.
 
 ```
 ┌─────────────────┐         POST /api/oga/inject           ┌──────────────────┐
 │                 │ ──────────────────────────────────────▶│                  │
-│  NSW Core       │                                        │   OGA Service    │
-│    Service      │◀────────────────────────────────────── │   (per agency)   │
+│  NSW Core       │                                        │  NSW Agency Service  │
+│    Service      │◀────────────────────────────────────── │   (per NSW Agency)   │
 │                 │     POST {serviceUrl} (callback)       │                  │
 └─────────────────┘                                        └──────────────────┘
                                                                    │
@@ -27,13 +27,13 @@ Each government agency runs its own OGA instance with its own database, ensuring
 
 ## Features
 
-- **Data Injection** – External services POST data for OGA review via `/api/oga/inject`
+- **Data Injection** – External services POST data for NSW Agency review via `/api/oga/inject`
 - **Task Configurations** – Per-taskCode metadata (title, icon, category), form references, and outcome-to-status mapping
 - **Dynamic Forms** – Reusable [JSON Forms](https://jsonforms.io/) definitions referenced by ID from task configs
 - **Paginated Listings** – Fetch applications with status filtering and pagination
 - **Review Workflow** – Approve/Reject driven by configurable status maps
 - **Callback Responses** – Automatically POSTs review results back to the originating service
-- **Per-Agency Isolation** – Each agency instance has its own database and port
+- **Per-NSW Agency Isolation** – Each NSW Agency instance has its own database and port
 - **Graceful Shutdown** -- Signal-based shutdown with in-flight request draining
 
 ## Getting Started
@@ -67,9 +67,9 @@ go build -o bin/oga ./cmd/server
 ./bin/oga
 ```
 
-### Running Multiple Agency Instances
+### Running Multiple NSW Agency Instances
 
-Each agency should run as a separate instance:
+Each NSW Agency should run as a separate instance:
 
 ```bash
 # Terminal 1 -- NPQS (National Plant Quarantine Service)
@@ -98,8 +98,8 @@ All configuration is via environment variables:
 | `OGA_DEFAULT_TASK_CONFIG_ID`         | Fallback task config ID when `taskCode` has no match   | `default`                      |
 | `OGA_ALLOWED_ORIGINS`                | Comma-separated CORS origins (`*` to allow all)        | `*`                            |
 | `OGA_NSW_API_BASE_URL`               | NSW API base URL for calling NSW endpoints             | `http://localhost:8080/api/v1` |
-| `OGA_NSW_CLIENT_ID`                  | OAuth2 client ID for OGA -> NSW                        | required                       |
-| `OGA_NSW_CLIENT_SECRET`              | OAuth2 client secret for OGA -> NSW                    | required                       |
+| `OGA_NSW_CLIENT_ID`                  | OAuth2 client ID for NSW Agency -> NSW                     | required                       |
+| `OGA_NSW_CLIENT_SECRET`              | OAuth2 client secret for NSW Agency -> NSW                 | required                       |
 | `OGA_NSW_TOKEN_URL`                  | OAuth2 token endpoint URL                              | required                       |
 | `OGA_NSW_SCOPES`                     | Optional comma-separated OAuth2 scopes                 | empty                          |
 | `OGA_NSW_TOKEN_INSECURE_SKIP_VERIFY` | DEV-only: skip TLS verification for token fetch        | `false`                        |
@@ -130,7 +130,7 @@ Detailed documentation lives in the [`docs/`](docs/) folder:
 | [API Reference](docs/api.md)                | Complete endpoint docs with examples                                                       |
 | [Task Configurations](docs/task-configs.md) | Per-taskCode metadata, form references, and status-mapping behavior; how to add a new task |
 | [Forms](docs/forms.md)                      | JSON Forms file structure and how to add new forms referenced from task configs            |
-| [NSW Integration](docs/nsw-integration.md)  | How OGA connects to the NSW workflow engine                                                |
+| [NSW Integration](docs/nsw-integration.md)  | How the NSW Agency connects to the NSW workflow engine                                         |
 
 ## Project Structure
 
@@ -169,7 +169,7 @@ oga/
 
 Please read the project-level [CONTRIBUTING.md](../docs/CONTRIBUTING.md) before submitting changes.
 
-When working on the OGA module:
+When working on the NSW Agency module:
 
 1. All application code lives in `internal/` (unexported package)
 2. Task configs go in `data/task-configs/` and form definitions go in `data/forms/`. See [`docs/task-configs.md`](docs/task-configs.md) and [`docs/forms.md`](docs/forms.md).
