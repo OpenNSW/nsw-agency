@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+
+	"github.com/OpenNSW/nsw-agency/backend/pkg/httputil"
 )
 
 // OGAHandler handles HTTP requests for OGA portal operations
@@ -30,7 +32,7 @@ func NewOGAHandler(service OGAService, maxRequestBytes int64) (*OGAHandler, erro
 func (h *OGAHandler) parseTaskID(w http.ResponseWriter, r *http.Request) (string, error) {
 	taskIDStr := r.PathValue("taskId")
 	if taskIDStr == "" {
-		WriteJSONError(w, http.StatusBadRequest, "taskId is required")
+		httputil.WriteJSONError(w, http.StatusBadRequest, "taskId is required")
 		return "", errors.New("taskId is required")
 	}
 	return taskIDStr, nil
@@ -40,7 +42,7 @@ func (h *OGAHandler) parseTaskID(w http.ResponseWriter, r *http.Request) (string
 // This is the endpoint that external services use to inject data into OGA portal
 func (h *OGAHandler) HandleInjectData(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		WriteJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		httputil.WriteJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 
@@ -48,14 +50,14 @@ func (h *OGAHandler) HandleInjectData(w http.ResponseWriter, r *http.Request) {
 
 	var req InjectRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		WriteJSONError(w, http.StatusBadRequest, "Invalid request body: "+err.Error())
+		httputil.WriteJSONError(w, http.StatusBadRequest, "Invalid request body: "+err.Error())
 		return
 	}
 
 	// Create application in database
 	if err := h.service.CreateApplication(ctx, &req); err != nil {
 		slog.ErrorContext(ctx, "failed to create application", "error", err)
-		WriteJSONError(w, http.StatusInternalServerError, "Failed to create application: "+err.Error())
+		httputil.WriteJSONError(w, http.StatusInternalServerError, "Failed to create application: "+err.Error())
 		return
 	}
 
@@ -63,7 +65,7 @@ func (h *OGAHandler) HandleInjectData(w http.ResponseWriter, r *http.Request) {
 		"taskID", req.TaskID,
 		"workflowID", req.WorkflowID)
 
-	WriteJSONResponse(w, http.StatusCreated, map[string]any{
+	httputil.WriteJSONResponse(w, http.StatusCreated, map[string]any{
 		"success": true,
 		"message": "Data injected successfully",
 		"taskId":  req.TaskID,
@@ -74,7 +76,7 @@ func (h *OGAHandler) HandleInjectData(w http.ResponseWriter, r *http.Request) {
 // Returns all applications, optionally filtered by status, workflowId, or q query parameter
 func (h *OGAHandler) HandleGetApplications(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		WriteJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		httputil.WriteJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 
@@ -85,30 +87,30 @@ func (h *OGAHandler) HandleGetApplications(w http.ResponseWriter, r *http.Reques
 
 	page, err := strconv.Atoi(r.URL.Query().Get("page"))
 	if err != nil && r.URL.Query().Get("page") != "" {
-		WriteJSONError(w, http.StatusBadRequest, "Invalid page number")
+		httputil.WriteJSONError(w, http.StatusBadRequest, "Invalid page number")
 		return
 	}
 	pageSize, err := strconv.Atoi(r.URL.Query().Get("pageSize"))
 	if err != nil && r.URL.Query().Get("pageSize") != "" {
-		WriteJSONError(w, http.StatusBadRequest, "Invalid page size")
+		httputil.WriteJSONError(w, http.StatusBadRequest, "Invalid page size")
 		return
 	}
 
 	result, err := h.service.GetApplications(ctx, status, workflowID, search, page, pageSize)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get applications", "error", err)
-		WriteJSONError(w, http.StatusInternalServerError, "Failed to get applications")
+		httputil.WriteJSONError(w, http.StatusInternalServerError, "Failed to get applications")
 		return
 	}
 
-	WriteJSONResponse(w, http.StatusOK, result)
+	httputil.WriteJSONResponse(w, http.StatusOK, result)
 }
 
 // HandleGetWorkflows handles GET /api/oga/workflows
 // Returns a paginated list of unique workflows with their latest status, optionally filtered by q
 func (h *OGAHandler) HandleGetWorkflows(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		WriteJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		httputil.WriteJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 
@@ -117,30 +119,30 @@ func (h *OGAHandler) HandleGetWorkflows(w http.ResponseWriter, r *http.Request) 
 
 	page, err := strconv.Atoi(r.URL.Query().Get("page"))
 	if err != nil && r.URL.Query().Get("page") != "" {
-		WriteJSONError(w, http.StatusBadRequest, "Invalid page number")
+		httputil.WriteJSONError(w, http.StatusBadRequest, "Invalid page number")
 		return
 	}
 	pageSize, err := strconv.Atoi(r.URL.Query().Get("pageSize"))
 	if err != nil && r.URL.Query().Get("pageSize") != "" {
-		WriteJSONError(w, http.StatusBadRequest, "Invalid page size")
+		httputil.WriteJSONError(w, http.StatusBadRequest, "Invalid page size")
 		return
 	}
 
 	result, err := h.service.GetWorkflows(ctx, search, page, pageSize)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get workflows", "error", err)
-		WriteJSONError(w, http.StatusInternalServerError, "Failed to get workflows")
+		httputil.WriteJSONError(w, http.StatusInternalServerError, "Failed to get workflows")
 		return
 	}
 
-	WriteJSONResponse(w, http.StatusOK, result)
+	httputil.WriteJSONResponse(w, http.StatusOK, result)
 }
 
 // HandleGetApplication handles GET /api/oga/applications/{taskId}
 // Returns a specific application by task ID
 func (h *OGAHandler) HandleGetApplication(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		WriteJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		httputil.WriteJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 
@@ -153,23 +155,23 @@ func (h *OGAHandler) HandleGetApplication(w http.ResponseWriter, r *http.Request
 	application, err := h.service.GetApplication(ctx, taskID)
 	if err != nil {
 		if errors.Is(err, ErrApplicationNotFound) {
-			WriteJSONError(w, http.StatusNotFound, "Application not found")
+			httputil.WriteJSONError(w, http.StatusNotFound, "Application not found")
 		} else {
 			slog.ErrorContext(ctx, "failed to get application",
 				"taskID", taskID,
 				"error", err)
-			WriteJSONError(w, http.StatusInternalServerError, "Failed to get application")
+			httputil.WriteJSONError(w, http.StatusInternalServerError, "Failed to get application")
 		}
 		return
 	}
 
-	WriteJSONResponse(w, http.StatusOK, application)
+	httputil.WriteJSONResponse(w, http.StatusOK, application)
 }
 
 // HandleHealth handles GET /health
 // Simple health check endpoint
 func (h *OGAHandler) HandleHealth(w http.ResponseWriter, r *http.Request) {
-	WriteJSONResponse(w, http.StatusOK, map[string]any{
+	httputil.WriteJSONResponse(w, http.StatusOK, map[string]any{
 		"status":  "ok",
 		"service": "oga-portal",
 	})
@@ -180,7 +182,7 @@ func (h *OGAHandler) HandleHealth(w http.ResponseWriter, r *http.Request) {
 // Sends the response back to the originating service
 func (h *OGAHandler) HandleReviewApplication(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		WriteJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		httputil.WriteJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 
@@ -195,19 +197,19 @@ func (h *OGAHandler) HandleReviewApplication(w http.ResponseWriter, r *http.Requ
 	var requestBody map[string]any
 
 	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
-		WriteJSONError(w, http.StatusBadRequest, "Invalid request body: "+err.Error())
+		httputil.WriteJSONError(w, http.StatusBadRequest, "Invalid request body: "+err.Error())
 		return
 	}
 
 	// Process review and send response to service
 	if err := h.service.ReviewApplication(ctx, taskID, requestBody); err != nil {
 		if errors.Is(err, ErrApplicationNotFound) {
-			WriteJSONError(w, http.StatusNotFound, "Application not found")
+			httputil.WriteJSONError(w, http.StatusNotFound, "Application not found")
 		} else {
 			slog.ErrorContext(ctx, "failed to review application",
 				"taskID", taskID,
 				"error", err)
-			WriteJSONError(w, http.StatusInternalServerError, "Failed to review application: "+err.Error())
+			httputil.WriteJSONError(w, http.StatusInternalServerError, "Failed to review application: "+err.Error())
 		}
 		return
 	}
@@ -216,7 +218,7 @@ func (h *OGAHandler) HandleReviewApplication(w http.ResponseWriter, r *http.Requ
 		"taskID", taskID,
 	)
 
-	WriteJSONResponse(w, http.StatusOK, map[string]any{
+	httputil.WriteJSONResponse(w, http.StatusOK, map[string]any{
 		"success": true,
 		"message": "Application reviewed successfully",
 	})
