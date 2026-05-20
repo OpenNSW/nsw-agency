@@ -12,8 +12,18 @@ import (
 	"testing"
 
 	"github.com/OpenNSW/nsw-agency/backend/internal/form"
+	"github.com/OpenNSW/nsw-agency/backend/internal/taskconfig"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 )
+
+// writeTaskConfigFile writes content to <root>/task-configs/<name>.
+func writeTaskConfigFile(t *testing.T, root, name, content string) {
+	t.Helper()
+	path := filepath.Join(root, taskconfig.TaskConfigsSubdir, name)
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("failed to write %s: %v", path, err)
+	}
+}
 
 // writeFormFile writes content to <root>/forms/<name>.
 func writeFormFile(t *testing.T, root, name, content string) {
@@ -68,7 +78,7 @@ func newCallbackServer(t *testing.T) (*httptest.Server, *callbackCapture) {
 type serviceHarness struct {
 	t           *testing.T
 	store       *ApplicationStore
-	configStore *TaskConfigStore
+	configStore *taskconfig.TaskConfigStore
 	formStore   *form.FormStore
 	httpClient  *httpclient.Client
 	callbackURL string
@@ -85,7 +95,7 @@ func newServiceHarness(t *testing.T, writeFn func(root string), defaultConfigID 
 	t.Helper()
 
 	root := t.TempDir()
-	for _, sub := range []string{TaskConfigsSubdir, form.FormsSubdir} {
+	for _, sub := range []string{taskconfig.TaskConfigsSubdir, form.FormsSubdir} {
 		if err := os.MkdirAll(filepath.Join(root, sub), 0o755); err != nil {
 			t.Fatalf("failed to create %s dir: %v", sub, err)
 		}
@@ -96,7 +106,7 @@ func newServiceHarness(t *testing.T, writeFn func(root string), defaultConfigID 
 
 	store := newTestStore(t)
 
-	configStore, err := NewTaskConfigStore(root, defaultConfigID)
+	configStore, err := taskconfig.NewTaskConfigStore(root, defaultConfigID)
 	if err != nil {
 		t.Fatalf("NewTaskConfigStore failed: %v", err)
 	}

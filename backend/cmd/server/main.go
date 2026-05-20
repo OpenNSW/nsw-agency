@@ -16,6 +16,7 @@ import (
 	"github.com/OpenNSW/nsw-agency/backend/internal/feedback"
 	"github.com/OpenNSW/nsw-agency/backend/internal/form"
 	"github.com/OpenNSW/nsw-agency/backend/internal/storage"
+	"github.com/OpenNSW/nsw-agency/backend/internal/taskconfig"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 )
 
@@ -38,7 +39,7 @@ func main() {
 		log.Fatalf("failed to create application store: %v", err)
 	}
 	// Initialize task config store
-	configStore, err := internal.NewTaskConfigStore(cfg.ConfigDir, cfg.DefaultTaskConfigID)
+	configStore, err := taskconfig.NewTaskConfigStore(cfg.ConfigDir, cfg.DefaultTaskConfigID)
 	if err != nil {
 		log.Fatalf("failed to create task config store: %v", err)
 	}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/OpenNSW/nsw-agency/backend/internal/feedback"
 	"github.com/OpenNSW/nsw-agency/backend/internal/form"
+	"github.com/OpenNSW/nsw-agency/backend/internal/taskconfig"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 	"gorm.io/gorm"
 )
@@ -94,13 +95,13 @@ type TaskResponse struct {
 
 type ogaService struct {
 	store       *ApplicationStore
-	configStore *TaskConfigStore
+	configStore *taskconfig.TaskConfigStore
 	formStore   *form.FormStore
 	httpClient  *httpclient.Client
 }
 
 // NewOGAService creates a new OGA service instance with database storage
-func NewOGAService(store *ApplicationStore, configStore *TaskConfigStore, formStore *form.FormStore, httpClient *httpclient.Client) OGAService {
+func NewOGAService(store *ApplicationStore, configStore *taskconfig.TaskConfigStore, formStore *form.FormStore, httpClient *httpclient.Client) OGAService {
 	if store == nil || configStore == nil || formStore == nil || httpClient == nil {
 		panic("NewOGAService: all dependencies must be non-nil")
 	}
@@ -288,7 +289,7 @@ func (s *ogaService) ReviewApplication(ctx context.Context, taskID string, revie
 	if config, err := s.configStore.GetConfig(app.TaskCode); err == nil && config.Behavior != nil && config.Behavior.StatusMap != nil {
 		outcomeField := config.Behavior.OutcomeField
 		if outcomeField == "" {
-			outcomeField = DefaultOutcomeField
+			outcomeField = taskconfig.DefaultOutcomeField
 		}
 		if outcome, ok := reviewerResponse[outcomeField].(string); ok {
 			if mappedStatus, ok := config.Behavior.StatusMap[outcome]; ok {
