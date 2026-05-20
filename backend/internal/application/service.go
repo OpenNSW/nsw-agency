@@ -19,8 +19,8 @@ import (
 // ErrApplicationNotFound is returned when an application is not found
 var ErrApplicationNotFound = errors.New("application not found")
 
-// OGAService handles OGA portal operations
-type OGAService interface {
+// Service handles OGA portal operations
+type Service interface {
 	// CreateApplication creates a new application from injected data
 	CreateApplication(ctx context.Context, req *InjectRequest) error
 
@@ -93,19 +93,19 @@ type TaskResponse struct {
 	Payload    any    `json:"payload"`
 }
 
-type ogaService struct {
+type service struct {
 	store       *ApplicationStore
 	configStore *taskconfig.TaskConfigStore
 	formStore   *form.FormStore
 	httpClient  *httpclient.Client
 }
 
-// NewOGAService creates a new OGA service instance with database storage
-func NewOGAService(store *ApplicationStore, configStore *taskconfig.TaskConfigStore, formStore *form.FormStore, httpClient *httpclient.Client) OGAService {
+// NewService creates a new OGA service instance with database storage
+func NewService(store *ApplicationStore, configStore *taskconfig.TaskConfigStore, formStore *form.FormStore, httpClient *httpclient.Client) Service {
 	if store == nil || configStore == nil || formStore == nil || httpClient == nil {
-		panic("NewOGAService: all dependencies must be non-nil")
+		panic("NewService: all dependencies must be non-nil")
 	}
-	return &ogaService{
+	return &service{
 		store:       store,
 		configStore: configStore,
 		formStore:   formStore,
@@ -114,7 +114,7 @@ func NewOGAService(store *ApplicationStore, configStore *taskconfig.TaskConfigSt
 }
 
 // CreateApplication creates a new application from injected data.
-func (s *ogaService) CreateApplication(ctx context.Context, req *InjectRequest) error {
+func (s *service) CreateApplication(ctx context.Context, req *InjectRequest) error {
 	if req.TaskID == "" || req.TaskCode == "" || req.WorkflowID == "" || req.ServiceURL == "" {
 		return fmt.Errorf("missing required fields in InjectRequest")
 	}
@@ -143,7 +143,7 @@ func (s *ogaService) CreateApplication(ctx context.Context, req *InjectRequest) 
 }
 
 // GetApplications returns a paginated list of applications
-func (s *ogaService) GetApplications(ctx context.Context, status string, workflowID string, search string, page, pageSize int) (*PagedResponse[Application], error) {
+func (s *service) GetApplications(ctx context.Context, status string, workflowID string, search string, page, pageSize int) (*PagedResponse[Application], error) {
 	if page < 1 {
 		page = 1
 	}
@@ -190,7 +190,7 @@ func (s *ogaService) GetApplications(ctx context.Context, status string, workflo
 }
 
 // GetWorkflows returns a paginated list of unique workflows
-func (s *ogaService) GetWorkflows(ctx context.Context, search string, page, pageSize int) (*PagedResponse[WorkflowSummary], error) {
+func (s *service) GetWorkflows(ctx context.Context, search string, page, pageSize int) (*PagedResponse[WorkflowSummary], error) {
 	if page < 1 {
 		page = 1
 	}
@@ -213,7 +213,7 @@ func (s *ogaService) GetWorkflows(ctx context.Context, search string, page, page
 }
 
 // GetApplication returns a specific application by task ID
-func (s *ogaService) GetApplication(ctx context.Context, taskID string) (*Application, error) {
+func (s *service) GetApplication(ctx context.Context, taskID string) (*Application, error) {
 	record, err := s.store.GetByTaskID(taskID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -266,7 +266,7 @@ func (s *ogaService) GetApplication(ctx context.Context, taskID string) (*Applic
 }
 
 // ReviewApplication approves or rejects an application
-func (s *ogaService) ReviewApplication(ctx context.Context, taskID string, reviewerResponse map[string]any) error {
+func (s *service) ReviewApplication(ctx context.Context, taskID string, reviewerResponse map[string]any) error {
 	app, err := s.GetApplication(ctx, taskID)
 	if err != nil {
 		return err
@@ -302,7 +302,7 @@ func (s *ogaService) ReviewApplication(ctx context.Context, taskID string, revie
 }
 
 // FeedbackApplication sends OGA feedback to the trader
-func (s *ogaService) FeedbackApplication(ctx context.Context, taskID string, content map[string]any) error {
+func (s *service) FeedbackApplication(ctx context.Context, taskID string, content map[string]any) error {
 	app, err := s.GetApplication(ctx, taskID)
 	if err != nil {
 		return err
@@ -330,7 +330,7 @@ func (s *ogaService) FeedbackApplication(ctx context.Context, taskID string, con
 	return s.store.AppendFeedback(taskID, entry)
 }
 
-func (s *ogaService) sendToService(ctx context.Context, serviceURL string, response TaskResponse) error {
+func (s *service) sendToService(ctx context.Context, serviceURL string, response TaskResponse) error {
 	jsonData, err := json.Marshal(response)
 	if err != nil {
 		return fmt.Errorf("failed to marshal response: %w", err)
@@ -352,7 +352,7 @@ func (s *ogaService) sendToService(ctx context.Context, serviceURL string, respo
 	return nil
 }
 
-func (s *ogaService) Close() error {
+func (s *service) Close() error {
 	if s.store != nil {
 		return s.store.Close()
 	}

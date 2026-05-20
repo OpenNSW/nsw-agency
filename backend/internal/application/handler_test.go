@@ -4,15 +4,15 @@ import (
 	"testing"
 )
 
-// mockOGAService is a mock implementation of OGAService for testing
-type mockOGAService struct {
+// mockService is a mock implementation of Service for testing
+type mockService struct {
 	// embed the interface so we don't have to implement everything
-	OGAService
+	Service
 }
 
-func TestNewOGAHandler(t *testing.T) {
+func TestNewHandler(t *testing.T) {
 	t.Run("valid config", func(t *testing.T) {
-		handler, err := NewOGAHandler(&mockOGAService{}, 32<<20)
+		handler, err := NewHandler(&mockService{}, 32<<20)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
@@ -25,14 +25,14 @@ func TestNewOGAHandler(t *testing.T) {
 	})
 
 	t.Run("invalid config - negative", func(t *testing.T) {
-		_, err := NewOGAHandler(&mockOGAService{}, -1)
+		_, err := NewHandler(&mockService{}, -1)
 		if err == nil {
 			t.Error("expected error for negative MaxRequestBytes, got nil")
 		}
 	})
 
 	t.Run("invalid config - zero", func(t *testing.T) {
-		_, err := NewOGAHandler(&mockOGAService{}, 0)
+		_, err := NewHandler(&mockService{}, 0)
 		if err == nil {
 			t.Error("expected error for zero MaxRequestBytes, got nil")
 		}

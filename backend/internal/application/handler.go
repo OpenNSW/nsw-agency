@@ -11,25 +11,25 @@ import (
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httputil"
 )
 
-// OGAHandler handles HTTP requests for OGA portal operations
-type OGAHandler struct {
-	service         OGAService
+// Handler handles HTTP requests for OGA portal operations
+type Handler struct {
+	service         Service
 	MaxRequestBytes int64
 }
 
-// NewOGAHandler creates a new OGA handler instance
-func NewOGAHandler(service OGAService, maxRequestBytes int64) (*OGAHandler, error) {
+// NewHandler creates a new OGA handler instance
+func NewHandler(service Service, maxRequestBytes int64) (*Handler, error) {
 	if maxRequestBytes <= 0 {
 		return nil, fmt.Errorf("invalid MaxRequestBytes: %d (must be greater than 0)", maxRequestBytes)
 	}
-	return &OGAHandler{
+	return &Handler{
 		service:         service,
 		MaxRequestBytes: maxRequestBytes,
 	}, nil
 }
 
 // parseTaskID extracts the taskId from the request path.
-func (h *OGAHandler) parseTaskID(w http.ResponseWriter, r *http.Request) (string, error) {
+func (h *Handler) parseTaskID(w http.ResponseWriter, r *http.Request) (string, error) {
 	taskIDStr := r.PathValue("taskId")
 	if taskIDStr == "" {
 		httputil.WriteJSONError(w, http.StatusBadRequest, "taskId is required")
@@ -40,7 +40,7 @@ func (h *OGAHandler) parseTaskID(w http.ResponseWriter, r *http.Request) (string
 
 // HandleInjectData handles POST /api/oga/inject
 // This is the endpoint that external services use to inject data into OGA portal
-func (h *OGAHandler) HandleInjectData(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HandleInjectData(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		httputil.WriteJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
@@ -74,7 +74,7 @@ func (h *OGAHandler) HandleInjectData(w http.ResponseWriter, r *http.Request) {
 
 // HandleGetApplications handles GET /api/oga/applications
 // Returns all applications, optionally filtered by status, workflowId, or q query parameter
-func (h *OGAHandler) HandleGetApplications(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HandleGetApplications(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		httputil.WriteJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
@@ -108,7 +108,7 @@ func (h *OGAHandler) HandleGetApplications(w http.ResponseWriter, r *http.Reques
 
 // HandleGetWorkflows handles GET /api/oga/workflows
 // Returns a paginated list of unique workflows with their latest status, optionally filtered by q
-func (h *OGAHandler) HandleGetWorkflows(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HandleGetWorkflows(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		httputil.WriteJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
@@ -140,7 +140,7 @@ func (h *OGAHandler) HandleGetWorkflows(w http.ResponseWriter, r *http.Request) 
 
 // HandleGetApplication handles GET /api/oga/applications/{taskId}
 // Returns a specific application by task ID
-func (h *OGAHandler) HandleGetApplication(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HandleGetApplication(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		httputil.WriteJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
@@ -170,7 +170,7 @@ func (h *OGAHandler) HandleGetApplication(w http.ResponseWriter, r *http.Request
 
 // HandleHealth handles GET /health
 // Simple health check endpoint
-func (h *OGAHandler) HandleHealth(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HandleHealth(w http.ResponseWriter, r *http.Request) {
 	httputil.WriteJSONResponse(w, http.StatusOK, map[string]any{
 		"status":  "ok",
 		"service": "oga-portal",
@@ -180,7 +180,7 @@ func (h *OGAHandler) HandleHealth(w http.ResponseWriter, r *http.Request) {
 // HandleReviewApplication handles POST /api/oga/applications/{taskId}/review
 // Called when OGA officer approves/rejects an application
 // Sends the response back to the originating service
-func (h *OGAHandler) HandleReviewApplication(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HandleReviewApplication(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		httputil.WriteJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return

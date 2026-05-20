@@ -66,7 +66,7 @@ func main() {
 		Build()
 
 	// Initialize OGA service
-	service := application.NewOGAService(store, configStore, formStore, nswHttpClient)
+	service := application.NewService(store, configStore, formStore, nswHttpClient)
 	defer func() {
 		if err := service.Close(); err != nil {
 			slog.Error("failed to close service", "error", err)
@@ -74,7 +74,7 @@ func main() {
 	}()
 
 	// Initialize handlers
-	handler, err := application.NewOGAHandler(service, cfg.MaxRequestBytes)
+	handler, err := application.NewHandler(service, cfg.MaxRequestBytes)
 	if err != nil {
 		slog.Error("failed to create OGA handler", "error", err)
 		return

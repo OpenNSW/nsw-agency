@@ -74,7 +74,7 @@ func newCallbackServer(t *testing.T) (*httptest.Server, *callbackCapture) {
 }
 
 // serviceHarness wires the in-memory dependencies required to exercise
-// OGAService end-to-end against a stub callback server.
+// Service end-to-end against a stub callback server.
 type serviceHarness struct {
 	t           *testing.T
 	store       *ApplicationStore
@@ -83,7 +83,7 @@ type serviceHarness struct {
 	httpClient  *httpclient.Client
 	callbackURL string
 	capture     *callbackCapture
-	service     OGAService
+	service     Service
 }
 
 // newServiceHarness constructs the harness with config and form files placed
@@ -119,7 +119,7 @@ func newServiceHarness(t *testing.T, writeFn func(root string), defaultConfigID 
 	srv, capture := newCallbackServer(t)
 	hc := httpclient.NewClientBuilder().Build()
 
-	svc := NewOGAService(store, configStore, formStore, hc)
+	svc := NewService(store, configStore, formStore, hc)
 	t.Cleanup(func() { _ = svc.Close() })
 
 	return &serviceHarness{
