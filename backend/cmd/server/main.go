@@ -76,7 +76,8 @@ func main() {
 	// Initialize handlers
 	handler, err := application.NewOGAHandler(service, cfg.MaxRequestBytes)
 	if err != nil {
-		log.Fatalf("failed to create OGA handler: %v", err)
+		slog.Error("failed to create OGA handler", "error", err)
+		return
 	}
 
 	// Initialize storage service and handler
