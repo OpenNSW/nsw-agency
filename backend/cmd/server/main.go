@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/OpenNSW/nsw-agency/backend/internal"
+	"github.com/OpenNSW/nsw-agency/backend/internal/config"
 	"github.com/OpenNSW/nsw-agency/backend/internal/feedback"
 	"github.com/OpenNSW/nsw-agency/backend/internal/form"
 	"github.com/OpenNSW/nsw-agency/backend/internal/storage"
@@ -19,7 +20,7 @@ import (
 )
 
 func main() {
-	cfg, err := internal.LoadConfig()
+	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("FATAL: failed to load configuration: %v", err)
 	}

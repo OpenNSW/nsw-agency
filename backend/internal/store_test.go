@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/OpenNSW/nsw-agency/backend/internal/config"
 	"github.com/OpenNSW/nsw-agency/backend/internal/database"
 	"github.com/OpenNSW/nsw-agency/backend/internal/feedback"
 )
@@ -20,11 +21,15 @@ import (
 func newTestStore(t *testing.T) *ApplicationStore {
 	t.Helper()
 
-	var cfg Config
+	var cfg config.Config
 	if os.Getenv("OGA_DB_DRIVER") == "postgres" {
-		cfg, _ = LoadConfig()
+		var err error
+		cfg, err = config.LoadConfig()
+		if err != nil {
+			t.Fatalf("failed to load config: %v", err)
+		}
 	} else {
-		cfg = Config{
+		cfg = config.Config{
 			DB: database.Config{Driver: "sqlite", Path: ":memory:"},
 		}
 	}
@@ -69,7 +74,7 @@ func TestApplicationStore_SQLite_FileCreated(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test_oga.db")
 
-	_, err := NewApplicationStore(Config{DB: database.Config{Driver: "sqlite", Path: dbPath}})
+	_, err := NewApplicationStore(config.Config{DB: database.Config{Driver: "sqlite", Path: dbPath}})
 	if err != nil {
 		t.Fatalf("NewApplicationStore failed: %v", err)
 	}
