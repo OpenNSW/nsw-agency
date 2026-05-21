@@ -31,7 +31,6 @@ window.__APP_CONFIG__ = {
   "VITE_IDP_CLIENT_ID": "$(escape_js "${VITE_IDP_CLIENT_ID:-OGA_PORTAL_APP_NPQS}")",
   "VITE_APP_URL": "$(escape_js "${VITE_APP_URL:-http://localhost:5174}")",
   "VITE_IDP_SCOPES": "$(escape_js "${VITE_IDP_SCOPES:-openid,profile,email}")",
-  "VITE_IDP_PLATFORM": "$(escape_js "${VITE_IDP_PLATFORM:-AsgardeoV2}")",
-  "VITE_NSW_AGENCY_API_BASE_URL": "$(escape_js "${VITE_NSW_AGENCY_API_BASE_URL:-http://localhost:8080/api/v1}")"
+  "VITE_IDP_PLATFORM": "$(escape_js "${VITE_IDP_PLATFORM:-AsgardeoV2}")"
 };
 EOF
