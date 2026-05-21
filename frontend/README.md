@@ -22,13 +22,13 @@ Example:
 
 - NPQS deployment
   - `VITE_BRANDING_PATH=./src/configs/npqs.yaml`
-  - `VITE_IDP_CLIENT_ID=OGA_PORTAL_APP_NPQS`
+  - `VITE_IDP_CLIENT_ID=NSW_AGENCY_PORTAL_APP_NPQS`
 - FCAU deployment
   - `VITE_BRANDING_PATH=./src/configs/fcau.yaml`
-  - `VITE_IDP_CLIENT_ID=OGA_PORTAL_APP_FCAU`
+  - `VITE_IDP_CLIENT_ID=NSW_AGENCY_PORTAL_APP_FCAU`
 - CDA deployment
   - `VITE_BRANDING_PATH=./src/configs/cda.yaml`
-  - `VITE_IDP_CLIENT_ID=OGA_PORTAL_APP_CDA`
+  - `VITE_IDP_CLIENT_ID=NSW_AGENCY_PORTAL_APP_CDA`
 
 This allows IdP-level user access restriction per NSW Agency app registration.
 
@@ -67,15 +67,15 @@ pnpm run dev
 
 ### Running a specific NSW Agency
 
-Use the repo-root [../run-oga.sh](../run-oga.sh) to start the frontend (and optionally the backend) with the per-NSW Agency port, branding name, API URL, and IdP client id:
+Use the repo-root [../run-agency.sh](../run-agency.sh) to start the frontend (and optionally the backend) with the per-agency port, branding name, API URL, and IdP client id:
 
 ```bash
 # From the repo root
-./run-oga.sh npqs frontend     # NPQS frontend on port 5174
-./run-oga.sh fcau frontend     # FCAU frontend on port 5175
-./run-oga.sh ird  frontend     # IRD  frontend on port 5176
-./run-oga.sh cda  frontend     # CDA  frontend on port 5177
-./run-oga.sh npqs              # also start the matching backend
+./run-agency.sh npqs frontend     # NPQS frontend on port 5174
+./run-agency.sh fcau frontend     # FCAU frontend on port 5175
+./run-agency.sh ird  frontend     # IRD  frontend on port 5176
+./run-agency.sh cda  frontend     # CDA  frontend on port 5177
+./run-agency.sh npqs              # also start the matching backend
 ```
 
-Each name maps to a JSON file under [public/configs/](public/configs/) (`<name>.branding.json`). To onboard a new NSW Agency, copy [public/configs/default.branding.json](public/configs/default.branding.json), edit the `branding.*` fields, and add a new `case` to [../run-oga.sh](../run-oga.sh).
+Each name maps to a JSON file under [public/configs/](public/configs/) (`<name>.branding.json`). To onboard a new agency, copy [public/configs/default.branding.json](public/configs/default.branding.json), edit the `branding.*` fields, and add a new `case` to [../run-agency.sh](../run-agency.sh).

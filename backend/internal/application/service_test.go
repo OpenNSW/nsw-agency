@@ -331,8 +331,8 @@ func TestReviewApplication_CallsServiceURL(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected payload object in callback, got %T", body["payload"])
 	}
-	if payload["action"] != "OGA_VERIFICATION" {
-		t.Errorf("callback payload.action: got %v, want OGA_VERIFICATION", payload["action"])
+	if payload["action"] != "NSW_AGENCY_VERIFICATION" {
+		t.Errorf("callback payload.action: got %v, want NSW_AGENCY_VERIFICATION", payload["action"])
 	}
 	content, ok := payload["content"].(map[string]any)
 	if !ok {
@@ -385,15 +385,15 @@ func TestGetApplication_ResolvesFormReferences(t *testing.T) {
 			t.Errorf("DataForm content unexpected: %v", view)
 		}
 	}
-	if app.OgaForm == nil {
-		t.Errorf("expected OgaForm to be attached")
+	if app.AgencyForm == nil {
+		t.Errorf("expected AgencyForm to be attached")
 	} else {
 		var review map[string]any
-		if err := json.Unmarshal(app.OgaForm, &review); err != nil {
-			t.Errorf("OgaForm not valid JSON: %v", err)
+		if err := json.Unmarshal(app.AgencyForm, &review); err != nil {
+			t.Errorf("AgencyForm not valid JSON: %v", err)
 		}
 		if schema, ok := review["schema"].(map[string]any); !ok || schema["title"] != "Review" {
-			t.Errorf("OgaForm content unexpected: %v", review)
+			t.Errorf("AgencyForm content unexpected: %v", review)
 		}
 	}
 }
@@ -421,8 +421,8 @@ func TestGetApplication_MissingFormRef_LogsAndOmits(t *testing.T) {
 	if app.DataForm != nil {
 		t.Errorf("expected DataForm to be nil when form ID is missing, got %s", app.DataForm)
 	}
-	if app.OgaForm != nil {
-		t.Errorf("expected OgaForm to be nil when form ID is missing, got %s", app.OgaForm)
+	if app.AgencyForm != nil {
+		t.Errorf("expected AgencyForm to be nil when form ID is missing, got %s", app.AgencyForm)
 	}
 }
 
@@ -438,7 +438,7 @@ func TestGetApplication_NoConfig_OmitsMetadata(t *testing.T) {
 		t.Errorf("expected empty metadata when no config found, got title=%q desc=%q icon=%q cat=%q",
 			app.Title, app.Description, app.Icon, app.Category)
 	}
-	if app.DataForm != nil || app.OgaForm != nil {
+	if app.DataForm != nil || app.AgencyForm != nil {
 		t.Errorf("expected nil forms when no config found")
 	}
 }

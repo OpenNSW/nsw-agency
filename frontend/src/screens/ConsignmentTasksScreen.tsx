@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Badge, Text, Spinner, IconButton, Button, Flex } from '@radix-ui/themes'
 import { ChevronLeftIcon, ChevronRightIcon, ArrowLeftIcon, ArchiveIcon } from '@radix-ui/react-icons'
-import { fetchApplications, type OGAApplication } from '../api'
+import { fetchApplications, type AgencyApplication } from '../api'
 import { useApi } from '../services/useApi'
 
 const PAGE_SIZE = 20
@@ -11,7 +11,7 @@ export function ConsignmentTasksScreen() {
   const { consignmentId } = useParams<{ consignmentId: string }>()
   const navigate = useNavigate()
   const apiClient = useApi()
-  const [applications, setApplications] = useState<OGAApplication[]>([])
+  const [applications, setApplications] = useState<AgencyApplication[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)

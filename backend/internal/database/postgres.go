@@ -42,9 +42,9 @@ func (c *PostgresConnector) Open() (*gorm.DB, error) {
 	}
 
 	// Dynamically configure connection pool settings
-	maxIdle := getEnvAsInt("OGA_DB_MAX_IDLE_CONNS", 10)
-	maxOpen := getEnvAsInt("OGA_DB_MAX_OPEN_CONNS", 100)
-	maxLifetimeMin := getEnvAsInt("OGA_DB_CONN_MAX_LIFETIME_MIN", 60)
+	maxIdle := getEnvAsInt("NSW_AGENCY_DB_MAX_IDLE_CONNS", 10)
+	maxOpen := getEnvAsInt("NSW_AGENCY_DB_MAX_OPEN_CONNS", 100)
+	maxLifetimeMin := getEnvAsInt("NSW_AGENCY_DB_CONN_MAX_LIFETIME_MIN", 60)
 
 	sqlDB.SetMaxIdleConns(maxIdle)
 	sqlDB.SetMaxOpenConns(maxOpen)

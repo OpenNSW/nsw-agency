@@ -42,8 +42,8 @@ func (h *Handler) HandleGetUploadURL(w http.ResponseWriter, r *http.Request) {
 // HandleCreateUpload prepares an upload by requesting an upload URL from the main backend.
 func (h *Handler) HandleCreateUpload(w http.ResponseWriter, r *http.Request) {
 	// TODO: Add Authentication & Authorization middleware
-	// Access must be restricted to authorized OGA officers to prevent unauthorized users
-	// from generating proxy pre-signed upload URLs. Introduce a configuration flag (e.g. OGA_DISABLE_AUTH)
+	// Access must be restricted to authorized NSW Agency officers to prevent unauthorized users
+	// from generating proxy pre-signed upload URLs. Introduce a configuration flag (e.g. NSW_AGENCY_DISABLE_AUTH)
 	// to make bypassing explicit for specific environments
 
 	r.Body = http.MaxBytesReader(w, r.Body, h.MaxRequestBytes)

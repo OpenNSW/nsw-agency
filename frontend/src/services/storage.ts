@@ -1,6 +1,6 @@
 /**
- * OGA-app–specific upload implementation. Points to this app's backend;
- * when OGA moves to a separate repo, this file can target OGA-specific endpoints/S3 without touching shared UI.
+ * nsw-agency-app–specific upload implementation. Points to this app's backend;
+ * when NSW Agency moves to a separate repo, this file can target NSW Agency-specific endpoints/S3 without touching shared UI.
  */
 import type { ApiClient } from '../api'
 import { API_BASE_URL } from '../constants'
@@ -28,7 +28,7 @@ export interface UploadResponse {
 }
 
 export async function uploadFile(apiClient: ApiClient, file: File): Promise<UploadResponse> {
-  const metadata = await apiClient.post<UploadMetadataRequest, UploadMetadataResponse>('/api/oga/storage', {
+  const metadata = await apiClient.post<UploadMetadataRequest, UploadMetadataResponse>('/api/nsw-agency/storage', {
     filename: file.name,
     mime_type: file.type || 'application/octet-stream',
     size: file.size,
@@ -53,7 +53,7 @@ export async function uploadFile(apiClient: ApiClient, file: File): Promise<Uplo
 }
 
 export async function getDownloadUrl(apiClient: ApiClient, key: string): Promise<{ url: string; expiresAt: number }> {
-  const response = await apiClient.get<DownloadMetadataResponse>(`/api/oga/storage/${key}`)
+  const response = await apiClient.get<DownloadMetadataResponse>(`/api/nsw-agency/storage/${key}`)
 
   // Normalize the URL if it's a relative path (common in local dev)
   const url = response.download_url.startsWith('/')

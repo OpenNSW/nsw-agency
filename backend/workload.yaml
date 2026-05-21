@@ -1,7 +1,7 @@
 apiVersion: openchoreo.dev/v1alpha1
 
 metadata:
-  name: oga-service
+  name: nsw-agency-service
 
 endpoints:
   - name: api
@@ -13,50 +13,50 @@ endpoints:
 
 configurations:
   env:
-    - name: OGA_PORT
+    - name: NSW_AGENCY_PORT
       value: "8081"
-    - name: OGA_FORMS_PATH
+    - name: NSW_AGENCY_FORMS_PATH
       value: ./data/forms
-    - name: OGA_DEFAULT_FORM_ID
+    - name: NSW_AGENCY_DEFAULT_FORM_ID
       value: default
-    - name: OGA_ALLOWED_ORIGINS
+    - name: NSW_AGENCY_ALLOWED_ORIGINS
       value: http://localhost:5174,http://localhost:5175,http://localhost:5176
-    - name: OGA_DB_DRIVER
+    - name: NSW_AGENCY_DB_DRIVER
       value: "postgres"
-    - name: OGA_DB_HOST
+    - name: NSW_AGENCY_DB_HOST
       valueFrom:
         secretKeyRef:
           name: nsw-db-secrets
           key: host
-    - name: OGA_DB_PORT
+    - name: NSW_AGENCY_DB_PORT
       valueFrom:
         secretKeyRef:
           name: nsw-db-secrets
           key: port
-    - name: OGA_DB_USER
+    - name: NSW_AGENCY_DB_USER
       valueFrom:
         secretKeyRef:
           name: nsw-db-secrets
           key: username
-    - name: OGA_DB_PASSWORD
+    - name: NSW_AGENCY_DB_PASSWORD
       valueFrom:
         secretKeyRef:
           name: nsw-db-secrets
           key: password
-    - name: OGA_DB_NAME
+    - name: NSW_AGENCY_DB_NAME
       valueFrom:
         secretKeyRef:
           name: nsw-db-secrets
           key: database
-    - name: OGA_NSW_API_BASE_URL
-    - name: OGA_NSW_CLIENT_ID
+    - name: NSW_AGENCY_NSW_API_BASE_URL
+    - name: NSW_AGENCY_NSW_CLIENT_ID
       valueFrom:
         secretKeyRef:
           name: nsw-api-secrets
           key: client_id
-    - name: OGA_NSW_CLIENT_SECRET
+    - name: NSW_AGENCY_NSW_CLIENT_SECRET
       valueFrom:
         secretKeyRef:
           name: nsw-api-secrets
           key: client_secret
-    - name: OGA_NSW_SCOPES
+    - name: NSW_AGENCY_NSW_SCOPES

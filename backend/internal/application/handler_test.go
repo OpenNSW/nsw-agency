@@ -50,7 +50,7 @@ func TestHandleInjectData_BodyTooLarge(t *testing.T) {
 
 	// Valid JSON prefix that forces the decoder to read past the 10-byte limit.
 	body := strings.NewReader(`{"key":"` + strings.Repeat("a", 100) + `"}`)
-	req := httptest.NewRequest(http.MethodPost, "/api/oga/inject", body)
+	req := httptest.NewRequest(http.MethodPost, "/api/nsw-agency/inject", body)
 	w := httptest.NewRecorder()
 
 	handler.HandleInjectData(w, req)
@@ -68,7 +68,7 @@ func TestHandleReviewApplication_BodyTooLarge(t *testing.T) {
 
 	// Valid JSON prefix that forces the decoder to read past the 10-byte limit.
 	body := strings.NewReader(`{"key":"` + strings.Repeat("a", 100) + `"}`)
-	req := httptest.NewRequest(http.MethodPost, "/api/oga/applications/task-123/review", body)
+	req := httptest.NewRequest(http.MethodPost, "/api/nsw-agency/applications/task-123/review", body)
 	req.SetPathValue("taskId", "task-123")
 	w := httptest.NewRecorder()
 

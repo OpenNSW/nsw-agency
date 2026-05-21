@@ -1,7 +1,7 @@
 apiVersion: openchoreo.dev/v1alpha1
 
 metadata:
-  name: nsw-oga-portal
+  name: nsw-agency-portal
 
 endpoints:
   - name: web
@@ -20,10 +20,10 @@ configurations:
     - name: VITE_IDP_BASE_URL
       value: https://localhost:8090
     - name: VITE_IDP_CLIENT_ID
-      value: OGA_PORTAL_APP_NPQS
+      value: NSW_AGENCY_PORTAL_APP_NPQS
     - name: VITE_APP_URL
       value: http://localhost:5174
-    - name: VITE_OGA_API_BASE_URL
+    - name: VITE_NSW_AGENCY_API_BASE_URL
       value: http://localhost:8080/api/v1
     - name: VITE_IDP_SCOPES
       value: openid,profile,email
