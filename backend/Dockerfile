@@ -6,12 +6,12 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN go build -o /out/oga ./cmd/server
+RUN go build -o /out/nsw-agency ./cmd/server
 
 FROM debian:bookworm-slim
 
 LABEL org.opencontainers.image.source="https://github.com/OpenNSW/nsw-agency"
-LABEL org.opencontainers.image.description="NSW OGA Backend Service"
+LABEL org.opencontainers.image.description="NSW Agency Backend Service"
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates \
@@ -22,13 +22,13 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY --from=builder /out/oga /app/oga
+COPY --from=builder /out/nsw-agency /app/nsw-agency
 COPY --from=builder /app/data/forms /app/data/forms
 
 # Runtime settings — UID 1001 matches appuser, OpenShift-compatible
 USER appuser
 
-# Default port (override via OGA_PORT env var)
+# Default port (override via NSW_AGENCY_PORT env var)
 EXPOSE 8081
 
-CMD ["/app/oga"]
+CMD ["/app/nsw-agency"]
