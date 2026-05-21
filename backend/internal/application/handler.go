@@ -38,7 +38,7 @@ func (h *Handler) parseTaskID(w http.ResponseWriter, r *http.Request) (string, e
 	return taskIDStr, nil
 }
 
-// HandleInjectData handles POST /api/nsw-agency/inject
+// HandleInjectData handles POST /api/v1/inject
 // This is the endpoint that external services use to inject data into NSW Agency portal
 func (h *Handler) HandleInjectData(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -79,7 +79,7 @@ func (h *Handler) HandleInjectData(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// HandleGetApplications handles GET /api/nsw-agency/applications
+// HandleGetApplications handles GET /api/v1/applications
 // Returns all applications, optionally filtered by status, consignmentId, or q query parameter
 func (h *Handler) HandleGetApplications(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -113,7 +113,7 @@ func (h *Handler) HandleGetApplications(w http.ResponseWriter, r *http.Request) 
 	httputil.WriteJSONResponse(w, http.StatusOK, result)
 }
 
-// HandleGetConsignments handles GET /api/nsw-agency/consignments
+// HandleGetConsignments handles GET /api/v1/consignments
 // Returns a paginated list of unique consignments with their latest status, optionally filtered by q
 func (h *Handler) HandleGetConsignments(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -145,7 +145,7 @@ func (h *Handler) HandleGetConsignments(w http.ResponseWriter, r *http.Request) 
 	httputil.WriteJSONResponse(w, http.StatusOK, result)
 }
 
-// HandleGetApplication handles GET /api/nsw-agency/applications/{taskId}
+// HandleGetApplication handles GET /api/v1/applications/{taskId}
 // Returns a specific application by task ID
 func (h *Handler) HandleGetApplication(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -184,7 +184,7 @@ func (h *Handler) HandleHealth(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// HandleReviewApplication handles POST /api/nsw-agency/applications/{taskId}/review
+// HandleReviewApplication handles POST /api/v1/applications/{taskId}/review
 // Called when NSW Agency officer approves/rejects an application
 // Sends the response back to the originating service
 func (h *Handler) HandleReviewApplication(w http.ResponseWriter, r *http.Request) {

@@ -20,7 +20,7 @@ configurations:
     - name: VITE_IDP_BASE_URL
       value: https://localhost:8090
     - name: VITE_IDP_CLIENT_ID
-      value: OGA_PORTAL_APP_NPQS
+      value: ""
     - name: VITE_APP_URL
       value: http://localhost:5174
     - name: VITE_IDP_SCOPES

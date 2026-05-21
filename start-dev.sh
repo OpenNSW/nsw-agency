@@ -16,7 +16,7 @@
 #
 # Env-var precedence (highest to lowest):
 #   parent shell env > backend/.env (for backend vars) > script defaults
-# i.e. NSW_AGENCY_PORT=9000 ./start-dev.sh npqs honours the override; .env can fill in
+# i.e. PORT=9000 ./start-dev.sh npqs honours the override; .env can fill in
 # anything the parent didn't set; the per-agency defaults below are the floor.
 #
 # Examples:
@@ -36,21 +36,21 @@ set -m
 # Single source of truth for per-agency config: "BE_PORT|FE_PORT|IDP_CLIENT_ID|NSW_CLIENT_ID".
 # Adding an agency means one line here — nothing else.
 # (Scalar vars rather than `declare -A` so this works on stock macOS bash 3.2.)
-NSW_AGENCY_CONFIG_npqs="8081|5174|OGA_PORTAL_APP_NPQS|NPQS_TO_NSW"
-NSW_AGENCY_CONFIG_fcau="8082|5175|OGA_PORTAL_APP_FCAU|FCAU_TO_NSW"
-NSW_AGENCY_CONFIG_ird="8083|5176|OGA_PORTAL_APP_IRD|IRD_TO_NSW"
-NSW_AGENCY_CONFIG_cda="8084|5177|OGA_PORTAL_APP_CDA|CDA_TO_NSW"
-NSW_AGENCY_CONFIG_default="8081|5174|NSW_AGENCY_TO_NSW|NSW_AGENCY_TO_NSW"
+CONFIG_npqs="8081|5174|AGENCY_PORTAL_APP_NPQS|NPQS_TO_NSW"
+CONFIG_fcau="8082|5175|AGENCY_PORTAL_APP_FCAU|FCAU_TO_NSW"
+CONFIG_ird="8083|5176|AGENCY_PORTAL_APP_IRD|IRD_TO_NSW"
+CONFIG_cda="8084|5177|AGENCY_PORTAL_APP_CDA|CDA_TO_NSW"
 
 # Real agencies (every NSW_AGENCY_CONFIG_* except 'default'), alphabetised for
+# Real agencies (every AGENCY_CONFIG_* except 'default'), alphabetised for
 # predictable launch order in 'all' mode. Derived from the config above so
-# adding an agency only requires editing the NSW_AGENCY_CONFIG_* block.
+# adding an agency only requires editing the AGENCY_CONFIG_* block.
 ALL_AGENCIES=()
 while IFS= read -r _v; do
-  _agency="${_v#NSW_AGENCY_CONFIG_}"
+  _agency="${_v#CONFIG_}"
   [[ "$_agency" == "default" ]] && continue
   ALL_AGENCIES+=("$_agency")
-done < <(compgen -A variable NSW_AGENCY_CONFIG_ | sort)
+done < <(compgen -A variable CONFIG_ | sort)
 unset _v _agency
 
 usage() {
@@ -108,7 +108,7 @@ trap cleanup EXIT INT TERM
 
 # Sets BE_PORT, FE_PORT, IDP_CLIENT_ID, NSW_CLIENT_ID for the given agency.
 resolve_agency() {
-  local varname="NSW_AGENCY_CONFIG_$1"
+  local varname="CONFIG_$1"
   local config="${!varname:-}"
   if [[ -z "$config" ]]; then
     echo "Unknown agency '$1'. Expected: ${ALL_AGENCIES[*]}, default, all." >&2
@@ -118,7 +118,7 @@ resolve_agency() {
 }
 
 # Source a .env file without clobbering vars already set in the environment.
-# This preserves parent-shell overrides (e.g. NSW_AGENCY_PORT=9000 ./start-dev.sh npqs).
+# This preserves parent-shell overrides (e.g. PORT=9000 ./start.sh npqs).
 source_env_nonclobber() {
   local file=$1 line key
   [[ -f "$file" ]] || return 0
@@ -143,20 +143,20 @@ start_backend() {
   (
     cd "$BACKEND_DIR"
     # Apply per-agency values BEFORE sourcing .env so they aren't clobbered by
-    # the generic .env defaults (which typically have NSW_AGENCY_PORT=8081 etc.).
+    # the generic .env defaults (which typically have PORT=8081 etc.).
     # ${VAR:-…} preserves a parent-shell override.
     # Final precedence: parent env > script per-agency > .env > Go-side fallback.
-    export NSW_AGENCY_PORT="${NSW_AGENCY_PORT:-$BE_PORT}"
-    export NSW_AGENCY_DB_DRIVER="${NSW_AGENCY_DB_DRIVER:-sqlite}"
-    export NSW_AGENCY_DB_PATH="${NSW_AGENCY_DB_PATH:-./${agency}_applications.db}"
-    export NSW_AGENCY_NSW_CLIENT_ID="${NSW_AGENCY_NSW_CLIENT_ID:-$NSW_CLIENT_ID}"
+    export PORT="${PORT:-$BE_PORT}"
+    export DB_DRIVER="${DB_DRIVER:-sqlite}"
+    export DB_PATH="${DB_PATH:-./${agency}_applications.db}"
+    export NSW_CLIENT_ID="${NSW_CLIENT_ID:-$NSW_CLIENT_ID}"
     # The Go server does not autoload .env — source it (non-clobber) so
-    # NSW_AGENCY_NSW_* vars (API base URL, OAuth client secret, token URL) reach
+    # NSW_* vars (API base URL, OAuth client secret, token URL) reach
     # the process without overriding anything already set above.
     if [[ -f .env ]]; then
       source_env_nonclobber .env
     else
-      echo "[start-dev] WARNING: backend/.env not found — backend will fail if NSW_AGENCY_NSW_* vars are unset." >&2
+      echo "[start-dev] WARNING: backend/.env not found — backend will fail if NSW_* vars are unset." >&2
     fi
     exec go run ./cmd/server
   ) &

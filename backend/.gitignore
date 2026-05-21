@@ -19,7 +19,7 @@ vendor/
 .env.local
 
 # Per-deployment data is local-only. Only the default examples ship in the repo;
-# agencies provide their own task configs and forms via OGA_CONFIG_DIR.
+# agencies provide their own task configs and forms via CONFIG_DIR.
 data/*
 !data/forms/
 data/forms/*
