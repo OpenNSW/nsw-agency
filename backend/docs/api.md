@@ -253,7 +253,7 @@ After a successful review, the service POSTs the following to the `serviceUrl`:
   "task_id": "927adaaa-b959-4648-880a-16508acafc12",
   "consignment_id": "cefda05e-3071-4e94-b001-328094e570a7",
   "payload": {
-    "action": "VERIFICATION",
+    "action": "AGENCY_VERIFICATION",
     "content": {
       "decision": "APPROVED",
       "phytosanitaryClearance": "CLEARED",
