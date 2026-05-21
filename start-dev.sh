@@ -167,7 +167,7 @@ start_backend() {
 start_frontend() {
   local agency=$1
   resolve_agency "$agency"
-  echo "[start] Starting $agency frontend -> http://localhost:$FE_PORT (branding: $agency, idp: $IDP_CLIENT_ID)"
+  echo "[start-dev] Starting $agency frontend -> http://localhost:$FE_PORT (branding: $agency, idp: $IDP_CLIENT_ID)"
   (
     cd "$FRONTEND_DIR"
     # Vite autoloads frontend/.env but only reads VITE_PORT from process env.
