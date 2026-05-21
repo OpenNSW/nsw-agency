@@ -10,11 +10,10 @@ dist/
 *.out
 coverage.out
 results.sarif
-/backend/oga
 /backend/data/*.db
 /backend/data/*.sqlite
 
-# Local per-OGA SQLite databases (created by run-oga.sh in backend/)
+# Local per NSW Agency SQLite databases (created by start.sh in backend/)
 /backend/*.db
 /backend/*.db-journal
 /backend/*.db-wal
@@ -27,7 +26,7 @@ results.sarif
 .env.local
 .env.*.local
 
-# Per-OGA branding configs are deployment-specific; only the default template is tracked.
+# Per NSW branding configs are deployment-specific; only the default template is tracked.
 /frontend/public/configs/*.branding.json
 !/frontend/public/configs/default.branding.json
 

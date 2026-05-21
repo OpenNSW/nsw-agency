@@ -2,7 +2,7 @@
 # Run NSW Agency backends and/or frontends with per-agency config.
 #
 # Usage:
-#   ./start-dev.sh <agency> [target]
+#   ./start.sh <agency> [target]
 #
 #   <agency>  One of: npqs, fcau, ird, cda, default, all
 #             'all' fans out and starts every agency in parallel.
@@ -16,15 +16,15 @@
 #
 # Env-var precedence (highest to lowest):
 #   parent shell env > backend/.env (for backend vars) > script defaults
-# i.e. NSW_AGENCY_PORT=9000 ./start-dev.sh npqs honours the override; .env can fill in
+# i.e. PORT=9000 ./start.sh npqs honours the override; .env can fill in
 # anything the parent didn't set; the per-agency defaults below are the floor.
 #
 # Examples:
-#   ./start-dev.sh npqs              # NPQS backend + frontend
-#   ./start-dev.sh fcau backend      # FCAU backend only
-#   ./start-dev.sh ird frontend      # IRD frontend only
-#   ./start-dev.sh all               # every backend + frontend, in parallel
-#   ./start-dev.sh all backend       # every backend, no frontends
+#   ./start.sh npqs              # NPQS backend + frontend
+#   ./start.sh fcau backend      # FCAU backend only
+#   ./start.sh ird frontend      # IRD frontend only
+#   ./start.sh all               # every backend + frontend, in parallel
+#   ./start.sh all backend       # every backend, no frontends
 #
 # Ctrl-C terminates every child process (each runs in its own process group).
 
@@ -36,21 +36,22 @@ set -m
 # Single source of truth for per-agency config: "BE_PORT|FE_PORT|IDP_CLIENT_ID|NSW_CLIENT_ID".
 # Adding an agency means one line here — nothing else.
 # (Scalar vars rather than `declare -A` so this works on stock macOS bash 3.2.)
-NSW_AGENCY_CONFIG_npqs="8081|5174|OGA_PORTAL_APP_NPQS|NPQS_TO_NSW"
-NSW_AGENCY_CONFIG_fcau="8082|5175|OGA_PORTAL_APP_FCAU|FCAU_TO_NSW"
-NSW_AGENCY_CONFIG_ird="8083|5176|OGA_PORTAL_APP_IRD|IRD_TO_NSW"
-NSW_AGENCY_CONFIG_cda="8084|5177|OGA_PORTAL_APP_CDA|CDA_TO_NSW"
-NSW_AGENCY_CONFIG_default="8081|5174|NSW_AGENCY_TO_NSW|NSW_AGENCY_TO_NSW"
+CONFIG_npqs="8081|5174|AGENCY_PORTAL_APP_NPQS|NPQS_TO_NSW"
+CONFIG_fcau="8082|5175|AGENCY_PORTAL_APP_FCAU|FCAU_TO_NSW"
+CONFIG_ird="8083|5176|AGENCY_PORTAL_APP_IRD|IRD_TO_NSW"
+CONFIG_cda="8084|5177|AGENCY_PORTAL_APP_CDA|CDA_TO_NSW"
+CONFIG_default="8081|5174|AGENCY_TO_NSW|AGENCY_TO_NSW"
 
 # Real agencies (every NSW_AGENCY_CONFIG_* except 'default'), alphabetised for
+# Real agencies (every AGENCY_CONFIG_* except 'default'), alphabetised for
 # predictable launch order in 'all' mode. Derived from the config above so
-# adding an agency only requires editing the NSW_AGENCY_CONFIG_* block.
+# adding an agency only requires editing the AGENCY_CONFIG_* block.
 ALL_AGENCIES=()
 while IFS= read -r _v; do
-  _agency="${_v#NSW_AGENCY_CONFIG_}"
+  _agency="${_v#AGENCY_CONFIG_}"
   [[ "$_agency" == "default" ]] && continue
   ALL_AGENCIES+=("$_agency")
-done < <(compgen -A variable NSW_AGENCY_CONFIG_ | sort)
+done < <(compgen -A variable AGENCY_CONFIG_ | sort)
 unset _v _agency
 
 usage() {
@@ -93,7 +94,7 @@ cleanup() {
   trap - EXIT INT TERM
   if (( ${#PIDS[@]} > 0 )); then
     echo
-    echo "[start-dev] Stopping ${#PIDS[@]} process(es)..."
+    echo "[start] Stopping ${#PIDS[@]} process(es)..."
     for pid in "${PIDS[@]}"; do
       if kill -0 "$pid" 2>/dev/null; then
         # Negative PID -> signal the whole process group (set -m makes each
@@ -108,7 +109,7 @@ trap cleanup EXIT INT TERM
 
 # Sets BE_PORT, FE_PORT, IDP_CLIENT_ID, NSW_CLIENT_ID for the given agency.
 resolve_agency() {
-  local varname="NSW_AGENCY_CONFIG_$1"
+  local varname="AGENCY_CONFIG_$1"
   local config="${!varname:-}"
   if [[ -z "$config" ]]; then
     echo "Unknown agency '$1'. Expected: ${ALL_AGENCIES[*]}, default, all." >&2
@@ -118,7 +119,7 @@ resolve_agency() {
 }
 
 # Source a .env file without clobbering vars already set in the environment.
-# This preserves parent-shell overrides (e.g. NSW_AGENCY_PORT=9000 ./start-dev.sh npqs).
+# This preserves parent-shell overrides (e.g. PORT=9000 ./start.sh npqs).
 source_env_nonclobber() {
   local file=$1 line key
   [[ -f "$file" ]] || return 0
@@ -139,24 +140,24 @@ source_env_nonclobber() {
 start_backend() {
   local agency=$1
   resolve_agency "$agency"
-  echo "[start-dev] Starting $agency backend  -> http://localhost:$BE_PORT (db: ${agency}_applications.db)"
+  echo "[start] Starting $agency backend  -> http://localhost:$BE_PORT (db: ${agency}_applications.db)"
   (
     cd "$BACKEND_DIR"
     # Apply per-agency values BEFORE sourcing .env so they aren't clobbered by
-    # the generic .env defaults (which typically have NSW_AGENCY_PORT=8081 etc.).
+    # the generic .env defaults (which typically have PORT=8081 etc.).
     # ${VAR:-…} preserves a parent-shell override.
     # Final precedence: parent env > script per-agency > .env > Go-side fallback.
-    export NSW_AGENCY_PORT="${NSW_AGENCY_PORT:-$BE_PORT}"
-    export NSW_AGENCY_DB_DRIVER="${NSW_AGENCY_DB_DRIVER:-sqlite}"
-    export NSW_AGENCY_DB_PATH="${NSW_AGENCY_DB_PATH:-./${agency}_applications.db}"
-    export NSW_AGENCY_NSW_CLIENT_ID="${NSW_AGENCY_NSW_CLIENT_ID:-$NSW_CLIENT_ID}"
+    export PORT="${PORT:-$BE_PORT}"
+    export DB_DRIVER="${DB_DRIVER:-sqlite}"
+    export DB_PATH="${DB_PATH:-./${agency}_applications.db}"
+    export NSW_CLIENT_ID="${NSW_CLIENT_ID:-$NSW_CLIENT_ID}"
     # The Go server does not autoload .env — source it (non-clobber) so
-    # NSW_AGENCY_NSW_* vars (API base URL, OAuth client secret, token URL) reach
+    # AGENCY_NSW_* vars (API base URL, OAuth client secret, token URL) reach
     # the process without overriding anything already set above.
     if [[ -f .env ]]; then
       source_env_nonclobber .env
     else
-      echo "[start-dev] WARNING: backend/.env not found — backend will fail if NSW_AGENCY_NSW_* vars are unset." >&2
+      echo "[start] WARNING: backend/.env not found — backend will fail if AGENCY_NSW_* vars are unset." >&2
     fi
     exec go run ./cmd/server
   ) &
@@ -166,7 +167,7 @@ start_backend() {
 start_frontend() {
   local agency=$1
   resolve_agency "$agency"
-  echo "[start-dev] Starting $agency frontend -> http://localhost:$FE_PORT (branding: $agency, idp: $IDP_CLIENT_ID)"
+  echo "[start] Starting $agency frontend -> http://localhost:$FE_PORT (branding: $agency, idp: $IDP_CLIENT_ID)"
   (
     cd "$FRONTEND_DIR"
     # Vite autoloads frontend/.env but only reads VITE_PORT from process env.
@@ -195,5 +196,5 @@ for o in "${AGENCIES[@]}"; do
   [[ "$TARGET" == "all" || "$TARGET" == "frontend" ]] && start_frontend "$o"
 done
 
-echo "[start-dev] ${#PIDS[@]} process(es) running. Logs from all processes will interleave below. Press Ctrl-C to stop."
+echo "[start] ${#PIDS[@]} process(es) running. Logs from all processes will interleave below. Press Ctrl-C to stop."
 wait
