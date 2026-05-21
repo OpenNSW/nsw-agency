@@ -39,10 +39,13 @@ func newTestStore(t *testing.T) *ApplicationStore {
 		t.Fatalf("failed to create store (driver=%s): %v", cfg.DB.Driver, err)
 	}
 
-	// For persistent backends, clean the table before each test.
+	// For persistent backends, clean tables before each test.
 	if cfg.DB.Driver != "sqlite" || cfg.DB.Path != ":memory:" {
 		if err := store.db.Exec("TRUNCATE TABLE applications").Error; err != nil {
 			t.Fatalf("failed to truncate applications table: %v", err)
+		}
+		if err := store.db.Exec("TRUNCATE TABLE consignments CASCADE").Error; err != nil {
+			t.Fatalf("failed to truncate consignments table: %v", err)
 		}
 	}
 
@@ -88,6 +91,9 @@ func TestApplicationStore_SQLite_SchemaMigration(t *testing.T) {
 	store := newTestStore(t)
 	if !store.db.Migrator().HasTable(&ApplicationRecord{}) {
 		t.Error("applications table was not created after migration")
+	}
+	if !store.db.Migrator().HasTable(&ConsignmentRecord{}) {
+		t.Error("consignments table was not created after migration")
 	}
 }
 
@@ -335,15 +341,14 @@ func TestApplicationStore_ListConsignments(t *testing.T) {
 
 	// Seed records across 3 consignments
 	// WF1: 2 tasks
-	seedRecord(t, store, "wf1-t1", nil)
-	_ = store.CreateOrUpdate(&ApplicationRecord{TaskID: "wf1-t1", ConsignmentID: "wf1", Status: "PENDING"})
-	_ = store.CreateOrUpdate(&ApplicationRecord{TaskID: "wf1-t2", ConsignmentID: "wf1", Status: "APPROVED"})
+	_ = store.CreateOrUpdate(&ApplicationRecord{TaskID: "wf1-t1", TaskCode: "test", ConsignmentID: "wf1", ServiceURL: "http://test", Status: "PENDING"})
+	_ = store.CreateOrUpdate(&ApplicationRecord{TaskID: "wf1-t2", TaskCode: "test", ConsignmentID: "wf1", ServiceURL: "http://test", Status: "APPROVED"})
 
 	// WF2: 1 task
-	_ = store.CreateOrUpdate(&ApplicationRecord{TaskID: "wf2-t1", ConsignmentID: "wf2", Status: "PENDING"})
+	_ = store.CreateOrUpdate(&ApplicationRecord{TaskID: "wf2-t1", TaskCode: "test", ConsignmentID: "wf2", ServiceURL: "http://test", Status: "PENDING"})
 
 	// WF3: 1 task
-	_ = store.CreateOrUpdate(&ApplicationRecord{TaskID: "wf3-t1", ConsignmentID: "wf3", Status: "REJECTED"})
+	_ = store.CreateOrUpdate(&ApplicationRecord{TaskID: "wf3-t1", TaskCode: "test", ConsignmentID: "wf3", ServiceURL: "http://test", Status: "REJECTED"})
 
 	// List consignments
 	summaries, total, err := store.ListConsignments(ctx, "", 0, 10)
@@ -462,5 +467,97 @@ func TestApplicationStore_UpdateDataAndResetStatus(t *testing.T) {
 	}
 	if app.Data["new"] != "data" {
 		t.Errorf("expected updated data, got %v", app.Data)
+	}
+}
+
+// ---------- 7. Functional Testing: Consignment Table ----------
+
+func TestApplicationStore_ConsignmentUpsert(t *testing.T) {
+	store := newTestStore(t)
+
+	// Two CreateOrUpdate calls with the same consignment_id should result in one consignment row.
+	if err := store.CreateOrUpdate(&ApplicationRecord{
+		TaskID:        "dup-t1",
+		TaskCode:      "test",
+		ConsignmentID: "dup-wf",
+		ServiceURL:    "http://test",
+		Status:        "PENDING",
+	}); err != nil {
+		t.Fatalf("first CreateOrUpdate failed: %v", err)
+	}
+	if err := store.CreateOrUpdate(&ApplicationRecord{
+		TaskID:        "dup-t2",
+		TaskCode:      "test",
+		ConsignmentID: "dup-wf",
+		ServiceURL:    "http://test",
+		Status:        "PENDING",
+	}); err != nil {
+		t.Fatalf("second CreateOrUpdate failed: %v", err)
+	}
+
+	var count int64
+	if err := store.db.Model(&ConsignmentRecord{}).Where("id = ?", "dup-wf").Count(&count).Error; err != nil {
+		t.Fatalf("count query failed: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("expected 1 consignment row for dup-wf, got %d", count)
+	}
+}
+
+func TestApplicationStore_UpdateStatus_PropagatesConsignment(t *testing.T) {
+	store := newTestStore(t)
+	seedRecord(t, store, "task-prop-1", nil)
+
+	if err := store.UpdateStatus("task-prop-1", "APPROVED", map[string]any{}); err != nil {
+		t.Fatalf("UpdateStatus failed: %v", err)
+	}
+
+	var cr ConsignmentRecord
+	if err := store.db.First(&cr, "id = ?", "wf-seed").Error; err != nil {
+		t.Fatalf("failed to fetch consignment: %v", err)
+	}
+	if cr.Status != "APPROVED" {
+		t.Errorf("expected consignment status 'APPROVED', got %q", cr.Status)
+	}
+}
+
+func TestApplicationStore_Backfill(t *testing.T) {
+	store := newTestStore(t)
+
+	// PostgreSQL enforces the FK constraint, so direct inserts without a consignment
+	// row are rejected. In production this scenario (applications with no consignments)
+	// only occurs before the FK is applied — i.e., exactly the moment backfill runs in
+	// NewApplicationStore (between the two AutoMigrate calls). Skip on postgres.
+	if store.db.Dialector.Name() == "postgres" {
+		t.Skip("backfill pre-condition (FK-free inserts) cannot be simulated on PostgreSQL")
+	}
+
+	// Insert application rows directly, bypassing CreateOrUpdate (simulates pre-migration data).
+	apps := []ApplicationRecord{
+		{TaskID: "bf-t1", TaskCode: "test", ConsignmentID: "bf-wf1", ServiceURL: "http://test", Status: "PENDING"},
+		{TaskID: "bf-t2", TaskCode: "test", ConsignmentID: "bf-wf1", ServiceURL: "http://test", Status: "APPROVED"},
+		{TaskID: "bf-t3", TaskCode: "test", ConsignmentID: "bf-wf2", ServiceURL: "http://test", Status: "PENDING"},
+	}
+	for _, a := range apps {
+		if err := store.db.Create(&a).Error; err != nil {
+			t.Fatalf("direct insert failed: %v", err)
+		}
+	}
+
+	// Delete consignment rows to simulate a pre-migration state.
+	if err := store.db.Exec("DELETE FROM consignments").Error; err != nil {
+		t.Fatalf("failed to clear consignments: %v", err)
+	}
+
+	if err := backfillConsignments(store.db); err != nil {
+		t.Fatalf("backfillConsignments failed: %v", err)
+	}
+
+	var count int64
+	if err := store.db.Model(&ConsignmentRecord{}).Count(&count).Error; err != nil {
+		t.Fatalf("count failed: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("expected 2 consignment rows after backfill, got %d", count)
 	}
 }
