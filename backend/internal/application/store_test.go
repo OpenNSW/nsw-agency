@@ -528,7 +528,7 @@ func TestApplicationStore_Backfill(t *testing.T) {
 	// row are rejected. In production this scenario (applications with no consignments)
 	// only occurs before the FK is applied — i.e., exactly the moment backfill runs in
 	// NewApplicationStore (between the two AutoMigrate calls). Skip on postgres.
-	if store.db.Dialector.Name() == "postgres" {
+	if store.db.Name() == "postgres" {
 		t.Skip("backfill pre-condition (FK-free inserts) cannot be simulated on PostgreSQL")
 	}
 

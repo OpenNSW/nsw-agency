@@ -63,7 +63,7 @@ func (ConsignmentRecord) TableName() string {
 type ApplicationRecord struct {
 	TaskID             string            `gorm:"type:text;primaryKey"`
 	TaskCode           string            `gorm:"type:varchar(100);not null"`
-	ConsignmentID      string            `gorm:"type:text;index;not null;constraint:OnUpdate:CASCADE,OnDelete:SET NULL"`
+	ConsignmentID      string            `gorm:"type:text;index;not null;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 	Consignment        ConsignmentRecord `gorm:"foreignKey:ConsignmentID;references:ID"`
 	ServiceURL         string            `gorm:"type:varchar(512);not null"`                  // URL to send response back to
 	Data               JSONB             `gorm:"type:text"`                                   // Injected data from service
@@ -237,8 +237,9 @@ func (s *ApplicationStore) ListConsignments(ctx context.Context, search string, 
 	}
 
 	dataQ := s.db.WithContext(ctx).Model(&ConsignmentRecord{}).
-		Select("consignments.id AS consignment_id, consignments.status, consignments.updated_at, " +
-			"(SELECT COUNT(*) FROM applications WHERE applications.consignment_id = consignments.id) AS task_count").
+		Select("consignments.id AS consignment_id, consignments.status, consignments.updated_at, COUNT(applications.task_id) AS task_count").
+		Joins("LEFT JOIN applications ON applications.consignment_id = consignments.id").
+		Group("consignments.id, consignments.status, consignments.updated_at").
 		Order("consignments.updated_at DESC").
 		Offset(offset).
 		Limit(limit)
