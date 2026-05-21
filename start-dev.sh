@@ -157,7 +157,7 @@ start_backend() {
     if [[ -f .env ]]; then
       source_env_nonclobber .env
     else
-      echo "[start] WARNING: backend/.env not found — backend will fail if AGENCY_NSW_* vars are unset." >&2
+      echo "[start-dev] WARNING: backend/.env not found — backend will fail if NSW_* vars are unset." >&2
     fi
     exec go run ./cmd/server
   ) &
