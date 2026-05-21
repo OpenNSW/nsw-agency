@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the internal architecture of the OGA service module.
+This document describes the internal architecture of the NSW Agency service module.
 
 ## Layered Architecture
 
