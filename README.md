@@ -35,7 +35,7 @@ pnpm dev
 
 ### Running a specific NSW Agency
 
-Use [start.sh](start.sh) at the repo root to launch the per-agency backend and/or frontend with the right ports, DB file, IdP client id, and branding:
+Use [start-dev.sh](start-dev.sh) at the repo root to launch the per-agency backend and/or frontend with the right ports, DB file, IdP client id, and branding:
 
 ```bash
 ./start.sh npqs              # backend + frontend for NPQS
