@@ -36,15 +36,13 @@ set -m
 # Single source of truth for per-agency config: "BE_PORT|FE_PORT|IDP_CLIENT_ID|NSW_CLIENT_ID".
 # Adding an agency means one line here — nothing else.
 # (Scalar vars rather than `declare -A` so this works on stock macOS bash 3.2.)
-CONFIG_npqs="8081|5174|AGENCY_PORTAL_APP_NPQS|NPQS_TO_NSW"
-CONFIG_fcau="8082|5175|AGENCY_PORTAL_APP_FCAU|FCAU_TO_NSW"
-CONFIG_ird="8083|5176|AGENCY_PORTAL_APP_IRD|IRD_TO_NSW"
-CONFIG_cda="8084|5177|AGENCY_PORTAL_APP_CDA|CDA_TO_NSW"
+CONFIG_npqs="8081|5174|OGA_PORTAL_APP_NPQS|NPQS_TO_NSW"
+CONFIG_fcau="8082|5175|OGA_PORTAL_APP_FCAU|FCAU_TO_NSW"
+CONFIG_ird="8083|5176|OGA_PORTAL_APP_IRD|IRD_TO_NSW"
+CONFIG_cda="8084|5177|OGA_PORTAL_APP_CDA|CDA_TO_NSW"
 
-# Real agencies (every NSW_AGENCY_CONFIG_* except 'default'), alphabetised for
-# Real agencies (every AGENCY_CONFIG_* except 'default'), alphabetised for
-# predictable launch order in 'all' mode. Derived from the config above so
-# adding an agency only requires editing the AGENCY_CONFIG_* block.
+# Agencies (every CONFIG_* ), alphabetised for predictable launch order in 'all' mode
+#  Derived from the config above so adding an agency only requires editing the CONFIG_* block.
 ALL_AGENCIES=()
 while IFS= read -r _v; do
   _agency="${_v#CONFIG_}"
