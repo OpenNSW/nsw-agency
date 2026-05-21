@@ -12,7 +12,7 @@ The NSW Agency service is an implementation of the **Agency Service Module (Agen
 Each government agency runs its own NSW Agency instance with its own database, ensuring data isolation and sovereignty.
 
 ```
-┌─────────────────┐         POST /api/agency/inject           ┌──────────────────┐
+┌─────────────────┐         POST /api/v1/inject           ┌──────────────────┐
 │                 │ ──────────────────────────────────────▶│                  │
 │  NSW Core       │                                        │   NSW Agency Service    │
 │    Service      │◀────────────────────────────────────── │   (per agency)   │
