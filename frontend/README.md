@@ -22,13 +22,13 @@ Example:
 
 - NPQS deployment
   - `VITE_BRANDING_PATH=./src/configs/npqs.yaml`
-  - `VITE_IDP_CLIENT_ID=NSW_AGENCY_PORTAL_APP_NPQS`
+  - `VITE_IDP_CLIENT_ID=OGA_PORTAL_APP_NPQS`
 - FCAU deployment
   - `VITE_BRANDING_PATH=./src/configs/fcau.yaml`
-  - `VITE_IDP_CLIENT_ID=NSW_AGENCY_PORTAL_APP_FCAU`
+  - `VITE_IDP_CLIENT_ID=OGA_PORTAL_APP_FCAU`
 - CDA deployment
   - `VITE_BRANDING_PATH=./src/configs/cda.yaml`
-  - `VITE_IDP_CLIENT_ID=NSW_AGENCY_PORTAL_APP_CDA`
+  - `VITE_IDP_CLIENT_ID=OGA_PORTAL_APP_CDA`
 
 This allows IdP-level user access restriction per NSW Agency app registration.
 

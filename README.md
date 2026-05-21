@@ -54,10 +54,10 @@ Every process runs in its own process group (`set -m`), so `Ctrl-C` cleanly stop
 
 | NSW Agency | Backend port | DB file | NSW M2M client | Frontend port | Branding config | IdP client id |
 |-----|--------------|---------|----------------|---------------|-----------------|---------------|
-| NPQS | 8081 | `backend/npqs_applications.db` | `NPQS_TO_NSW` | 5174 | `frontend/public/configs/npqs.branding.json` | `NSW_AGENCY_PORTAL_APP_NPQS` |
-| FCAU | 8082 | `backend/fcau_applications.db` | `FCAU_TO_NSW` | 5175 | `frontend/public/configs/fcau.branding.json` | `NSW_AGENCY_PORTAL_APP_FCAU` |
-| IRD  | 8083 | `backend/ird_applications.db`  | `IRD_TO_NSW`  | 5176 | `frontend/public/configs/ird.branding.json`  | `NSW_AGENCY_PORTAL_APP_IRD` |
-| CDA  | 8084 | `backend/cda_applications.db`  | `CDA_TO_NSW`  | 5177 | `frontend/public/configs/cda.branding.json`  | `NSW_AGENCY_PORTAL_APP_CDA` |
+| NPQS | 8081 | `backend/npqs_applications.db` | `NPQS_TO_NSW` | 5174 | `frontend/public/configs/npqs.branding.json` | `OGA_PORTAL_APP_NPQS` |
+| FCAU | 8082 | `backend/fcau_applications.db` | `FCAU_TO_NSW` | 5175 | `frontend/public/configs/fcau.branding.json` | `OGA_PORTAL_APP_FCAU` |
+| IRD  | 8083 | `backend/ird_applications.db`  | `IRD_TO_NSW`  | 5176 | `frontend/public/configs/ird.branding.json`  | `OGA_PORTAL_APP_IRD` |
+| CDA  | 8084 | `backend/cda_applications.db`  | `CDA_TO_NSW`  | 5177 | `frontend/public/configs/cda.branding.json`  | `OGA_PORTAL_APP_CDA` |
 
 The branding-config paths above are gitignored — copy them from [default.branding.json](frontend/public/configs/default.branding.json) (see below).
 
