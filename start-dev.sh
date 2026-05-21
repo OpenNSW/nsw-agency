@@ -152,7 +152,7 @@ start_backend() {
     export DB_PATH="${DB_PATH:-./${agency}_applications.db}"
     export NSW_CLIENT_ID="${NSW_CLIENT_ID:-$NSW_CLIENT_ID}"
     # The Go server does not autoload .env — source it (non-clobber) so
-    # AGENCY_NSW_* vars (API base URL, OAuth client secret, token URL) reach
+    # NSW_* vars (API base URL, OAuth client secret, token URL) reach
     # the process without overriding anything already set above.
     if [[ -f .env ]]; then
       source_env_nonclobber .env
