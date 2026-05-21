@@ -67,15 +67,15 @@ pnpm run dev
 
 ### Running a specific NSW Agency
 
-Use the repo-root [../run-agency.sh](../run-agency.sh) to start the frontend (and optionally the backend) with the per-agency port, branding name, API URL, and IdP client id:
+Use the repo-root [../start-dev.sh](../start-dev.sh) to start the frontend (and optionally the backend) with the per-agency port, branding name, API URL, and IdP client id:
 
 ```bash
 # From the repo root
-./run-agency.sh npqs frontend     # NPQS frontend on port 5174
-./run-agency.sh fcau frontend     # FCAU frontend on port 5175
-./run-agency.sh ird  frontend     # IRD  frontend on port 5176
-./run-agency.sh cda  frontend     # CDA  frontend on port 5177
-./run-agency.sh npqs              # also start the matching backend
+./start-dev.sh npqs frontend     # NPQS frontend on port 5174
+./start-dev.sh fcau frontend     # FCAU frontend on port 5175
+./start-dev.sh ird  frontend     # IRD  frontend on port 5176
+./start-dev.sh cda  frontend     # CDA  frontend on port 5177
+./start-dev.sh npqs              # also start the matching backend
 ```
 
-Each name maps to a JSON file under [public/configs/](public/configs/) (`<name>.branding.json`). To onboard a new agency, copy [public/configs/default.branding.json](public/configs/default.branding.json), edit the `branding.*` fields, and add a new `case` to [../run-agency.sh](../run-agency.sh).
+Each name maps to a JSON file under [public/configs/](public/configs/) (`<name>.branding.json`). To onboard a new agency, copy [public/configs/default.branding.json](public/configs/default.branding.json), edit the `branding.*` fields, and add a new `case` to [../start-dev.sh](../start-dev.sh).

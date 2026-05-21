@@ -28,6 +28,20 @@ type Config struct {
 	MaxRequestBytes     int64
 }
 
+func getEnv(key string) string {
+	if !strings.HasPrefix(key, "NSW_AGENCY_") {
+		if value := os.Getenv(key); value != "" {
+			return value
+		}
+		return os.Getenv("NSW_AGENCY_" + key)
+	}
+	k := strings.TrimPrefix(key, "NSW_AGENCY_")
+	if value := os.Getenv(k); value != "" {
+		return value
+	}
+	return os.Getenv(key)
+}
+
 // LoadConfig loads configuration from environment variables
 func LoadConfig() (Config, error) {
 	driver := envOrDefault("NSW_AGENCY_DB_DRIVER", "sqlite")
@@ -36,9 +50,9 @@ func LoadConfig() (Config, error) {
 	// Isolate required configurations per driver
 	switch driver {
 	case "postgres":
-		password := os.Getenv("NSW_AGENCY_DB_PASSWORD")
+		password := getEnv("NSW_AGENCY_DB_PASSWORD")
 		if password == "" {
-			return Config{}, fmt.Errorf("database password secret is missing: NSW_AGENCY_DB_PASSWORD is required for postgres driver")
+			return Config{}, fmt.Errorf("database password secret is missing: DB_PASSWORD is required for postgres driver")
 		}
 
 		dbConfig = database.Config{
@@ -69,11 +83,11 @@ func LoadConfig() (Config, error) {
 		DefaultTaskConfigID: envOrDefault("NSW_AGENCY_DEFAULT_TASK_CONFIG_ID", "default"),
 		AllowedOrigins:      parseCommaSeparated(envOrDefault("NSW_AGENCY_ALLOWED_ORIGINS", "*")),
 		NSW: NSWConfig{
-			BaseURL:      os.Getenv("NSW_AGENCY_NSW_API_BASE_URL"),
-			ClientID:     os.Getenv("NSW_AGENCY_NSW_CLIENT_ID"),
-			ClientSecret: os.Getenv("NSW_AGENCY_NSW_CLIENT_SECRET"),
-			TokenURL:     os.Getenv("NSW_AGENCY_NSW_TOKEN_URL"),
-			Scopes:       parseCommaSeparated(os.Getenv("NSW_AGENCY_NSW_SCOPES")),
+			BaseURL:      getEnv("NSW_AGENCY_NSW_API_BASE_URL"),
+			ClientID:     getEnv("NSW_AGENCY_NSW_CLIENT_ID"),
+			ClientSecret: getEnv("NSW_AGENCY_NSW_CLIENT_SECRET"),
+			TokenURL:     getEnv("NSW_AGENCY_NSW_TOKEN_URL"),
+			Scopes:       parseCommaSeparated(getEnv("NSW_AGENCY_NSW_SCOPES")),
 		},
 	}
 
@@ -98,22 +112,22 @@ func LoadConfig() (Config, error) {
 
 func (c Config) validateNSWOAuth2Config() error {
 	if strings.TrimSpace(c.NSW.BaseURL) == "" {
-		return fmt.Errorf("NSW_AGENCY_NSW_API_BASE_URL is required")
+		return fmt.Errorf("NSW_API_BASE_URL is required")
 	}
 	if strings.TrimSpace(c.NSW.ClientID) == "" {
-		return fmt.Errorf("NSW_AGENCY_NSW_CLIENT_ID is required")
+		return fmt.Errorf("NSW_CLIENT_ID is required")
 	}
 	if strings.TrimSpace(c.NSW.ClientSecret) == "" {
-		return fmt.Errorf("NSW_AGENCY_NSW_CLIENT_SECRET is required")
+		return fmt.Errorf("NSW_CLIENT_SECRET is required")
 	}
 	if strings.TrimSpace(c.NSW.TokenURL) == "" {
-		return fmt.Errorf("NSW_AGENCY_NSW_TOKEN_URL is required")
+		return fmt.Errorf("NSW_TOKEN_URL is required")
 	}
 	return nil
 }
 
 func envOrDefault(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
+	if value := getEnv(key); value != "" {
 		return value
 	}
 	return defaultValue
@@ -132,7 +146,7 @@ func parseCommaSeparated(value string) []string {
 }
 
 func parseBoolEnv(key string, defaultValue bool) (bool, error) {
-	raw := strings.TrimSpace(os.Getenv(key))
+	raw := strings.TrimSpace(getEnv(key))
 	if raw == "" {
 		return defaultValue, nil
 	}
@@ -146,7 +160,7 @@ func parseBoolEnv(key string, defaultValue bool) (bool, error) {
 }
 
 func parseInt64Env(key string, defaultValue int64) (int64, error) {
-	raw := strings.TrimSpace(os.Getenv(key))
+	raw := strings.TrimSpace(getEnv(key))
 	if raw == "" {
 		return defaultValue, nil
 	}

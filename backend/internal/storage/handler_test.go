@@ -44,7 +44,7 @@ func TestHandleCreateUpload(t *testing.T) {
 		handler := NewHandler(mockSvc, 32<<20)
 
 		body := []byte(`{"filename":"test.txt","mime_type":"text/plain","size":123}`)
-		req := httptest.NewRequest(http.MethodPost, "/api/nsw-agency/uploads", bytes.NewBuffer(body))
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/storage", bytes.NewBuffer(body))
 		rec := httptest.NewRecorder()
 
 		handler.HandleCreateUpload(rec, req)
@@ -75,7 +75,7 @@ func TestHandleCreateUpload(t *testing.T) {
 		handler := NewHandler(mockSvc, 32<<20)
 
 		body := []byte(`{"filename":"test.txt","mime_type":"text/plain","size":123}`)
-		req := httptest.NewRequest(http.MethodPost, "/api/nsw-agency/uploads", bytes.NewBuffer(body))
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/storage", bytes.NewBuffer(body))
 		rec := httptest.NewRecorder()
 
 		handler.HandleCreateUpload(rec, req)
@@ -98,7 +98,7 @@ func TestHandleGetUploadURL(t *testing.T) {
 		}
 		handler := NewHandler(mockSvc, 32<<20)
 
-		req := httptest.NewRequest(http.MethodGet, "/api/nsw-agency/uploads/550e8400-e29b-41d4-a716-446655440000.pdf", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/storage/550e8400-e29b-41d4-a716-446655440000.pdf", nil)
 		req.SetPathValue("key", "550e8400-e29b-41d4-a716-446655440000.pdf") // Set the mux path value
 		rec := httptest.NewRecorder()
 

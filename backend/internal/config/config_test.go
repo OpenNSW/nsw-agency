@@ -25,10 +25,10 @@ func TestLoadConfig_RequiresNSWOAuth2Vars(t *testing.T) {
 		missing  string
 		expected string
 	}{
-		{name: "missing api base url", missing: "NSW_AGENCY_NSW_API_BASE_URL", expected: "NSW_AGENCY_NSW_API_BASE_URL is required"},
-		{name: "missing client id", missing: "NSW_AGENCY_NSW_CLIENT_ID", expected: "NSW_AGENCY_NSW_CLIENT_ID is required"},
-		{name: "missing client secret", missing: "NSW_AGENCY_NSW_CLIENT_SECRET", expected: "NSW_AGENCY_NSW_CLIENT_SECRET is required"},
-		{name: "missing token url", missing: "NSW_AGENCY_NSW_TOKEN_URL", expected: "NSW_AGENCY_NSW_TOKEN_URL is required"},
+		{name: "missing api base url", missing: "NSW_AGENCY_NSW_API_BASE_URL", expected: "NSW_API_BASE_URL is required"},
+		{name: "missing client id", missing: "NSW_AGENCY_NSW_CLIENT_ID", expected: "NSW_CLIENT_ID is required"},
+		{name: "missing client secret", missing: "NSW_AGENCY_NSW_CLIENT_SECRET", expected: "NSW_CLIENT_SECRET is required"},
+		{name: "missing token url", missing: "NSW_AGENCY_NSW_TOKEN_URL", expected: "NSW_TOKEN_URL is required"},
 	}
 
 	for _, tc := range testCases {

@@ -75,7 +75,7 @@ func seedRecord(t *testing.T, store *ApplicationStore, taskID string, data JSONB
 
 func TestApplicationStore_SQLite_FileCreated(t *testing.T) {
 	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, "test_oga.db")
+	dbPath := filepath.Join(tmpDir, "test_agency.db")
 
 	_, err := NewApplicationStore(config.Config{DB: database.Config{Driver: "sqlite", Path: dbPath}})
 	if err != nil {
