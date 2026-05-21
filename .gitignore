@@ -26,7 +26,7 @@ results.sarif
 .env.local
 .env.*.local
 
-# Per NSW branding configs are deployment-specific; only the default template is tracked.
+# Per NSW Agency branding configs are deployment-specific; only the default template is tracked.
 /frontend/public/configs/*.branding.json
 !/frontend/public/configs/default.branding.json
 

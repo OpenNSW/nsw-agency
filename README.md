@@ -38,16 +38,16 @@ pnpm dev
 Use [start-dev.sh](start-dev.sh) at the repo root to launch the per-agency backend and/or frontend with the right ports, DB file, IdP client id, and branding:
 
 ```bash
-./start.sh npqs              # backend + frontend for NPQS
-./start.sh fcau backend      # only backend for FCAU
-./start.sh ird frontend      # only frontend for IRD
-./start.sh cda               # backend + frontend for CDA
-./start.sh default           # generic branding/ports
+./start-dev.sh npqs              # backend + frontend for NPQS
+./start-dev.sh fcau backend      # only backend for FCAU
+./start-dev.sh ird frontend      # only frontend for IRD
+./start-dev.sh cda               # backend + frontend for CDA
+./start-dev.sh default           # generic branding/ports
 
 # Fleet mode: bring up every agency at once
-./start.sh all               # all 4 backends (8081-8084) + frontends (5174-5177)
-./start.sh all backend       # only the backends
-./start.sh all frontend      # only the frontends
+./start-dev.sh all               # all 4 backends (8081-8084) + frontends (5174-5177)
+./start-dev.sh all backend       # only the backends
+./start-dev.sh all frontend      # only the frontends
 ```
 
 Every process runs in its own process group (`set -m`), so `Ctrl-C` cleanly stops the whole fleet — including the compiled binary `go run` spawns underneath. Logs from all processes interleave on the same terminal.
@@ -70,7 +70,7 @@ cd frontend/public/configs
 cp default.branding.json npqs.branding.json   # then edit appName, portalName, description, etc.
 ```
 
-To add a brand-new NSW Agency, create `<name>.branding.json` the same way and add a matching `case` to [start.sh](start.sh).
+To add a brand-new NSW Agency, create `<name>.branding.json` the same way and add a matching `case` to [start-dev.sh](start-dev.sh).
 
 ## Prerequisites
 

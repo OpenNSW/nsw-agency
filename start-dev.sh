@@ -2,7 +2,7 @@
 # Run NSW Agency backends and/or frontends with per-agency config.
 #
 # Usage:
-#   ./start.sh <agency> [target]
+#   ./start-dev.sh <agency> [target]
 #
 #   <agency>  One of: npqs, fcau, ird, cda, default, all
 #             'all' fans out and starts every agency in parallel.
@@ -16,7 +16,7 @@
 #
 # Env-var precedence (highest to lowest):
 #   parent shell env > backend/.env (for backend vars) > script defaults
-# i.e. PORT=9000 ./start.sh npqs honours the override; .env can fill in
+# i.e. PORT=9000 ./start-dev.sh npqs honours the override; .env can fill in
 # anything the parent didn't set; the per-agency defaults below are the floor.
 #
 # Examples:
