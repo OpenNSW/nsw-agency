@@ -15,7 +15,7 @@
 #
 # Env-var precedence (highest to lowest):
 #   parent shell env > backend/.env (for backend vars) > script defaults
-# i.e. $env:NSW_AGENCY_PORT=9000; .\start-dev.ps1 npqs honours the override; .env
+# i.e. $env:PORT=9000; .\start-dev.ps1 npqs honours the override; .env
 # can fill in anything the parent didn't set; per-agency defaults are the floor.
 #
 # Examples:
@@ -42,10 +42,10 @@ $ErrorActionPreference = 'Stop'
 # Single source of truth for per-agency config: BE_PORT, FE_PORT, IDP_CLIENT_ID, NSW_CLIENT_ID.
 # Adding an agency means one entry here - nothing else.
 $NSW_AGENCY_CONFIGS = [ordered]@{
-    npqs    = @{ BE_PORT = 8081; FE_PORT = 5174; IDP_CLIENT_ID = 'OGA_PORTAL_APP_NPQS'; NSW_CLIENT_ID = 'NPQS_TO_NSW' }
-    fcau    = @{ BE_PORT = 8082; FE_PORT = 5175; IDP_CLIENT_ID = 'OGA_PORTAL_APP_FCAU'; NSW_CLIENT_ID = 'FCAU_TO_NSW' }
-    ird     = @{ BE_PORT = 8083; FE_PORT = 5176; IDP_CLIENT_ID = 'OGA_PORTAL_APP_IRD';  NSW_CLIENT_ID = 'IRD_TO_NSW'  }
-    cda     = @{ BE_PORT = 8084; FE_PORT = 5177; IDP_CLIENT_ID = 'OGA_PORTAL_APP_CDA';  NSW_CLIENT_ID = 'CDA_TO_NSW'  }
+    npqs    = @{ BE_PORT = 8081; FE_PORT = 5174; IDP_CLIENT_ID = 'NSW_AGENCY_PORTAL_APP_NPQS'; NSW_CLIENT_ID = 'NPQS_TO_NSW' }
+    fcau    = @{ BE_PORT = 8082; FE_PORT = 5175; IDP_CLIENT_ID = 'NSW_AGENCY_PORTAL_APP_FCAU'; NSW_CLIENT_ID = 'FCAU_TO_NSW' }
+    ird     = @{ BE_PORT = 8083; FE_PORT = 5176; IDP_CLIENT_ID = 'NSW_AGENCY_PORTAL_APP_IRD';  NSW_CLIENT_ID = 'IRD_TO_NSW'  }
+    cda     = @{ BE_PORT = 8084; FE_PORT = 5177; IDP_CLIENT_ID = 'NSW_AGENCY_PORTAL_APP_CDA';  NSW_CLIENT_ID = 'CDA_TO_NSW'  }
     default = @{ BE_PORT = 8081; FE_PORT = 5174; IDP_CLIENT_ID = 'NSW_AGENCY_TO_NSW';   NSW_CLIENT_ID = 'NSW_AGENCY_TO_NSW' }
 }
 
@@ -79,28 +79,10 @@ $FRONTEND_DIR = Join-Path $ROOT_DIR 'frontend'
 
 $jobs = [System.Collections.Generic.List[System.Diagnostics.Process]]::new()
 
-# Reads a .env file and sets any variable not already present in the current process env.
-function Import-EnvNonClobber {
-    param([string]$EnvFile)
-    if (-not (Test-Path $EnvFile)) { return }
-    foreach ($line in Get-Content $EnvFile) {
-        if ($line -match '^\s*$' -or $line -match '^\s*#') { continue }
-        if ($line -notmatch '=') { continue }
-        $line = $line -replace '^export\s+', ''
-        $idx  = $line.IndexOf('=')
-        $key  = $line.Substring(0, $idx).Trim()
-        $val  = $line.Substring($idx + 1).Trim() -replace '^"(.*)"$', '$1' -replace "^'(.*)'$", '$1'
-        if ($key -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') { continue }
-        # Only set if not already defined in the environment.
-        if ([System.Environment]::GetEnvironmentVariable($key) -eq $null) {
-            [System.Environment]::SetEnvironmentVariable($key, $val, 'Process')
-        }
-    }
-}
-
 function Ensure-NodeModules {
     $NodeModulesDir = Join-Path $FRONTEND_DIR 'node_modules'
-    if (-not (Test-Path $NodeModulesDir)) {
+    $ModulesMeta    = Join-Path $NodeModulesDir '.modules.yaml'
+    if (-not (Test-Path $ModulesMeta)) {
         Write-Host "[start-dev] node_modules not found - running pnpm install..."
         $psi = [System.Diagnostics.ProcessStartInfo]::new('cmd.exe', '/c pnpm install')
         $psi.WorkingDirectory = $FRONTEND_DIR
@@ -141,7 +123,8 @@ function Ensure-BrandingFile {
   }
 }
 "@
-        Set-Content -Path $FilePath -Value $Content -Encoding utf8
+        $Utf8NoBom = New-Object System.Text.UTF8Encoding $false
+        [System.IO.File]::WriteAllText($FilePath, $Content, $Utf8NoBom)
         Write-Host "[start-dev] Created branding file: $FilePath"
     }
 }
@@ -157,10 +140,10 @@ function Start-Backend {
     # Build env block: per-agency defaults < .env < parent env (non-clobber for .env).
     $envBlock = [System.Environment]::GetEnvironmentVariables('Process').Clone()
 
-    if (-not $envBlock.Contains('NSW_AGENCY_PORT'))       { $envBlock['NSW_AGENCY_PORT']       = "$bePort" }
-    if (-not $envBlock.Contains('NSW_AGENCY_DB_DRIVER'))  { $envBlock['NSW_AGENCY_DB_DRIVER']  = 'sqlite' }
-    if (-not $envBlock.Contains('NSW_AGENCY_DB_PATH'))    { $envBlock['NSW_AGENCY_DB_PATH']    = "./${AgencyName}_applications.db" }
-    if (-not $envBlock.Contains('NSW_AGENCY_NSW_CLIENT_ID')) { $envBlock['NSW_AGENCY_NSW_CLIENT_ID'] = $nswClientId }
+    if (-not $envBlock.Contains('PORT'))          { $envBlock['PORT']          = "$bePort" }
+    if (-not $envBlock.Contains('DB_DRIVER'))     { $envBlock['DB_DRIVER']     = 'sqlite' }
+    if (-not $envBlock.Contains('DB_PATH'))       { $envBlock['DB_PATH']       = "./${AgencyName}_applications.db" }
+    if (-not $envBlock.Contains('NSW_CLIENT_ID')) { $envBlock['NSW_CLIENT_ID'] = $nswClientId }
 
     $envFile = Join-Path $BACKEND_DIR '.env'
     if (Test-Path $envFile) {
@@ -175,7 +158,7 @@ function Start-Backend {
             if (-not $envBlock.Contains($key)) { $envBlock[$key] = $val }
         }
     } else {
-        Write-Host "[start-dev] WARNING: backend/.env not found - backend will fail if NSW_AGENCY_NSW_* vars are unset." -ForegroundColor Yellow
+        Write-Host "[start-dev] WARNING: backend/.env not found - backend will fail if NSW_* vars are unset." -ForegroundColor Yellow
     }
 
     $psi = [System.Diagnostics.ProcessStartInfo]::new('cmd.exe', '/c go run ./cmd/server')
@@ -223,7 +206,7 @@ function Stop-AllJobs {
     Write-Host "[start-dev] Stopping $($jobs.Count) process(es)..."
     foreach ($p in $jobs) {
         if (-not $p.HasExited) {
-            try { $p.Kill($true) } catch { }
+            try { taskkill.exe /F /T /PID $p.Id | Out-Null } catch { }
         }
     }
     foreach ($p in $jobs) {
