@@ -20,7 +20,7 @@ configurations:
     - name: VITE_IDP_BASE_URL
       value: https://localhost:8090
     - name: VITE_IDP_CLIENT_ID
-      value: NSW_AGENCY_PORTAL_APP_NPQS
+      value: OGA_PORTAL_APP_NPQS
     - name: VITE_APP_URL
       value: http://localhost:5174
     - name: VITE_NSW_AGENCY_API_BASE_URL
