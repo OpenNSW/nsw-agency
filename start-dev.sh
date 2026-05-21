@@ -47,10 +47,10 @@ CONFIG_cda="8084|5177|AGENCY_PORTAL_APP_CDA|CDA_TO_NSW"
 # adding an agency only requires editing the AGENCY_CONFIG_* block.
 ALL_AGENCIES=()
 while IFS= read -r _v; do
-  _agency="${_v#AGENCY_CONFIG_}"
+  _agency="${_v#CONFIG_}"
   [[ "$_agency" == "default" ]] && continue
   ALL_AGENCIES+=("$_agency")
-done < <(compgen -A variable AGENCY_CONFIG_ | sort)
+done < <(compgen -A variable CONFIG_ | sort)
 unset _v _agency
 
 usage() {
@@ -93,7 +93,7 @@ cleanup() {
   trap - EXIT INT TERM
   if (( ${#PIDS[@]} > 0 )); then
     echo
-    echo "[start] Stopping ${#PIDS[@]} process(es)..."
+    echo "[start-dev] Stopping ${#PIDS[@]} process(es)..."
     for pid in "${PIDS[@]}"; do
       if kill -0 "$pid" 2>/dev/null; then
         # Negative PID -> signal the whole process group (set -m makes each
@@ -108,7 +108,7 @@ trap cleanup EXIT INT TERM
 
 # Sets BE_PORT, FE_PORT, IDP_CLIENT_ID, NSW_CLIENT_ID for the given agency.
 resolve_agency() {
-  local varname="AGENCY_CONFIG_$1"
+  local varname="CONFIG_$1"
   local config="${!varname:-}"
   if [[ -z "$config" ]]; then
     echo "Unknown agency '$1'. Expected: ${ALL_AGENCIES[*]}, default, all." >&2
