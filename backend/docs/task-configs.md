@@ -60,7 +60,7 @@ At startup the `TaskConfigStore` loads every `.json` file in the directory and i
 
 ## Resolution Flow
 
-When `GET /api/nsw-agency/applications/{taskId}` is called:
+When `GET /api/v1/applications/{taskId}` is called:
 
 1. The application record is loaded from the database; it carries `taskCode`.
 2. `TaskConfigStore.GetConfig(taskCode)` is called:
@@ -68,9 +68,9 @@ When `GET /api/nsw-agency/applications/{taskId}` is called:
    - **Miss** → falls back to the config registered as the default (`NSW_AGENCY_DEFAULT_TASK_CONFIG_ID`, defaults to `default`).
    - **No default** → returns an error; the response omits all metadata and form fields, and the frontend renders a raw data view.
 3. Each non-empty form reference in the config is resolved against the `FormStore`:
-   - Hit → form JSON is attached to the response as `dataForm` (view) or `ogaForm` (review).
+   - Hit → form JSON is attached to the response as `dataForm` (view) or `agencyForm` (review).
    - Miss → a warning is logged and the field is omitted.
-4. On review submission via `POST /api/nsw-agency/applications/{taskId}/review`, if `behavior.statusMap` is set and the request body contains a matching `review_outcome` value, the application's status is set accordingly. Otherwise it defaults to `DONE`.
+4. On review submission via `POST /api/v1/applications/{taskId}/review`, if `behavior.statusMap` is set and the request body contains a matching `review_outcome` value, the application's status is set accordingly. Otherwise it defaults to `DONE`.
 
 ## Adding a New Task
 

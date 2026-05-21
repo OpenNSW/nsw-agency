@@ -39,7 +39,7 @@ Initialized ──▶ TraderSavedAsDraft ──▶ TraderSubmitted ──▶ Age
 
 - **Initialized** -- Form loaded, waiting for trader input
 - **TraderSavedAsDraft** -- Trader saved a draft (optional)
-- **TraderSubmitted** -- Trader submitted the form; if `requiresOgaVerification` is false, the task completes here
+- **TraderSubmitted** -- Trader submitted the form; if `requiresAgencyVerification` is false, the task completes here
 - **AgencyAcknowledged** -- Data injected into NSW Agency, waiting for review callback
 - **AgencyReviewed** -- NSW Agency callback received, task completed or failed based on decision
 
@@ -52,9 +52,9 @@ Each NSW Agency verification task in the workflow is configured with submission 
   "agency": "NPQS",
   "formId": "22222222-2222-2222-2222-222222222222",
   "service": "plant-quarantine-phytosanitary",
-  "requiresOgaVerification": true,
+  "requiresAgencyVerification": true,
   "submission": {
-    "url": "http://localhost:8081/api/nsw-agency/inject",
+    "url": "http://localhost:8081/api/v1/inject",
     "request": {
       "meta": {
         "type": "consignment",

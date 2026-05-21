@@ -46,22 +46,22 @@ type Service interface {
 
 // InjectRequest represents the incoming data from services
 type InjectRequest struct {
-	TaskID             string           `json:"taskId"`
-	TaskCode           string           `json:"taskCode"`
-	ConsignmentID      string           `json:"consignmentId"`
-	Data               map[string]any   `json:"data"`
-	ServiceURL         string           `json:"serviceUrl"` // URL to send response back to
+	TaskID                string           `json:"taskId"`
+	TaskCode              string           `json:"taskCode"`
+	ConsignmentID         string           `json:"consignmentId"`
+	Data                  map[string]any   `json:"data"`
+	ServiceURL            string           `json:"serviceUrl"` // URL to send response back to
 	AgencyFeedbackHistory []map[string]any `json:"agencyFeedbackHistory,omitempty"`
 }
 
 // Application represents an application for display in the UI
 type Application struct {
-	TaskID        string         `json:"taskId"`
-	TaskCode      string         `json:"taskCode"`
-	ConsignmentID string         `json:"consignmentId"`
-	ServiceURL    string         `json:"serviceUrl"`
-	Data          map[string]any `json:"data"`                    // Data from NSW service to be rendered in the UI
-	OgaActionData map[string]any `json:"ogaActionData,omitempty"` // Copy of the payload sent back to the NSW after review, for display in the UI
+	TaskID           string         `json:"taskId"`
+	TaskCode         string         `json:"taskCode"`
+	ConsignmentID    string         `json:"consignmentId"`
+	ServiceURL       string         `json:"serviceUrl"`
+	Data             map[string]any `json:"data"`                       // Data from NSW service to be rendered in the UI
+	AgencyActionData map[string]any `json:"agencyActionData,omitempty"` // Copy of the payload sent back to the NSW after review, for display in the UI
 
 	// Task metadata from config
 	Title       string `json:"title,omitempty"`
@@ -69,8 +69,8 @@ type Application struct {
 	Icon        string `json:"icon,omitempty"`
 	Category    string `json:"category,omitempty"`
 
-	DataForm        json.RawMessage  `json:"dataForm,omitempty"` // Schema for rendering the data in Read Only mode in the UI
-	AgencyForm         json.RawMessage  `json:"agencyForm,omitempty"`  // Schema for rendering the NSW Agency Action form in the UI
+	DataForm        json.RawMessage  `json:"dataForm,omitempty"`   // Schema for rendering the data in Read Only mode in the UI
+	AgencyForm      json.RawMessage  `json:"agencyForm,omitempty"` // Schema for rendering the NSW Agency Action form in the UI
 	Status          string           `json:"status"`
 	FeedbackHistory []feedback.Entry `json:"feedbackHistory,omitempty"`
 	ReviewedAt      *time.Time       `json:"reviewedAt,omitempty"`
@@ -223,17 +223,17 @@ func (s *service) GetApplication(ctx context.Context, taskID string) (*Applicati
 	}
 
 	app := &Application{
-		TaskID:          record.TaskID,
-		TaskCode:        record.TaskCode,
-		ConsignmentID:   record.ConsignmentID,
-		ServiceURL:      record.ServiceURL,
-		Data:            record.Data,
-		OgaActionData:   record.ReviewerResponse,
-		Status:          record.Status,
-		FeedbackHistory: record.AgencyFeedbackHistory,
-		ReviewedAt:      record.ReviewedAt,
-		CreatedAt:       record.CreatedAt,
-		UpdatedAt:       record.UpdatedAt,
+		TaskID:           record.TaskID,
+		TaskCode:         record.TaskCode,
+		ConsignmentID:    record.ConsignmentID,
+		ServiceURL:       record.ServiceURL,
+		Data:             record.Data,
+		AgencyActionData: record.ReviewerResponse,
+		Status:           record.Status,
+		FeedbackHistory:  record.AgencyFeedbackHistory,
+		ReviewedAt:       record.ReviewedAt,
+		CreatedAt:        record.CreatedAt,
+		UpdatedAt:        record.UpdatedAt,
 	}
 
 	// Attach task configuration

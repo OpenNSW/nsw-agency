@@ -27,8 +27,8 @@ export function ConsignmentDetailScreen() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
-  const [ogaFormConfig, setOgaFormConfig] = useState<{ schema: JsonSchema; uiSchema: UISchemaElement } | null>(null)
-  const [ogaFormData, setOgaFormData] = useState<Record<string, unknown>>({})
+  const [agencyFormConfig, setAgencyFormConfig] = useState<{ schema: JsonSchema; uiSchema: UISchemaElement } | null>(null)
+  const [agencyFormData, setAgencyFormData] = useState<Record<string, unknown>>({})
   const [formErrors, setFormErrors] = useState<unknown[]>([])
 
   const [activeTab, setActiveTab] = useState('review')
@@ -64,7 +64,7 @@ export function ConsignmentDetailScreen() {
     setIsSubmitting(true)
     setError(null)
     try {
-      await submitReview(apiClient, taskId, ogaFormData)
+      await submitReview(apiClient, taskId, agencyFormData)
       setSuccess(true)
       setTimeout(() => navigate('/consignments'), 2000)
     } catch (err) {
@@ -84,12 +84,12 @@ export function ConsignmentDetailScreen() {
       try {
         const data = await fetchApplicationDetail(apiClient, taskId)
         setApplication(data)
-        if (data.ogaForm) {
-          setOgaFormConfig({ schema: data.ogaForm.schema, uiSchema: data.ogaForm.uiSchema })
+        if (data.agencyForm) {
+          setAgencyFormConfig({ schema: data.agencyForm.schema, uiSchema: data.agencyForm.uiSchema })
         } else {
-          setOgaFormConfig(null)
+          setAgencyFormConfig(null)
         }
-        setOgaFormData(data.ogaActionData || {})
+        setAgencyFormData(data.agencyActionData || {})
       } catch (err) {
         setError('Failed to load application details')
         console.error(err)
@@ -390,7 +390,7 @@ export function ConsignmentDetailScreen() {
               <Box pt="4">
                 {/* Review Tab */}
                 <Tabs.Content value="review">
-                  {ogaFormConfig && isActionable ? (
+                  {agencyFormConfig && isActionable ? (
                     <form
                       onSubmit={(event) => {
                         void handleSubmit(event)
@@ -398,12 +398,12 @@ export function ConsignmentDetailScreen() {
                       noValidate
                     >
                       <JsonForms
-                        schema={ogaFormConfig.schema}
-                        uischema={ogaFormConfig.uiSchema}
-                        data={ogaFormData}
+                        schema={agencyFormConfig.schema}
+                        uischema={agencyFormConfig.uiSchema}
+                        data={agencyFormData}
                         renderers={radixRenderers}
                         onChange={({ data, errors }: { data: Record<string, unknown>; errors?: unknown[] }) => {
-                          setOgaFormData(data)
+                          setAgencyFormData(data)
                           setFormErrors(errors || [])
                         }}
                       />
@@ -439,15 +439,15 @@ export function ConsignmentDetailScreen() {
                         </Button>
                       </Flex>
                     </form>
-                  ) : ogaFormConfig ? (
+                  ) : agencyFormConfig ? (
                     <JsonForms
-                      schema={ogaFormConfig.schema}
-                      uischema={ogaFormConfig.uiSchema}
-                      data={ogaFormData}
+                      schema={agencyFormConfig.schema}
+                      uischema={agencyFormConfig.uiSchema}
+                      data={agencyFormData}
                       renderers={radixRenderers}
                       readonly
                       onChange={({ data, errors }: { data: Record<string, unknown>; errors?: unknown[] }) => {
-                        setOgaFormData(data)
+                        setAgencyFormData(data)
                         setFormErrors(errors || [])
                       }}
                     />

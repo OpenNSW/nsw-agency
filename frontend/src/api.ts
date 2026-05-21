@@ -116,7 +116,7 @@ export interface AgencyApplication {
   consignmentId: string
   serviceUrl: string
   data: Record<string, unknown>
-  ogaActionData?: Record<string, unknown>
+  agencyActionData?: Record<string, unknown>
 
   // Task metadata from config
   title?: string
@@ -126,7 +126,7 @@ export interface AgencyApplication {
 
   // Form definitions
   dataForm?: FormDefinition
-  ogaForm?: FormDefinition
+  agencyForm?: FormDefinition
 
   status: string
   feedbackHistory?: FeedbackEntry[]
@@ -156,7 +156,7 @@ export async function fetchConsignments(
   signal?: AbortSignal,
 ): Promise<PaginatedResponse<ConsignmentSummary>> {
   return apiClient.get<PaginatedResponse<ConsignmentSummary>>(
-    '/api/nsw-agency/consignments',
+    '/api/v1/consignments',
     {
       q: params?.q,
       page: params?.page,
@@ -172,7 +172,7 @@ export async function fetchApplications(
   signal?: AbortSignal,
 ): Promise<PaginatedResponse<AgencyApplication>> {
   return apiClient.get<PaginatedResponse<AgencyApplication>>(
-    '/api/nsw-agency/applications',
+    '/api/v1/applications',
     {
       status: params?.status,
       consignmentId: params?.consignmentId,
@@ -190,7 +190,7 @@ export async function fetchApplicationDetail(
   taskId: string,
   signal?: AbortSignal,
 ): Promise<AgencyApplication> {
-  return apiClient.get<AgencyApplication>(`/api/nsw-agency/applications/${taskId}`, {}, signal)
+  return apiClient.get<AgencyApplication>(`/api/v1/applications/${taskId}`, {}, signal)
 }
 
 // Submit review for a task via NSW Agency Service
@@ -201,7 +201,7 @@ export async function submitReview(
   signal?: AbortSignal,
 ): Promise<ReviewResponse> {
   return apiClient.post<Record<string, unknown>, ReviewResponse>(
-    `/api/nsw-agency/applications/${taskId}/review`,
+    `/api/v1/applications/${taskId}/review`,
     formValues,
     signal,
   )
@@ -215,7 +215,7 @@ export async function submitFeedback(
   signal?: AbortSignal,
 ): Promise<ReviewResponse> {
   return apiClient.post<Record<string, unknown>, ReviewResponse>(
-    `/api/nsw-agency/applications/${taskId}/feedback`,
+    `/api/v1/applications/${taskId}/feedback`,
     content,
     signal,
   )

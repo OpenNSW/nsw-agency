@@ -91,17 +91,17 @@ func main() {
 	// Health check
 	mux.HandleFunc("GET /health", handler.HandleHealth)
 	// Endpoint for services to inject data
-	mux.HandleFunc("POST /api/nsw-agency/inject", handler.HandleInjectData)
+	mux.HandleFunc("POST /api/v1/inject", handler.HandleInjectData)
 	// Endpoints for UI to fetch and manage applications
-	mux.HandleFunc("GET /api/nsw-agency/consignments", handler.HandleGetConsignments)
-	mux.HandleFunc("GET /api/nsw-agency/applications", handler.HandleGetApplications)
+	mux.HandleFunc("GET /api/v1/consignments", handler.HandleGetConsignments)
+	mux.HandleFunc("GET /api/v1/applications", handler.HandleGetApplications)
 
-	mux.HandleFunc("GET /api/nsw-agency/applications/{taskId}", handler.HandleGetApplication)
-	mux.HandleFunc("POST /api/nsw-agency/applications/{taskId}/review", handler.HandleReviewApplication)
-	mux.HandleFunc("POST /api/nsw-agency/applications/{taskId}/feedback", feedbackHandler.HandleFeedback)
+	mux.HandleFunc("GET /api/v1/applications/{taskId}", handler.HandleGetApplication)
+	mux.HandleFunc("POST /api/v1/applications/{taskId}/review", handler.HandleReviewApplication)
+	mux.HandleFunc("POST /api/v1/applications/{taskId}/feedback", feedbackHandler.HandleFeedback)
 
-	mux.HandleFunc("POST /api/nsw-agency/uploads", storageHandler.HandleCreateUpload)
-	mux.HandleFunc("GET /api/nsw-agency/uploads/{key}", storageHandler.HandleGetUploadURL)
+	mux.HandleFunc("POST /api/v1/storage", storageHandler.HandleCreateUpload)
+	mux.HandleFunc("GET /api/v1/storage/{key}", storageHandler.HandleGetUploadURL)
 
 	// Set up graceful shutdown
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)
