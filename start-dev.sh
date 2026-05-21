@@ -196,5 +196,5 @@ for o in "${AGENCIES[@]}"; do
   [[ "$TARGET" == "all" || "$TARGET" == "frontend" ]] && start_frontend "$o"
 done
 
-echo "[start] ${#PIDS[@]} process(es) running. Logs from all processes will interleave below. Press Ctrl-C to stop."
+echo "[start-dev] ${#PIDS[@]} process(es) running. Logs from all processes will interleave below. Press Ctrl-C to stop."
 wait
