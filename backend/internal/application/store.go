@@ -117,8 +117,13 @@ func NewApplicationStore(cfg config.Config) (*ApplicationStore, error) {
 }
 
 // backfillConsignments seeds the consignments table from distinct consignment_id
-// values in the applications table. Idempotent: no-op if consignments already has rows.
+// values in the applications table. Idempotent: no-op if consignments already has rows
+// or if the applications table does not yet exist (fresh database).
 func backfillConsignments(db *gorm.DB) error {
+	if !db.Migrator().HasTable(&ApplicationRecord{}) {
+		return nil
+	}
+
 	var count int64
 	if err := db.Model(&ConsignmentRecord{}).Count(&count).Error; err != nil {
 		return fmt.Errorf("backfill count check failed: %w", err)
