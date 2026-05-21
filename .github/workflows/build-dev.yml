@@ -1,0 +1,120 @@
+name: Build and Push Development Images
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+# Cancel in-progress runs for the same branch when a new commit arrives.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  check-changes:
+    name: Detect Changed Paths
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+
+  build-backend:
+    name: Build & Push Dev - NSW Agency Backend
+    needs: check-changes
+    if: needs.check-changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Application Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Convert repository owner to lowercase
+        id: repo_owner
+        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.repo_owner.outputs.owner }}/nsw-agency-backend:dev-${{ github.run_number }}-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-frontend:
+    name: Build & Push Dev - NSW Agency Portal
+    needs: check-changes
+    if: needs.check-changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Application Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Convert repository owner to lowercase
+        id: repo_owner
+        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.repo_owner.outputs.owner }}/nsw-agency-app:dev-${{ github.run_number }}-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  trigger-renovate:
+    name: Trigger Renovate Bot
+    needs: [build-backend, build-frontend]
+    runs-on: ubuntu-latest
+    # Run if at least one build job ran (i.e. didn't get skipped entirely)
+    if: |
+      always() &&
+      github.event_name != 'pull_request' &&
+      (needs.build-backend.result == 'success' || needs.build-frontend.result == 'success')
+    steps:
+      - name: Trigger Renovate Bot Webhook
+        run: |
+          curl -X POST -H "Content-Type: application/json" \
+          -d '{"repository": "${{ github.repository }}"}' \
+          https://app.renovatebot.com/webhook/github
