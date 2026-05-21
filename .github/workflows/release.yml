@@ -26,16 +26,16 @@ jobs:
       matrix:
         include:
           - service_name: OGA Backend
-            image_name: oga-backend
+            image_name: nsw-agency-backend
             context: ./backend
             dockerfile: ./backend/Dockerfile
-            description: NSW OGA Backend Service
+            description: NSW Agency Backend Service
 
           - service_name: OGA Portal
-            image_name: oga-app
+            image_name: nsw-agency-app
             context: ./frontend
             dockerfile: ./frontend/Dockerfile
-            description: NSW OGA Officer Portal Frontend
+            description: NSW Agency Officer Portal Frontend
 
     env:
       GIT_COMMIT: ${{ github.sha }}
@@ -259,8 +259,8 @@ jobs:
             ## Release ${{ needs.collate-digests.outputs.version }}
 
             ### Published Image Targets
-            - `${{ env.REGISTRY }}/${{ github.repository }}/oga-backend:${{ needs.collate-digests.outputs.version }}`
-            - `${{ env.REGISTRY }}/${{ github.repository }}/oga-app:${{ needs.collate-digests.outputs.version }}`
+            - `${{ env.REGISTRY }}/${{ github.repository }}/nsw-agency-backend:${{ needs.collate-digests.outputs.version }}`
+            - `${{ env.REGISTRY }}/${{ github.repository }}/nsw-agency-app:${{ needs.collate-digests.outputs.version }}`
 
             ### Image Digests
             See `release-digests.json` attached to this release.
