@@ -24,6 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        include:
           - service_name: NSW Agency Backend
             image_name: nsw-agency-backend
             context: ./backend

@@ -4,7 +4,7 @@ A standalone Go microservice that acts as a verification hub for external agenci
 
 ## How It Fits Into NSW
 
-The NSW Agency service is an implementation of the **NSW Agency Service Module (NSW Agency SM)** described in the NSW architecture. It embodies the "state vs. data decoupling" principle:
+The NSW Agency service is an implementation of the **Agency Service Module (Agency SM)** described in the NSW architecture. It embodies the "state vs. data decoupling" principle:
 
 - **NSW Core Workflow Engine (CWE)** manages process state (e.g., "Waiting for Approval")
 - **NSW Agency Service Module** manages domain data (e.g., phytosanitary inspection details)
@@ -12,7 +12,7 @@ The NSW Agency service is an implementation of the **NSW Agency Service Module (
 Each government agency runs its own NSW Agency instance with its own database, ensuring data isolation and sovereignty.
 
 ```
-┌─────────────────┐         POST /api/nsw-agency/inject           ┌──────────────────┐
+┌─────────────────┐         POST /api/v1/inject           ┌──────────────────┐
 │                 │ ──────────────────────────────────────▶│                  │
 │  NSW Core       │                                        │   NSW Agency Service    │
 │    Service      │◀────────────────────────────────────── │   (per agency)   │
@@ -27,7 +27,7 @@ Each government agency runs its own NSW Agency instance with its own database, e
 
 ## Features
 
-- **Data Injection** – External services POST data for NSW Agency review via `/api/nsw-agency/inject`
+- **Data Injection** – External services POST data for NSW Agency review via `/api/v1/inject`
 - **Task Configurations** – Per-taskCode metadata (title, icon, category), form references, and outcome-to-status mapping
 - **Dynamic Forms** – Reusable [JSON Forms](https://jsonforms.io/) definitions referenced by ID from task configs
 - **Paginated Listings** – Fetch applications with status filtering and pagination
@@ -48,14 +48,14 @@ Each government agency runs its own NSW Agency instance with its own database, e
 ```bash
 cd backend
 
-# Run with defaults (port 8081, SQLite at ./nsw_agency_applications.db)
+# Run with defaults (port 8081, SQLite at ./agency_applications.db)
 go run ./cmd/server
 
 # Run with custom config (SQLite)
-NSW_AGENCY_PORT=8081 NSW_AGENCY_DB_PATH=./npqs.db go run ./cmd/server
+PORT=8081 DB_PATH=./npqs.db go run ./cmd/server
 
 # Run with custom config (PostgreSQL)
-NSW_AGENCY_DB_DRIVER=postgres NSW_AGENCY_DB_NAME=npqs_db NSW_AGENCY_DB_USER=postgres NSW_AGENCY_DB_PASSWORD=changeme go run ./cmd/server
+DB_DRIVER=postgres DB_NAME=npqs_db DB_USER=postgres DB_PASSWORD=changeme go run ./cmd/server
 ```
 
 The database is auto-created and auto-migrated on first startup.
@@ -63,8 +63,8 @@ The database is auto-created and auto-migrated on first startup.
 ### Build
 
 ```bash
-go build -o bin/nsw-agency ./cmd/server
-./bin/nsw-agency
+go build -o bin/agency ./cmd/server
+./bin/agency
 ```
 
 ### Running Multiple NSW Agency Instances
@@ -73,10 +73,10 @@ Each NSW Agency should run as a separate instance:
 
 ```bash
 # Terminal 1 -- NPQS (National Plant Quarantine Service)
-NSW_AGENCY_PORT=8081 NSW_AGENCY_DB_PATH=./npqs_applications.db go run ./cmd/server
+PORT=8081 DB_PATH=./npqs_applications.db go run ./cmd/server
 
 # Terminal 2 -- FCAU (Food Control Administration Unit)
-NSW_AGENCY_PORT=8082 NSW_AGENCY_DB_PATH=./fcau_applications.db go run ./cmd/server
+PORT=8082 DB_PATH=./fcau_applications.db go run ./cmd/server
 ```
 
 ### Configuration
@@ -85,24 +85,24 @@ All configuration is via environment variables:
 
 | Variable                             | Description                                            | Default                        |
 |--------------------------------------|--------------------------------------------------------|--------------------------------|
-| `NSW_AGENCY_PORT`                           | HTTP server port                                       | `8081`                         |
-| `NSW_AGENCY_DB_DRIVER`                      | Database driver (`sqlite`, `postgres`)                 | `sqlite`                       |
-| `NSW_AGENCY_DB_PATH`                        | Path to SQLite database file                           | `./nsw_agency_applications.db`        |
-| `NSW_AGENCY_DB_HOST`                        | PostgreSQL host                                        | `localhost`                    |
-| `NSW_AGENCY_DB_PORT`                        | PostgreSQL port                                        | `5432`                         |
-| `NSW_AGENCY_DB_USER`                        | PostgreSQL user                                        | `postgres`                     |
-| `NSW_AGENCY_DB_PASSWORD`                    | PostgreSQL password                                    | `changeme`                     |
-| `NSW_AGENCY_DB_NAME`                        | PostgreSQL database name                               | `nsw_agency_db`                       |
-| `NSW_AGENCY_DB_SSLMODE`                     | PostgreSQL SSL mode                                    | `disable`                      |
-| `NSW_AGENCY_CONFIG_DIR`                     | Root directory containing `task-configs/` and `forms/` | `./data`                       |
-| `NSW_AGENCY_DEFAULT_TASK_CONFIG_ID`         | Fallback task config ID when `taskCode` has no match   | `default`                      |
-| `NSW_AGENCY_ALLOWED_ORIGINS`                | Comma-separated CORS origins (`*` to allow all)        | `*`                            |
-| `NSW_AGENCY_NSW_API_BASE_URL`               | NSW API base URL for calling NSW endpoints             | `http://localhost:8080/api/v1` |
-| `NSW_AGENCY_NSW_CLIENT_ID`                  | OAuth2 client ID for NSW Agency -> NSW                        | required                       |
-| `NSW_AGENCY_NSW_CLIENT_SECRET`              | OAuth2 client secret for NSW Agency -> NSW                    | required                       |
-| `NSW_AGENCY_NSW_TOKEN_URL`                  | OAuth2 token endpoint URL                              | required                       |
-| `NSW_AGENCY_NSW_SCOPES`                     | Optional comma-separated OAuth2 scopes                 | empty                          |
-| `NSW_AGENCY_NSW_TOKEN_INSECURE_SKIP_VERIFY` | DEV-only: skip TLS verification for token fetch        | `false`                        |
+| `PORT`                           | HTTP server port                                       | `8081`                         |
+| `DB_DRIVER`                      | Database driver (`sqlite`, `postgres`)                 | `sqlite`                       |
+| `DB_PATH`                        | Path to SQLite database file                           | `./agency_applications.db`        |
+| `DB_HOST`                        | PostgreSQL host                                        | `localhost`                    |
+| `DB_PORT`                        | PostgreSQL port                                        | `5432`                         |
+| `DB_USER`                        | PostgreSQL user                                        | `postgres`                     |
+| `DB_PASSWORD`                    | PostgreSQL password                                    | `changeme`                     |
+| `DB_NAME`                        | PostgreSQL database name                               | `agency_db`                       |
+| `DB_SSLMODE`                     | PostgreSQL SSL mode                                    | `disable`                      |
+| `CONFIG_DIR`                     | Root directory containing `task-configs/` and `forms/` | `./data`                       |
+| `DEFAULT_TASK_CONFIG_ID`         | Fallback task config ID when `taskCode` has no match   | `default`                      |
+| `ALLOWED_ORIGINS`                | Comma-separated CORS origins (`*` to allow all)        | `*`                            |
+| `NSW_API_BASE_URL`               | NSW API base URL for calling NSW endpoints             | `http://localhost:8080/api/v1` |
+| `NSW_CLIENT_ID`                  | OAuth2 client ID for NSW Agency -> NSW                        | required                       |
+| `NSW_CLIENT_SECRET`              | OAuth2 client secret for NSW Agency -> NSW                    | required                       |
+| `NSW_TOKEN_URL`                  | OAuth2 token endpoint URL                              | required                       |
+| `NSW_SCOPES`                     | Optional comma-separated OAuth2 scopes                 | empty                          |
+| `NSW_TOKEN_INSECURE_SKIP_VERIFY` | DEV-only: skip TLS verification for token fetch        | `false`                        |
 
 See [`.env.example`](.env.example) for a template.
 
@@ -115,10 +115,10 @@ See [docs/api.md](docs/api.md) for complete API documentation with request/respo
 | Method | Endpoint                                | Description                                |
 |--------|-----------------------------------------|--------------------------------------------|
 | `GET`  | `/health`                               | Health check                               |
-| `POST` | `/api/nsw-agency/inject`                       | Inject data for review (called by NSW)     |
-| `GET`  | `/api/nsw-agency/applications`                 | List applications (paginated, filterable)  |
-| `GET`  | `/api/nsw-agency/applications/{taskId}`        | Get single application with review form    |
-| `POST` | `/api/nsw-agency/applications/{taskId}/review` | Submit review decision (triggers callback) |
+| `POST` | `/api/v1/inject`                       | Inject data for review (called by NSW)     |
+| `GET`  | `/api/v1/applications`                 | List applications (paginated, filterable)  |
+| `GET`  | `/api/v1/applications/{taskId}`        | Get single application with review form    |
+| `POST` | `/api/v1/applications/{taskId}/review` | Submit review decision (triggers callback) |
 
 ## Documentation
 

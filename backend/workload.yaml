@@ -13,50 +13,49 @@ endpoints:
 
 configurations:
   env:
-    - name: NSW_AGENCY_PORT
+    - name: PORT
       value: "8081"
-    - name: NSW_AGENCY_FORMS_PATH
+    - name: FORMS_PATH
       value: ./data/forms
-    - name: NSW_AGENCY_DEFAULT_FORM_ID
+    - name: DEFAULT_FORM_ID
       value: default
-    - name: NSW_AGENCY_ALLOWED_ORIGINS
+    - name: ALLOWED_ORIGINS
       value: http://localhost:5174,http://localhost:5175,http://localhost:5176
-    - name: NSW_AGENCY_DB_DRIVER
+    - name: DB_DRIVER
       value: "postgres"
-    - name: NSW_AGENCY_DB_HOST
+    - name: DB_HOST
       valueFrom:
         secretKeyRef:
           name: nsw-db-secrets
           key: host
-    - name: NSW_AGENCY_DB_PORT
+    - name: DB_PORT
       valueFrom:
         secretKeyRef:
           name: nsw-db-secrets
           key: port
-    - name: NSW_AGENCY_DB_USER
+    - name: DB_USER
       valueFrom:
         secretKeyRef:
           name: nsw-db-secrets
           key: username
-    - name: NSW_AGENCY_DB_PASSWORD
+    - name: DB_PASSWORD
       valueFrom:
         secretKeyRef:
           name: nsw-db-secrets
           key: password
-    - name: NSW_AGENCY_DB_NAME
+    - name: DB_NAME
       valueFrom:
         secretKeyRef:
           name: nsw-db-secrets
           key: database
-    - name: NSW_AGENCY_NSW_API_BASE_URL
-    - name: NSW_AGENCY_NSW_CLIENT_ID
+    - name: NSW_API_BASE_URL
       valueFrom:
         secretKeyRef:
           name: nsw-api-secrets
           key: client_id
-    - name: NSW_AGENCY_NSW_CLIENT_SECRET
+    - name: NSW_CLIENT_SECRET
       valueFrom:
         secretKeyRef:
           name: nsw-api-secrets
           key: client_secret
-    - name: NSW_AGENCY_NSW_SCOPES
+    - name: NSW_SCOPES
