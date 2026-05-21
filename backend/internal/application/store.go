@@ -135,8 +135,6 @@ func backfillConsignments(db *gorm.DB) error {
 	type row struct {
 		ConsignmentID string
 		Status        string
-		CreatedAt     time.Time
-		UpdatedAt     time.Time
 	}
 
 	var rows []row
@@ -146,7 +144,7 @@ func backfillConsignments(db *gorm.DB) error {
 		Group("consignment_id")
 
 	err := db.Model(&ApplicationRecord{}).
-		Select("a.consignment_id, a.status, MIN(a.created_at) AS created_at, a.updated_at").
+		Select("a.consignment_id, a.status").
 		Table("applications AS a").
 		Joins("JOIN (?) AS latest ON a.consignment_id = latest.consignment_id AND a.updated_at = latest.max_updated", latestSubq).
 		Group("a.consignment_id, a.status, a.updated_at").
@@ -162,10 +160,8 @@ func backfillConsignments(db *gorm.DB) error {
 	records := make([]ConsignmentRecord, len(rows))
 	for i, r := range rows {
 		records[i] = ConsignmentRecord{
-			ID:        r.ConsignmentID,
-			Status:    r.Status,
-			CreatedAt: r.CreatedAt,
-			UpdatedAt: r.UpdatedAt,
+			ID:     r.ConsignmentID,
+			Status: r.Status,
 		}
 	}
 
