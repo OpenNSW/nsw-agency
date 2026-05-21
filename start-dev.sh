@@ -20,11 +20,11 @@
 # anything the parent didn't set; the per-agency defaults below are the floor.
 #
 # Examples:
-#   ./start.sh npqs              # NPQS backend + frontend
-#   ./start.sh fcau backend      # FCAU backend only
-#   ./start.sh ird frontend      # IRD frontend only
-#   ./start.sh all               # every backend + frontend, in parallel
-#   ./start.sh all backend       # every backend, no frontends
+#   ./start-dev.sh npqs              # NPQS backend + frontend
+#   ./start-dev.sh fcau backend      # FCAU backend only
+#   ./start-dev.sh ird frontend      # IRD frontend only
+#   ./start-dev.sh all               # every backend + frontend, in parallel
+#   ./start-dev.sh all backend       # every backend, no frontends
 #
 # Ctrl-C terminates every child process (each runs in its own process group).
 
@@ -40,7 +40,6 @@ CONFIG_npqs="8081|5174|AGENCY_PORTAL_APP_NPQS|NPQS_TO_NSW"
 CONFIG_fcau="8082|5175|AGENCY_PORTAL_APP_FCAU|FCAU_TO_NSW"
 CONFIG_ird="8083|5176|AGENCY_PORTAL_APP_IRD|IRD_TO_NSW"
 CONFIG_cda="8084|5177|AGENCY_PORTAL_APP_CDA|CDA_TO_NSW"
-CONFIG_default="8081|5174|AGENCY_TO_NSW|AGENCY_TO_NSW"
 
 # Real agencies (every NSW_AGENCY_CONFIG_* except 'default'), alphabetised for
 # Real agencies (every AGENCY_CONFIG_* except 'default'), alphabetised for
@@ -140,7 +139,7 @@ source_env_nonclobber() {
 start_backend() {
   local agency=$1
   resolve_agency "$agency"
-  echo "[start] Starting $agency backend  -> http://localhost:$BE_PORT (db: ${agency}_applications.db)"
+  echo "[start-dev] Starting $agency backend  -> http://localhost:$BE_PORT (db: ${agency}_applications.db)"
   (
     cd "$BACKEND_DIR"
     # Apply per-agency values BEFORE sourcing .env so they aren't clobbered by
