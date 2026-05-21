@@ -15,14 +15,14 @@ import (
 // ---------- helpers ----------
 
 // newTestStore creates an ApplicationStore for tests.
-// When OGA_DB_DRIVER=postgres (set via env), it connects to the configured
+// When NSW_AGENCY_DB_DRIVER=postgres (set via env), it connects to the configured
 // PostgreSQL instance and truncates the table before each test.
 // Otherwise it falls back to an in-memory SQLite database.
 func newTestStore(t *testing.T) *ApplicationStore {
 	t.Helper()
 
 	var cfg config.Config
-	if os.Getenv("OGA_DB_DRIVER") == "postgres" {
+	if os.Getenv("NSW_AGENCY_DB_DRIVER") == "postgres" {
 		var err error
 		cfg, err = config.LoadConfig()
 		if err != nil {
@@ -413,8 +413,8 @@ func TestApplicationStore_AppendFeedback(t *testing.T) {
 	if app.Status != "FEEDBACK_REQUESTED" {
 		t.Errorf("expected FEEDBACK_REQUESTED after feedback, got %q", app.Status)
 	}
-	if len(app.OGAFeedbackHistory) != 1 {
-		t.Errorf("expected 1 feedback entry, got %d", len(app.OGAFeedbackHistory))
+	if len(app.AgencyFeedbackHistory) != 1 {
+		t.Errorf("expected 1 feedback entry, got %d", len(app.AgencyFeedbackHistory))
 	}
 
 	// Append a second round
@@ -424,11 +424,11 @@ func TestApplicationStore_AppendFeedback(t *testing.T) {
 	}
 
 	app, _ = store.GetByTaskID("task-fb-1")
-	if len(app.OGAFeedbackHistory) != 2 {
-		t.Errorf("expected 2 feedback entries, got %d", len(app.OGAFeedbackHistory))
+	if len(app.AgencyFeedbackHistory) != 2 {
+		t.Errorf("expected 2 feedback entries, got %d", len(app.AgencyFeedbackHistory))
 	}
-	if app.OGAFeedbackHistory[1].Content["comment"] != "still needs work" {
-		t.Errorf("unexpected second feedback comment: %v", app.OGAFeedbackHistory[1])
+	if app.AgencyFeedbackHistory[1].Content["comment"] != "still needs work" {
+		t.Errorf("unexpected second feedback comment: %v", app.AgencyFeedbackHistory[1])
 	}
 }
 
@@ -447,7 +447,7 @@ func TestApplicationStore_UpdateDataAndResetStatus(t *testing.T) {
 	store := newTestStore(t)
 	seedRecord(t, store, "task-resub-1", JSONB{"old": "data"})
 
-	// Simulate OGA requesting feedback
+	// Simulate NSW Agency requesting feedback
 	_ = store.AppendFeedback("task-resub-1", feedback.Entry{Content: map[string]any{"comment": "fix it"}})
 
 	app, _ := store.GetByTaskID("task-resub-1")

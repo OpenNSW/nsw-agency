@@ -30,32 +30,32 @@ type Config struct {
 
 // LoadConfig loads configuration from environment variables
 func LoadConfig() (Config, error) {
-	driver := envOrDefault("OGA_DB_DRIVER", "sqlite")
+	driver := envOrDefault("NSW_AGENCY_DB_DRIVER", "sqlite")
 	var dbConfig database.Config
 
 	// Isolate required configurations per driver
 	switch driver {
 	case "postgres":
-		password := os.Getenv("OGA_DB_PASSWORD")
+		password := os.Getenv("NSW_AGENCY_DB_PASSWORD")
 		if password == "" {
-			return Config{}, fmt.Errorf("database password secret is missing: OGA_DB_PASSWORD is required for postgres driver")
+			return Config{}, fmt.Errorf("database password secret is missing: NSW_AGENCY_DB_PASSWORD is required for postgres driver")
 		}
 
 		dbConfig = database.Config{
 			Driver:   driver,
-			Host:     envOrDefault("OGA_DB_HOST", "localhost"),
-			Port:     envOrDefault("OGA_DB_PORT", "5432"),
-			User:     envOrDefault("OGA_DB_USER", "postgres"),
+			Host:     envOrDefault("NSW_AGENCY_DB_HOST", "localhost"),
+			Port:     envOrDefault("NSW_AGENCY_DB_PORT", "5432"),
+			User:     envOrDefault("NSW_AGENCY_DB_USER", "postgres"),
 			Password: password, // Uses the strictly validated password
-			Name:     envOrDefault("OGA_DB_NAME", "oga_db"),
-			SSLMode:  envOrDefault("OGA_DB_SSLMODE", "disable"),
+			Name:     envOrDefault("NSW_AGENCY_DB_NAME", "nsw_agency_db"),
+			SSLMode:  envOrDefault("NSW_AGENCY_DB_SSLMODE", "disable"),
 		}
 
 	case "sqlite":
 		// SQLite only requires a file path
 		dbConfig = database.Config{
 			Driver: driver,
-			Path:   envOrDefault("OGA_DB_PATH", "./oga_applications.db"),
+			Path:   envOrDefault("NSW_AGENCY_DB_PATH", "./nsw_agency_applications.db"),
 		}
 
 	default:
@@ -63,27 +63,27 @@ func LoadConfig() (Config, error) {
 	}
 
 	cfg := Config{
-		Port:                envOrDefault("OGA_PORT", "8081"),
+		Port:                envOrDefault("NSW_AGENCY_PORT", "8081"),
 		DB:                  dbConfig,
-		ConfigDir:           envOrDefault("OGA_CONFIG_DIR", "./data"),
-		DefaultTaskConfigID: envOrDefault("OGA_DEFAULT_TASK_CONFIG_ID", "default"),
-		AllowedOrigins:      parseCommaSeparated(envOrDefault("OGA_ALLOWED_ORIGINS", "*")),
+		ConfigDir:           envOrDefault("NSW_AGENCY_CONFIG_DIR", "./data"),
+		DefaultTaskConfigID: envOrDefault("NSW_AGENCY_DEFAULT_TASK_CONFIG_ID", "default"),
+		AllowedOrigins:      parseCommaSeparated(envOrDefault("NSW_AGENCY_ALLOWED_ORIGINS", "*")),
 		NSW: NSWConfig{
-			BaseURL:      os.Getenv("OGA_NSW_API_BASE_URL"),
-			ClientID:     os.Getenv("OGA_NSW_CLIENT_ID"),
-			ClientSecret: os.Getenv("OGA_NSW_CLIENT_SECRET"),
-			TokenURL:     os.Getenv("OGA_NSW_TOKEN_URL"),
-			Scopes:       parseCommaSeparated(os.Getenv("OGA_NSW_SCOPES")),
+			BaseURL:      os.Getenv("NSW_AGENCY_NSW_API_BASE_URL"),
+			ClientID:     os.Getenv("NSW_AGENCY_NSW_CLIENT_ID"),
+			ClientSecret: os.Getenv("NSW_AGENCY_NSW_CLIENT_SECRET"),
+			TokenURL:     os.Getenv("NSW_AGENCY_NSW_TOKEN_URL"),
+			Scopes:       parseCommaSeparated(os.Getenv("NSW_AGENCY_NSW_SCOPES")),
 		},
 	}
 
-	maxRequestBytes, err := parseInt64Env("OGA_MAX_REQUEST_BYTES", 32<<20)
+	maxRequestBytes, err := parseInt64Env("NSW_AGENCY_MAX_REQUEST_BYTES", 32<<20)
 	if err != nil {
 		return Config{}, err
 	}
 	cfg.MaxRequestBytes = maxRequestBytes
 
-	tokenInsecureSkipVerify, err := parseBoolEnv("OGA_NSW_TOKEN_INSECURE_SKIP_VERIFY", false)
+	tokenInsecureSkipVerify, err := parseBoolEnv("NSW_AGENCY_NSW_TOKEN_INSECURE_SKIP_VERIFY", false)
 	if err != nil {
 		return Config{}, err
 	}
@@ -98,16 +98,16 @@ func LoadConfig() (Config, error) {
 
 func (c Config) validateNSWOAuth2Config() error {
 	if strings.TrimSpace(c.NSW.BaseURL) == "" {
-		return fmt.Errorf("OGA_NSW_API_BASE_URL is required")
+		return fmt.Errorf("NSW_AGENCY_NSW_API_BASE_URL is required")
 	}
 	if strings.TrimSpace(c.NSW.ClientID) == "" {
-		return fmt.Errorf("OGA_NSW_CLIENT_ID is required")
+		return fmt.Errorf("NSW_AGENCY_NSW_CLIENT_ID is required")
 	}
 	if strings.TrimSpace(c.NSW.ClientSecret) == "" {
-		return fmt.Errorf("OGA_NSW_CLIENT_SECRET is required")
+		return fmt.Errorf("NSW_AGENCY_NSW_CLIENT_SECRET is required")
 	}
 	if strings.TrimSpace(c.NSW.TokenURL) == "" {
-		return fmt.Errorf("OGA_NSW_TOKEN_URL is required")
+		return fmt.Errorf("NSW_AGENCY_NSW_TOKEN_URL is required")
 	}
 	return nil
 }

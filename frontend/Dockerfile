@@ -18,7 +18,7 @@ RUN pnpm build
 FROM nginxinc/nginx-unprivileged:stable-alpine3.23-perl
 
 LABEL org.opencontainers.image.source="https://github.com/OpenNSW/nsw-agency"
-LABEL org.opencontainers.image.description="NSW OGA Officer Portal Frontend"
+LABEL org.opencontainers.image.description="NSW Agency Officer Portal Frontend"
 
 COPY nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=builder /app/dist /usr/share/nginx/html

@@ -4,7 +4,7 @@ This document explains how the NSW Agency service integrates with the NSW Core W
 
 ## Overview
 
-The NSW Agency service participates in the NSW consignment workflow as a verification step. When a trader submits a form that requires NSW Agency verification, the NSW workflow engine:
+The NSW Agency service participates in the NSW consignment workflow as a verification step. When a trader submits a form that requires agency verification, the NSW workflow engine:
 
 1. Injects the submission data into the appropriate NSW Agency instance
 2. Waits for a callback indicating the review outcome
@@ -34,14 +34,14 @@ On the NSW side, the NSW Agency integration is handled by the **SimpleForm** plu
 ### Plugin States
 
 ```
-Initialized ──▶ TraderSavedAsDraft ──▶ TraderSubmitted ──▶ OGAAcknowledged ──▶ OGAReviewed
+Initialized ──▶ TraderSavedAsDraft ──▶ TraderSubmitted ──▶ AgencyAcknowledged ──▶ AgencyReviewed
 ```
 
 - **Initialized** -- Form loaded, waiting for trader input
 - **TraderSavedAsDraft** -- Trader saved a draft (optional)
 - **TraderSubmitted** -- Trader submitted the form; if `requiresOgaVerification` is false, the task completes here
-- **OGAAcknowledged** -- Data injected into the NSW Agency, waiting for review callback
-- **OGAReviewed** -- NSW Agency callback received, task completed or failed based on decision
+- **AgencyAcknowledged** -- Data injected into NSW Agency, waiting for review callback
+- **AgencyReviewed** -- NSW Agency callback received, task completed or failed based on decision
 
 ### Workflow Node Configuration
 
@@ -54,7 +54,7 @@ Each NSW Agency verification task in the workflow is configured with submission 
   "service": "plant-quarantine-phytosanitary",
   "requiresOgaVerification": true,
   "submission": {
-    "url": "http://localhost:8081/api/oga/inject",
+    "url": "http://localhost:8081/api/nsw-agency/inject",
     "request": {
       "meta": {
         "type": "consignment",
@@ -77,7 +77,7 @@ Each NSW Agency verification task in the workflow is configured with submission 
 ```
 
 Key fields:
-- **`submission.url`** -- The inject endpoint for this NSW Agency
+- **`submission.url`** -- The NSW Agency inject endpoint for this agency
 - **`submission.request.meta`** -- Metadata that determines which review form the NSW Agency officer sees
 - **`callback.response.display.formId`** -- Form used to display the NSW Agency response back in the trader portal
 - **`callback.response.mapping`** -- Maps callback fields into the workflow's global context
@@ -91,7 +91,7 @@ When an NSW Agency officer reviews an application, the NSW Agency service POSTs 
   "task_id": "927adaaa-b959-4648-880a-16508acafc12",
   "consignment_id": "cefda05e-3071-4e94-b001-328094e570a7",
   "payload": {
-    "action": "OGA_VERIFICATION",
+    "action": "NSW_AGENCY_VERIFICATION",
     "content": {
       "decision": "APPROVED",
       "phytosanitaryClearance": "CLEARED",
@@ -106,7 +106,7 @@ The NSW backend processes this callback:
 
 1. Looks up the task by `task_id`
 2. Validates that `consignment_id` matches
-3. Passes the payload to `plugin.Execute()` with action `OGA_VERIFICATION`
+3. Passes the payload to `plugin.Execute()` with action `NSW_AGENCY_VERIFICATION`
 4. The SimpleForm plugin stores the NSW Agency response in its local state
 5. Based on the `decision` field:
    - `"APPROVED"` -- task state set to `Completed`
@@ -124,9 +124,9 @@ A typical workflow for exporting desiccated coconut includes these tasks:
 5. **Final Processing** -- Wait for completion
 
 For tasks 3 and 4:
-- Trader fills out the NSW Agency-specific form in the NSW portal
+- Trader fills out the agency-specific form in the NSW portal
 - On submission, the SimpleForm plugin POSTs to the respective NSW Agency instance
-- The NSW Agency officer reviews in their NSW Agency portal and submits a decision
+- The NSW Agency officer reviews in their agency portal and submits a decision
 - The NSW Agency service sends the callback, and the CWE advances to the next task
 
 ## Currently Supported Agencies
@@ -142,7 +142,7 @@ To integrate a new NSW Agency:
 
 1. **Start a new NSW Agency instance** on a dedicated port with its own database:
    ```bash
-   OGA_PORT=8083 OGA_DB_PATH=./new_agency.db go run ./cmd/server
+   NSW_AGENCY_PORT=8083 NSW_AGENCY_DB_PATH=./new_agency.db go run ./cmd/server
    ```
 
 2. **Create a review form** in `data/forms/` (see [Dynamic Forms](dynamic-forms.md))
@@ -154,4 +154,4 @@ To integrate a new NSW Agency:
 
 4. **Add seed data** for the trader-facing form in the NSW backend's `forms` table
 
-No changes to NSW Agency application code are needed -- adding a new NSW Agency is purely a configuration and data concern.
+No changes to NSW Agency application code are needed -- adding a new agency is purely a configuration and data concern.

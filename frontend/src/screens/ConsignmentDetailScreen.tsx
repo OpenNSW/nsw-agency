@@ -8,7 +8,7 @@ import {
   InfoCircledIcon,
   ChatBubbleIcon,
 } from '@radix-ui/react-icons'
-import { fetchApplicationDetail, submitReview, submitFeedback, type OGAApplication } from '../api'
+import { fetchApplicationDetail, submitReview, submitFeedback, type AgencyApplication } from '../api'
 import { JsonForms } from '@jsonforms/react'
 import { radixRenderers } from '@opennsw/jsonforms-renderers'
 import type { JsonSchema, UISchemaElement } from '@jsonforms/core'
@@ -21,7 +21,7 @@ export function ConsignmentDetailScreen() {
   const [searchParams] = useSearchParams()
   const taskId = searchParams.get('taskId')
 
-  const [application, setApplication] = useState<OGAApplication | null>(null)
+  const [application, setApplication] = useState<AgencyApplication | null>(null)
   const [loading, setLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)

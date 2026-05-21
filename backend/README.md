@@ -1,21 +1,21 @@
-# NSW Agency Backend
+# NSW Agency Portal Backend
 
 A standalone Go microservice that acts as a verification hub for external agencies within the [NSW (National Single Window)](../README.md) trade facilitation platform. It enables the NSW core service to inject data for review, supports configurable dynamic forms per agency, and sends callback responses to the originating service upon review completion.
 
 ## How It Fits Into NSW
 
-The NSW Agency service is an implementation of the **NSW Agency Service Module** described in the NSW architecture. It embodies the "state vs. data decoupling" principle:
+The NSW Agency service is an implementation of the **NSW Agency Service Module (NSW Agency SM)** described in the NSW architecture. It embodies the "state vs. data decoupling" principle:
 
 - **NSW Core Workflow Engine (CWE)** manages process state (e.g., "Waiting for Approval")
 - **NSW Agency Service Module** manages domain data (e.g., phytosanitary inspection details)
 
-Each NSW Agency runs its own instance with its own database, ensuring data isolation and sovereignty.
+Each government agency runs its own NSW Agency instance with its own database, ensuring data isolation and sovereignty.
 
 ```
-┌─────────────────┐         POST /api/oga/inject           ┌──────────────────┐
+┌─────────────────┐         POST /api/nsw-agency/inject           ┌──────────────────┐
 │                 │ ──────────────────────────────────────▶│                  │
-│  NSW Core       │                                        │  NSW Agency Service  │
-│    Service      │◀────────────────────────────────────── │   (per NSW Agency)   │
+│  NSW Core       │                                        │   NSW Agency Service    │
+│    Service      │◀────────────────────────────────────── │   (per agency)   │
 │                 │     POST {serviceUrl} (callback)       │                  │
 └─────────────────┘                                        └──────────────────┘
                                                                    │
@@ -27,13 +27,13 @@ Each NSW Agency runs its own instance with its own database, ensuring data isola
 
 ## Features
 
-- **Data Injection** – External services POST data for NSW Agency review via `/api/oga/inject`
+- **Data Injection** – External services POST data for NSW Agency review via `/api/nsw-agency/inject`
 - **Task Configurations** – Per-taskCode metadata (title, icon, category), form references, and outcome-to-status mapping
 - **Dynamic Forms** – Reusable [JSON Forms](https://jsonforms.io/) definitions referenced by ID from task configs
 - **Paginated Listings** – Fetch applications with status filtering and pagination
 - **Review Workflow** – Approve/Reject driven by configurable status maps
 - **Callback Responses** – Automatically POSTs review results back to the originating service
-- **Per-NSW Agency Isolation** – Each NSW Agency instance has its own database and port
+- **Per-agency Isolation** – Each NSW Agency instance has its own database and port
 - **Graceful Shutdown** -- Signal-based shutdown with in-flight request draining
 
 ## Getting Started
@@ -46,16 +46,16 @@ Each NSW Agency runs its own instance with its own database, ensuring data isola
 ### Run Locally
 
 ```bash
-cd oga
+cd backend
 
-# Run with defaults (port 8081, SQLite at ./oga_applications.db)
+# Run with defaults (port 8081, SQLite at ./nsw_agency_applications.db)
 go run ./cmd/server
 
 # Run with custom config (SQLite)
-OGA_PORT=8081 OGA_DB_PATH=./npqs.db go run ./cmd/server
+NSW_AGENCY_PORT=8081 NSW_AGENCY_DB_PATH=./npqs.db go run ./cmd/server
 
 # Run with custom config (PostgreSQL)
-OGA_DB_DRIVER=postgres OGA_DB_NAME=npqs_db OGA_DB_USER=postgres OGA_DB_PASSWORD=changeme go run ./cmd/server
+NSW_AGENCY_DB_DRIVER=postgres NSW_AGENCY_DB_NAME=npqs_db NSW_AGENCY_DB_USER=postgres NSW_AGENCY_DB_PASSWORD=changeme go run ./cmd/server
 ```
 
 The database is auto-created and auto-migrated on first startup.
@@ -63,8 +63,8 @@ The database is auto-created and auto-migrated on first startup.
 ### Build
 
 ```bash
-go build -o bin/oga ./cmd/server
-./bin/oga
+go build -o bin/nsw-agency ./cmd/server
+./bin/nsw-agency
 ```
 
 ### Running Multiple NSW Agency Instances
@@ -73,10 +73,10 @@ Each NSW Agency should run as a separate instance:
 
 ```bash
 # Terminal 1 -- NPQS (National Plant Quarantine Service)
-OGA_PORT=8081 OGA_DB_PATH=./npqs_applications.db go run ./cmd/server
+NSW_AGENCY_PORT=8081 NSW_AGENCY_DB_PATH=./npqs_applications.db go run ./cmd/server
 
 # Terminal 2 -- FCAU (Food Control Administration Unit)
-OGA_PORT=8082 OGA_DB_PATH=./fcau_applications.db go run ./cmd/server
+NSW_AGENCY_PORT=8082 NSW_AGENCY_DB_PATH=./fcau_applications.db go run ./cmd/server
 ```
 
 ### Configuration
@@ -85,24 +85,24 @@ All configuration is via environment variables:
 
 | Variable                             | Description                                            | Default                        |
 |--------------------------------------|--------------------------------------------------------|--------------------------------|
-| `OGA_PORT`                           | HTTP server port                                       | `8081`                         |
-| `OGA_DB_DRIVER`                      | Database driver (`sqlite`, `postgres`)                 | `sqlite`                       |
-| `OGA_DB_PATH`                        | Path to SQLite database file                           | `./oga_applications.db`        |
-| `OGA_DB_HOST`                        | PostgreSQL host                                        | `localhost`                    |
-| `OGA_DB_PORT`                        | PostgreSQL port                                        | `5432`                         |
-| `OGA_DB_USER`                        | PostgreSQL user                                        | `postgres`                     |
-| `OGA_DB_PASSWORD`                    | PostgreSQL password                                    | `changeme`                     |
-| `OGA_DB_NAME`                        | PostgreSQL database name                               | `oga_db`                       |
-| `OGA_DB_SSLMODE`                     | PostgreSQL SSL mode                                    | `disable`                      |
-| `OGA_CONFIG_DIR`                     | Root directory containing `task-configs/` and `forms/` | `./data`                       |
-| `OGA_DEFAULT_TASK_CONFIG_ID`         | Fallback task config ID when `taskCode` has no match   | `default`                      |
-| `OGA_ALLOWED_ORIGINS`                | Comma-separated CORS origins (`*` to allow all)        | `*`                            |
-| `OGA_NSW_API_BASE_URL`               | NSW API base URL for calling NSW endpoints             | `http://localhost:8080/api/v1` |
-| `OGA_NSW_CLIENT_ID`                  | OAuth2 client ID for NSW Agency -> NSW                     | required                       |
-| `OGA_NSW_CLIENT_SECRET`              | OAuth2 client secret for NSW Agency -> NSW                 | required                       |
-| `OGA_NSW_TOKEN_URL`                  | OAuth2 token endpoint URL                              | required                       |
-| `OGA_NSW_SCOPES`                     | Optional comma-separated OAuth2 scopes                 | empty                          |
-| `OGA_NSW_TOKEN_INSECURE_SKIP_VERIFY` | DEV-only: skip TLS verification for token fetch        | `false`                        |
+| `NSW_AGENCY_PORT`                           | HTTP server port                                       | `8081`                         |
+| `NSW_AGENCY_DB_DRIVER`                      | Database driver (`sqlite`, `postgres`)                 | `sqlite`                       |
+| `NSW_AGENCY_DB_PATH`                        | Path to SQLite database file                           | `./nsw_agency_applications.db`        |
+| `NSW_AGENCY_DB_HOST`                        | PostgreSQL host                                        | `localhost`                    |
+| `NSW_AGENCY_DB_PORT`                        | PostgreSQL port                                        | `5432`                         |
+| `NSW_AGENCY_DB_USER`                        | PostgreSQL user                                        | `postgres`                     |
+| `NSW_AGENCY_DB_PASSWORD`                    | PostgreSQL password                                    | `changeme`                     |
+| `NSW_AGENCY_DB_NAME`                        | PostgreSQL database name                               | `nsw_agency_db`                       |
+| `NSW_AGENCY_DB_SSLMODE`                     | PostgreSQL SSL mode                                    | `disable`                      |
+| `NSW_AGENCY_CONFIG_DIR`                     | Root directory containing `task-configs/` and `forms/` | `./data`                       |
+| `NSW_AGENCY_DEFAULT_TASK_CONFIG_ID`         | Fallback task config ID when `taskCode` has no match   | `default`                      |
+| `NSW_AGENCY_ALLOWED_ORIGINS`                | Comma-separated CORS origins (`*` to allow all)        | `*`                            |
+| `NSW_AGENCY_NSW_API_BASE_URL`               | NSW API base URL for calling NSW endpoints             | `http://localhost:8080/api/v1` |
+| `NSW_AGENCY_NSW_CLIENT_ID`                  | OAuth2 client ID for NSW Agency -> NSW                        | required                       |
+| `NSW_AGENCY_NSW_CLIENT_SECRET`              | OAuth2 client secret for NSW Agency -> NSW                    | required                       |
+| `NSW_AGENCY_NSW_TOKEN_URL`                  | OAuth2 token endpoint URL                              | required                       |
+| `NSW_AGENCY_NSW_SCOPES`                     | Optional comma-separated OAuth2 scopes                 | empty                          |
+| `NSW_AGENCY_NSW_TOKEN_INSECURE_SKIP_VERIFY` | DEV-only: skip TLS verification for token fetch        | `false`                        |
 
 See [`.env.example`](.env.example) for a template.
 
@@ -115,10 +115,10 @@ See [docs/api.md](docs/api.md) for complete API documentation with request/respo
 | Method | Endpoint                                | Description                                |
 |--------|-----------------------------------------|--------------------------------------------|
 | `GET`  | `/health`                               | Health check                               |
-| `POST` | `/api/oga/inject`                       | Inject data for review (called by NSW)     |
-| `GET`  | `/api/oga/applications`                 | List applications (paginated, filterable)  |
-| `GET`  | `/api/oga/applications/{taskId}`        | Get single application with review form    |
-| `POST` | `/api/oga/applications/{taskId}/review` | Submit review decision (triggers callback) |
+| `POST` | `/api/nsw-agency/inject`                       | Inject data for review (called by NSW)     |
+| `GET`  | `/api/nsw-agency/applications`                 | List applications (paginated, filterable)  |
+| `GET`  | `/api/nsw-agency/applications/{taskId}`        | Get single application with review form    |
+| `POST` | `/api/nsw-agency/applications/{taskId}/review` | Submit review decision (triggers callback) |
 
 ## Documentation
 
@@ -130,12 +130,12 @@ Detailed documentation lives in the [`docs/`](docs/) folder:
 | [API Reference](docs/api.md)                | Complete endpoint docs with examples                                                       |
 | [Task Configurations](docs/task-configs.md) | Per-taskCode metadata, form references, and status-mapping behavior; how to add a new task |
 | [Forms](docs/forms.md)                      | JSON Forms file structure and how to add new forms referenced from task configs            |
-| [NSW Integration](docs/nsw-integration.md)  | How the NSW Agency connects to the NSW workflow engine                                         |
+| [NSW Integration](docs/nsw-integration.md)  | How NSW Agency connects to the NSW workflow engine                                                |
 
 ## Project Structure
 
 ```
-oga/
+backend/
 ├── cmd/server/
 │   └── main.go                 # Entry point, server setup, graceful shutdown
 ├── internal/

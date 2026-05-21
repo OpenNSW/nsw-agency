@@ -31,8 +31,8 @@ export async function initAppConfig(): Promise<void> {
       appConfig = {
         branding: {
           systemName: 'NSW',
-          appName: 'OGA Officer Portal',
-          portalName: 'OGA Portal',
+          appName: 'NSW Agency Officer Portal',
+          portalName: 'NSW Agency Portal',
           description: 'A unified digital platform enabling regulatory consignments.',
         },
       }

@@ -1,4 +1,4 @@
-name: Release - Build and Publish OGA Images
+name: Release - Build and Publish NSW Agency Images
 
 on:
   push:
@@ -24,14 +24,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - service_name: OGA Backend
+          - service_name: NSW Agency Backend
             image_name: nsw-agency-backend
             context: ./backend
             dockerfile: ./backend/Dockerfile
             description: NSW Agency Backend Service
 
-          - service_name: OGA Portal
+          - service_name: NSW Agency Portal
             image_name: nsw-agency-app
             context: ./frontend
             dockerfile: ./frontend/Dockerfile

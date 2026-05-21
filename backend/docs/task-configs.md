@@ -1,6 +1,6 @@
 # Task Configurations
 
-A **task config** is the per-`taskCode` JSON file that drives the OGA officer review UI. For each `taskCode` that the NSW workflow can inject, a task config defines:
+A **task config** is the per-`taskCode` JSON file that drives the NSW Agency officer review UI. For each `taskCode` that the NSW workflow can inject, a task config defines:
 
 - **UI metadata** — title, description, icon, and category shown in the task list and review screen header.
 - **Form references** — which [forms](./forms.md) to render for the trader-submitted data view and the officer's review action.
@@ -10,7 +10,7 @@ Forms themselves are stored separately and referenced by ID; the same form can b
 
 ## File Location
 
-Task configs live in `<OGA_CONFIG_DIR>/task-configs/` (default: `./data/task-configs/`). The filename (without `.json`) is the `taskCode`:
+Task configs live in `<NSW_AGENCY_CONFIG_DIR>/task-configs/` (default: `./data/task-configs/`). The filename (without `.json`) is the `taskCode`:
 
 ```
 data/task-configs/
@@ -60,17 +60,17 @@ At startup the `TaskConfigStore` loads every `.json` file in the directory and i
 
 ## Resolution Flow
 
-When `GET /api/oga/applications/{taskId}` is called:
+When `GET /api/nsw-agency/applications/{taskId}` is called:
 
 1. The application record is loaded from the database; it carries `taskCode`.
 2. `TaskConfigStore.GetConfig(taskCode)` is called:
    - **Hit** → returns the config.
-   - **Miss** → falls back to the config registered as the default (`OGA_DEFAULT_TASK_CONFIG_ID`, defaults to `default`).
+   - **Miss** → falls back to the config registered as the default (`NSW_AGENCY_DEFAULT_TASK_CONFIG_ID`, defaults to `default`).
    - **No default** → returns an error; the response omits all metadata and form fields, and the frontend renders a raw data view.
 3. Each non-empty form reference in the config is resolved against the `FormStore`:
    - Hit → form JSON is attached to the response as `dataForm` (view) or `ogaForm` (review).
    - Miss → a warning is logged and the field is omitted.
-4. On review submission via `POST /api/oga/applications/{taskId}/review`, if `behavior.statusMap` is set and the request body contains a matching `review_outcome` value, the application's status is set accordingly. Otherwise it defaults to `DONE`.
+4. On review submission via `POST /api/nsw-agency/applications/{taskId}/review`, if `behavior.statusMap` is set and the request body contains a matching `review_outcome` value, the application's status is set accordingly. Otherwise it defaults to `DONE`.
 
 ## Adding a New Task
 
@@ -100,7 +100,7 @@ When `GET /api/oga/applications/{taskId}` is called:
    }
    ```
 
-4. Restart the OGA service — configs and forms are loaded once at startup.
+4. Restart the NSW Agency service — configs and forms are loaded once at startup.
 
 ## Status Mapping
 
@@ -123,11 +123,11 @@ Common statuses used by the frontend:
 
 ## Per-Deployment Configs
 
-Only `default.json` ships in the repo. Agency-specific task configs live outside version control and are provided per deployment by pointing `OGA_CONFIG_DIR` at a directory containing your `task-configs/` (and `forms/`) subdirs.
+Only `default.json` ships in the repo. Agency-specific task configs live outside version control and are provided per deployment by pointing `NSW_AGENCY_CONFIG_DIR` at a directory containing your `task-configs/` (and `forms/`) subdirs.
 
 ## Configuration
 
 | Variable                       | Description                                                       | Default      |
 |--------------------------------|-------------------------------------------------------------------|--------------|
-| `OGA_CONFIG_DIR`               | Root directory containing `task-configs/` and `forms/` subdirs    | `./data`     |
-| `OGA_DEFAULT_TASK_CONFIG_ID`   | Task config ID used when a `taskCode` has no registered config    | `default`    |
+| `NSW_AGENCY_CONFIG_DIR`               | Root directory containing `task-configs/` and `forms/` subdirs    | `./data`     |
+| `NSW_AGENCY_DEFAULT_TASK_CONFIG_ID`   | Task config ID used when a `taskCode` has no registered config    | `default`    |

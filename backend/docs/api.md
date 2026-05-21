@@ -13,16 +13,16 @@ GET /health
 ```json
 {
   "status": "ok",
-  "service": "oga-portal"
+  "service": "nsw-agency-portal"
 }
 ```
 
 ## Inject Data
 
-Called by the NSW workflow engine to submit data for OGA review.
+Called by the NSW workflow engine to submit data for NSW Agency review.
 
 ```
-POST /api/oga/inject
+POST /api/nsw-agency/inject
 ```
 
 **Request Body**
@@ -40,7 +40,7 @@ POST /api/oga/inject
 **Example Request**
 
 ```bash
-curl -X POST http://localhost:8081/api/oga/inject \
+curl -X POST http://localhost:8081/api/nsw-agency/inject \
   -H "Content-Type: application/json" \
   -d '{
     "taskId": "927adaaa-b959-4648-880a-16508acafc12",
@@ -77,10 +77,10 @@ curl -X POST http://localhost:8081/api/oga/inject \
 
 ## List Applications
 
-Returns a paginated list of applications for the OGA officer portal.
+Returns a paginated list of applications for the NSW Agency officer portal.
 
 ```
-GET /api/oga/applications
+GET /api/nsw-agency/applications
 ```
 
 **Query Parameters**
@@ -94,7 +94,7 @@ GET /api/oga/applications
 **Example Request**
 
 ```bash
-curl "http://localhost:8081/api/oga/applications?status=PENDING&page=1&pageSize=10"
+curl "http://localhost:8081/api/nsw-agency/applications?status=PENDING&page=1&pageSize=10"
 ```
 
 **Response** `200 OK`
@@ -130,7 +130,7 @@ curl "http://localhost:8081/api/oga/applications?status=PENDING&page=1&pageSize=
 Returns a single application with the appropriate review form attached.
 
 ```
-GET /api/oga/applications/{taskId}
+GET /api/nsw-agency/applications/{taskId}
 ```
 
 **Path Parameters**
@@ -142,7 +142,7 @@ GET /api/oga/applications/{taskId}
 **Example Request**
 
 ```bash
-curl "http://localhost:8081/api/oga/applications/927adaaa-b959-4648-880a-16508acafc12"
+curl "http://localhost:8081/api/nsw-agency/applications/927adaaa-b959-4648-880a-16508acafc12"
 ```
 
 **Response** `200 OK`
@@ -193,7 +193,7 @@ The `form` field contains a [JSON Forms](https://jsonforms.io/) definition that 
 Submit a review decision. This updates the application status and POSTs a callback to the originating service.
 
 ```
-POST /api/oga/applications/{taskId}/review
+POST /api/nsw-agency/applications/{taskId}/review
 ```
 
 **Path Parameters**
@@ -214,7 +214,7 @@ The body is dynamic based on the review form, but must always include a `decisio
 **Example Request (default form)**
 
 ```bash
-curl -X POST http://localhost:8081/api/oga/applications/927adaaa-b959-4648-880a-16508acafc12/review \
+curl -X POST http://localhost:8081/api/nsw-agency/applications/927adaaa-b959-4648-880a-16508acafc12/review \
   -H "Content-Type: application/json" \
   -d '{
     "decision": "APPROVED",
@@ -225,7 +225,7 @@ curl -X POST http://localhost:8081/api/oga/applications/927adaaa-b959-4648-880a-
 **Example Request (NPQS phytosanitary form)**
 
 ```bash
-curl -X POST http://localhost:8081/api/oga/applications/927adaaa-b959-4648-880a-16508acafc12/review \
+curl -X POST http://localhost:8081/api/nsw-agency/applications/927adaaa-b959-4648-880a-16508acafc12/review \
   -H "Content-Type: application/json" \
   -d '{
     "decision": "APPROVED",
@@ -253,7 +253,7 @@ After a successful review, the service POSTs the following to the `serviceUrl`:
   "task_id": "927adaaa-b959-4648-880a-16508acafc12",
   "consignment_id": "cefda05e-3071-4e94-b001-328094e570a7",
   "payload": {
-    "action": "OGA_VERIFICATION",
+    "action": "NSW_AGENCY_VERIFICATION",
     "content": {
       "decision": "APPROVED",
       "phytosanitaryClearance": "CLEARED",

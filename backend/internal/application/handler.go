@@ -11,13 +11,13 @@ import (
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httputil"
 )
 
-// Handler handles HTTP requests for OGA portal operations
+// Handler handles HTTP requests for NSW Agency portal operations
 type Handler struct {
 	service         Service
 	MaxRequestBytes int64
 }
 
-// NewHandler creates a new OGA handler instance
+// NewHandler creates a new NSW Agency handler instance
 func NewHandler(service Service, maxRequestBytes int64) (*Handler, error) {
 	if maxRequestBytes <= 0 {
 		return nil, fmt.Errorf("invalid MaxRequestBytes: %d (must be greater than 0)", maxRequestBytes)
@@ -38,8 +38,8 @@ func (h *Handler) parseTaskID(w http.ResponseWriter, r *http.Request) (string, e
 	return taskIDStr, nil
 }
 
-// HandleInjectData handles POST /api/oga/inject
-// This is the endpoint that external services use to inject data into OGA portal
+// HandleInjectData handles POST /api/nsw-agency/inject
+// This is the endpoint that external services use to inject data into NSW Agency portal
 func (h *Handler) HandleInjectData(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		httputil.WriteJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
@@ -79,7 +79,7 @@ func (h *Handler) HandleInjectData(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// HandleGetApplications handles GET /api/oga/applications
+// HandleGetApplications handles GET /api/nsw-agency/applications
 // Returns all applications, optionally filtered by status, consignmentId, or q query parameter
 func (h *Handler) HandleGetApplications(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -113,7 +113,7 @@ func (h *Handler) HandleGetApplications(w http.ResponseWriter, r *http.Request) 
 	httputil.WriteJSONResponse(w, http.StatusOK, result)
 }
 
-// HandleGetConsignments handles GET /api/oga/consignments
+// HandleGetConsignments handles GET /api/nsw-agency/consignments
 // Returns a paginated list of unique consignments with their latest status, optionally filtered by q
 func (h *Handler) HandleGetConsignments(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -145,7 +145,7 @@ func (h *Handler) HandleGetConsignments(w http.ResponseWriter, r *http.Request) 
 	httputil.WriteJSONResponse(w, http.StatusOK, result)
 }
 
-// HandleGetApplication handles GET /api/oga/applications/{taskId}
+// HandleGetApplication handles GET /api/nsw-agency/applications/{taskId}
 // Returns a specific application by task ID
 func (h *Handler) HandleGetApplication(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -180,12 +180,12 @@ func (h *Handler) HandleGetApplication(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleHealth(w http.ResponseWriter, r *http.Request) {
 	httputil.WriteJSONResponse(w, http.StatusOK, map[string]any{
 		"status":  "ok",
-		"service": "oga-portal",
+		"service": "nsw-agency-portal",
 	})
 }
 
-// HandleReviewApplication handles POST /api/oga/applications/{taskId}/review
-// Called when OGA officer approves/rejects an application
+// HandleReviewApplication handles POST /api/nsw-agency/applications/{taskId}/review
+// Called when NSW Agency officer approves/rejects an application
 // Sends the response back to the originating service
 func (h *Handler) HandleReviewApplication(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {

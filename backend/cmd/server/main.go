@@ -26,7 +26,7 @@ func main() {
 		log.Fatalf("FATAL: failed to load configuration: %v", err)
 	}
 
-	slog.Info("OGA service configuration",
+	slog.Info("NSW Agency service configuration",
 		"db_driver", cfg.DB.Driver,
 		"db_path", cfg.DB.Path,
 		"port", cfg.Port,
@@ -65,7 +65,7 @@ func main() {
 		WithTLS(&httpclient.TLSConfig{InsecureSkipVerify: cfg.NSW.TokenInsecureSkipVerify}).
 		Build()
 
-	// Initialize OGA service
+	// Initialize NSW Agency service
 	service := application.NewService(store, configStore, formStore, nswHttpClient)
 	defer func() {
 		if err := service.Close(); err != nil {
@@ -76,7 +76,7 @@ func main() {
 	// Initialize handlers
 	handler, err := application.NewHandler(service, cfg.MaxRequestBytes)
 	if err != nil {
-		slog.Error("failed to create OGA handler", "error", err)
+		slog.Error("failed to create NSW Agency handler", "error", err)
 		return
 	}
 
@@ -91,17 +91,17 @@ func main() {
 	// Health check
 	mux.HandleFunc("GET /health", handler.HandleHealth)
 	// Endpoint for services to inject data
-	mux.HandleFunc("POST /api/oga/inject", handler.HandleInjectData)
+	mux.HandleFunc("POST /api/nsw-agency/inject", handler.HandleInjectData)
 	// Endpoints for UI to fetch and manage applications
-	mux.HandleFunc("GET /api/oga/consignments", handler.HandleGetConsignments)
-	mux.HandleFunc("GET /api/oga/applications", handler.HandleGetApplications)
+	mux.HandleFunc("GET /api/nsw-agency/consignments", handler.HandleGetConsignments)
+	mux.HandleFunc("GET /api/nsw-agency/applications", handler.HandleGetApplications)
 
-	mux.HandleFunc("GET /api/oga/applications/{taskId}", handler.HandleGetApplication)
-	mux.HandleFunc("POST /api/oga/applications/{taskId}/review", handler.HandleReviewApplication)
-	mux.HandleFunc("POST /api/oga/applications/{taskId}/feedback", feedbackHandler.HandleFeedback)
+	mux.HandleFunc("GET /api/nsw-agency/applications/{taskId}", handler.HandleGetApplication)
+	mux.HandleFunc("POST /api/nsw-agency/applications/{taskId}/review", handler.HandleReviewApplication)
+	mux.HandleFunc("POST /api/nsw-agency/applications/{taskId}/feedback", feedbackHandler.HandleFeedback)
 
-	mux.HandleFunc("POST /api/oga/uploads", storageHandler.HandleCreateUpload)
-	mux.HandleFunc("GET /api/oga/uploads/{key}", storageHandler.HandleGetUploadURL)
+	mux.HandleFunc("POST /api/nsw-agency/uploads", storageHandler.HandleCreateUpload)
+	mux.HandleFunc("GET /api/nsw-agency/uploads/{key}", storageHandler.HandleGetUploadURL)
 
 	// Set up graceful shutdown
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)
@@ -141,7 +141,7 @@ func main() {
 
 	// Start server in a goroutine
 	go func() {
-		slog.Info("starting OGA service", "port", cfg.Port)
+		slog.Info("starting NSW Agency service", "port", cfg.Port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("failed to start server", "error", err)
 			quit <- syscall.SIGTERM
@@ -150,7 +150,7 @@ func main() {
 
 	// Wait for interrupt signal
 	<-quit
-	slog.Info("shutting down OGA service...")
+	slog.Info("shutting down NSW Agency service...")
 
 	// Create a context with timeout for graceful shutdown
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -163,5 +163,5 @@ func main() {
 		slog.Info("server gracefully stopped")
 	}
 
-	slog.Info("OGA service stopped")
+	slog.Info("NSW Agency service stopped")
 }

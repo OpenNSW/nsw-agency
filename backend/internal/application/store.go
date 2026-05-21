@@ -45,7 +45,7 @@ func (j *JSONB) Scan(value any) error {
 	return json.Unmarshal(bytes, j)
 }
 
-// ConsignmentRecord represents a consignment (workflow) in the OGA database.
+// ConsignmentRecord represents a consignment (workflow) in the NSW Agency database.
 // Each consignment groups one or more ApplicationRecords.
 type ConsignmentRecord struct {
 	ID        string    `gorm:"type:text;primaryKey"`
@@ -59,20 +59,20 @@ func (ConsignmentRecord) TableName() string {
 	return "consignments"
 }
 
-// ApplicationRecord represents an application (task) in the OGA database
+// ApplicationRecord represents an application (task) in the NSW Agency database
 type ApplicationRecord struct {
-	TaskID             string            `gorm:"type:text;primaryKey"`
-	TaskCode           string            `gorm:"type:varchar(100);not null"`
-	ConsignmentID      string            `gorm:"type:text;index;not null;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
-	Consignment        ConsignmentRecord `gorm:"foreignKey:ConsignmentID;references:ID"`
-	ServiceURL         string            `gorm:"type:varchar(512);not null"`                  // URL to send response back to
-	Data               JSONB             `gorm:"type:text"`                                   // Injected data from service
-	ReviewerResponse   JSONB             `gorm:"type:text"`                                   // Response from reviewer
-	Status             string            `gorm:"type:varchar(50);not null;default:'PENDING'"` // PENDING, FEEDBACK_REQUESTED, DONE
-	OGAFeedbackHistory []feedback.Entry  `gorm:"type:text;serializer:json"`
-	ReviewedAt         *time.Time        // When it was reviewed
-	CreatedAt          time.Time         `gorm:"autoCreateTime"`
-	UpdatedAt          time.Time         `gorm:"autoUpdateTime"`
+	TaskID                string            `gorm:"type:text;primaryKey"`
+	TaskCode              string            `gorm:"type:varchar(100);not null"`
+	ConsignmentID         string            `gorm:"type:text;index;not null;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	Consignment           ConsignmentRecord `gorm:"foreignKey:ConsignmentID;references:ID"`
+	ServiceURL            string            `gorm:"type:varchar(512);not null"`                  // URL to send response back to
+	Data                  JSONB             `gorm:"type:text"`                                   // Injected data from service
+	ReviewerResponse      JSONB             `gorm:"type:text"`                                   // Response from reviewer
+	Status                string            `gorm:"type:varchar(50);not null;default:'PENDING'"` // PENDING, FEEDBACK_REQUESTED, DONE
+	AgencyFeedbackHistory []feedback.Entry  `gorm:"type:text;serializer:json"`
+	ReviewedAt            *time.Time        // When it was reviewed
+	CreatedAt             time.Time         `gorm:"autoCreateTime"`
+	UpdatedAt             time.Time         `gorm:"autoUpdateTime"`
 }
 
 // TableName returns the table name for ApplicationRecord
@@ -80,7 +80,7 @@ func (ApplicationRecord) TableName() string {
 	return "applications"
 }
 
-// ApplicationStore handles database operations for OGA applications
+// ApplicationStore handles database operations for NSW Agency applications
 type ApplicationStore struct {
 	db *gorm.DB
 }
@@ -303,7 +303,7 @@ func (s *ApplicationStore) AppendFeedback(taskID string, entry feedback.Entry) e
 		if err := tx.First(&app, "task_id = ?", taskID).Error; err != nil {
 			return err
 		}
-		updated := append(app.OGAFeedbackHistory, entry)
+		updated := append(app.AgencyFeedbackHistory, entry)
 		updatedJSON, err := json.Marshal(updated)
 		if err != nil {
 			return fmt.Errorf("failed to marshal feedback history: %w", err)
@@ -314,7 +314,7 @@ func (s *ApplicationStore) AppendFeedback(taskID string, entry feedback.Entry) e
 		if err := tx.Model(&ApplicationRecord{}).
 			Where("task_id = ?", taskID).
 			Updates(map[string]any{
-				"oga_feedback_history": string(updatedJSON),
+				"agency_feedback_history": string(updatedJSON),
 				"status":               "FEEDBACK_REQUESTED",
 				"updated_at":           now,
 			}).Error; err != nil {
