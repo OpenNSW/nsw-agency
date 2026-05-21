@@ -315,8 +315,8 @@ func (s *ApplicationStore) AppendFeedback(taskID string, entry feedback.Entry) e
 			Where("task_id = ?", taskID).
 			Updates(map[string]any{
 				"agency_feedback_history": string(updatedJSON),
-				"status":               "FEEDBACK_REQUESTED",
-				"updated_at":           now,
+				"status":                  "FEEDBACK_REQUESTED",
+				"updated_at":              now,
 			}).Error; err != nil {
 			return err
 		}
