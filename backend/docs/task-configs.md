@@ -1,6 +1,6 @@
 # Task Configurations
 
-A **task config** is the per-`taskCode` JSON file that drives the NSW Agency officer review UI. For each `taskCode` that the NSW workflow can inject, a task config defines:
+A **task config** is the per-`taskCode` JSON file that drives the agency officer review UI. For each `taskCode` that the NSW workflow can inject, a task config defines:
 
 - **UI metadata** — title, description, icon, and category shown in the task list and review screen header.
 - **Form references** — which [forms](./forms.md) to render for the trader-submitted data view and the officer's review action.
@@ -10,7 +10,7 @@ Forms themselves are stored separately and referenced by ID; the same form can b
 
 ## File Location
 
-Task configs live in `<NSW_AGENCY_CONFIG_DIR>/task-configs/` (default: `./data/task-configs/`). The filename (without `.json`) is the `taskCode`:
+Task configs live in `<CONFIG_DIR>/task-configs/` (default: `./data/task-configs/`). The filename (without `.json`) is the `taskCode`:
 
 ```
 data/task-configs/
@@ -65,7 +65,7 @@ When `GET /api/v1/applications/{taskId}` is called:
 1. The application record is loaded from the database; it carries `taskCode`.
 2. `TaskConfigStore.GetConfig(taskCode)` is called:
    - **Hit** → returns the config.
-   - **Miss** → falls back to the config registered as the default (`NSW_AGENCY_DEFAULT_TASK_CONFIG_ID`, defaults to `default`).
+   - **Miss** → falls back to the config registered as the default (`AGENCY_DEFAULT_TASK_CONFIG_ID`, defaults to `default`).
    - **No default** → returns an error; the response omits all metadata and form fields, and the frontend renders a raw data view.
 3. Each non-empty form reference in the config is resolved against the `FormStore`:
    - Hit → form JSON is attached to the response as `dataForm` (view) or `agencyForm` (review).
@@ -100,7 +100,7 @@ When `GET /api/v1/applications/{taskId}` is called:
    }
    ```
 
-4. Restart the NSW Agency service — configs and forms are loaded once at startup.
+4. Restart the Agency service — configs and forms are loaded once at startup.
 
 ## Status Mapping
 
@@ -123,11 +123,11 @@ Common statuses used by the frontend:
 
 ## Per-Deployment Configs
 
-Only `default.json` ships in the repo. Agency-specific task configs live outside version control and are provided per deployment by pointing `NSW_AGENCY_CONFIG_DIR` at a directory containing your `task-configs/` (and `forms/`) subdirs.
+Only `default.json` ships in the repo. Agency-specific task configs live outside version control and are provided per deployment by pointing `AGENCY_CONFIG_DIR` at a directory containing your `task-configs/` (and `forms/`) subdirs.
 
 ## Configuration
 
 | Variable                       | Description                                                       | Default      |
 |--------------------------------|-------------------------------------------------------------------|--------------|
-| `NSW_AGENCY_CONFIG_DIR`               | Root directory containing `task-configs/` and `forms/` subdirs    | `./data`     |
-| `NSW_AGENCY_DEFAULT_TASK_CONFIG_ID`   | Task config ID used when a `taskCode` has no registered config    | `default`    |
+| `CONFIG_DIR`               | Root directory containing `task-configs/` and `forms/` subdirs    | `./data`     |
+| `DEFAULT_TASK_CONFIG_ID`   | Task config ID used when a `taskCode` has no registered config    | `default`    |

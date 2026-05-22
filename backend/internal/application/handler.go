@@ -11,13 +11,13 @@ import (
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httputil"
 )
 
-// Handler handles HTTP requests for NSW Agency portal operations
+// Handler handles HTTP requests for agency portal operations
 type Handler struct {
 	service         Service
 	MaxRequestBytes int64
 }
 
-// NewHandler creates a new NSW Agency handler instance
+// NewHandler creates a new agency handler instance
 func NewHandler(service Service, maxRequestBytes int64) (*Handler, error) {
 	if maxRequestBytes <= 0 {
 		return nil, fmt.Errorf("invalid MaxRequestBytes: %d (must be greater than 0)", maxRequestBytes)
@@ -39,7 +39,7 @@ func (h *Handler) parseTaskID(w http.ResponseWriter, r *http.Request) (string, e
 }
 
 // HandleInjectData handles POST /api/v1/inject
-// This is the endpoint that external services use to inject data into NSW Agency portal
+// This is the endpoint that external services use to inject data into agency portal
 func (h *Handler) HandleInjectData(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		httputil.WriteJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
@@ -185,7 +185,7 @@ func (h *Handler) HandleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleReviewApplication handles POST /api/v1/applications/{taskId}/review
-// Called when NSW Agency officer approves/rejects an application
+// Called when Agency officer approves/rejects an application
 // Sends the response back to the originating service
 func (h *Handler) HandleReviewApplication(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {

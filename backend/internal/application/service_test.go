@@ -331,8 +331,8 @@ func TestReviewApplication_CallsServiceURL(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected payload object in callback, got %T", body["payload"])
 	}
-	if payload["action"] != "NSW_AGENCY_VERIFICATION" {
-		t.Errorf("callback payload.action: got %v, want NSW_AGENCY_VERIFICATION", payload["action"])
+	if payload["action"] != "AGENCY_VERIFICATION" {
+		t.Errorf("callback payload.action: got %v, want AGENCY_VERIFICATION", payload["action"])
 	}
 	content, ok := payload["content"].(map[string]any)
 	if !ok {

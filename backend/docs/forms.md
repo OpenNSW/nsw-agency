@@ -1,6 +1,6 @@
 # Forms
 
-Forms are [JSON Forms](https://jsonforms.io/) definitions (`schema` + `uiSchema`) that the NSW Agency frontend renders for two purposes:
+Forms are [JSON Forms](https://jsonforms.io/) definitions (`schema` + `uiSchema`) that the Agency frontend renders for two purposes:
 
 - **View forms** — read-only renderings of the trader-submitted data shown on the review screen.
 - **Review forms** — interactive forms the officer fills in to record their review action.
@@ -9,7 +9,7 @@ A form file is purpose-agnostic: the same file can be referenced as a view form 
 
 ## File Location
 
-All form files live in `<NSW_AGENCY_CONFIG_DIR>/forms/` (default: `./data/forms/`). The form ID is the filename without the `.json` extension:
+All form files live in `<CONFIG_DIR>/forms/` (default: `./data/forms/`). The form ID is the filename without the `.json` extension:
 
 ```
 data/forms/
@@ -53,7 +53,7 @@ Each form file is a top-level object with two keys: `schema` and `uiSchema`.
 - `schema` follows standard [JSON Schema](https://json-schema.org/) and is used for both validation and field-title lookup.
 - `uiSchema` follows [JSON Forms UI Schema](https://jsonforms.io/docs/uischema/) and controls layout, rules, and rendering options.
 
-No fields are required by the NSW Agency service itself — the form is forwarded to the frontend verbatim. Field requirements (such as `review_outcome` for status-mapping behavior) come from the task config that *references* the form, not from the form file. See [`task-configs.md`](./task-configs.md) for the contract.
+No fields are required by the Agency service itself — the form is forwarded to the frontend verbatim. Field requirements (such as `review_outcome` for status-mapping behavior) come from the task config that *references* the form, not from the form file. See [`task-configs.md`](./task-configs.md) for the contract.
 
 ## Adding a New Form
 
@@ -73,8 +73,8 @@ No fields are required by the NSW Agency service itself — the form is forwarde
    }
    ```
 
-4. Restart the NSW Agency service — forms are loaded once at startup.
+4. Restart the Agency service — forms are loaded once at startup.
 
 ## Per-Deployment Forms
 
-Only `default_review.json` ships in the repo. Agency-specific forms live outside version control and are provided per deployment by pointing `NSW_AGENCY_CONFIG_DIR` at a directory containing your `forms/` (and `task-configs/`) subdirs.
+Only `default_review.json` ships in the repo. Agency-specific forms live outside version control and are provided per deployment by pointing `CONFIG_DIR` at a directory containing your `forms/` (and `task-configs/`) subdirs.

@@ -1,4 +1,4 @@
-# NSW Agency App
+# Agency App
 
 ## Authentication configuration
 
@@ -6,17 +6,17 @@ This app uses Asgardeo/Thunder OIDC for sign-in.
 
 Required environment variables:
 
-- `VITE_BRANDING_PATH`: Path to NSW Agency branding YAML config (e.g. `./src/configs/npqs.yaml`)
-- `VITE_API_BASE_URL`: NSW Agency backend API base URL (for example `http://localhost:8081`)
+- `VITE_BRANDING_PATH`: Path to Agency branding YAML config (e.g. `./src/configs/npqs.yaml`)
+- `VITE_API_BASE_URL`: Agency backend API base URL (for example `http://localhost:8081`)
 - `VITE_IDP_BASE_URL`: IdP base URL (for example `https://localhost:8090`)
 - `VITE_IDP_CLIENT_ID`: NSW Agency-specific IdP application client id
-- `VITE_APP_URL`: public URL of this NSW Agency deployment
+- `VITE_APP_URL`: public URL of this Agency deployment
 - `VITE_IDP_SCOPES` (optional): comma-separated scopes (defaults to `openid,profile,email`)
 - `VITE_IDP_PLATFORM` (optional): SDK platform (defaults to `AsgardeoV2`)
 
 ## Per-NSW Agency deployment model
 
-Each NSW Agency deployment should use its own IdP application configuration.
+Each Agency deployment should use its own IdP application configuration.
 
 Example:
 
@@ -30,7 +30,7 @@ Example:
   - `VITE_BRANDING_PATH=./src/configs/cda.yaml`
   - `VITE_IDP_CLIENT_ID=AGENCY_PORTAL_APP_CDA`
 
-This allows IdP-level user access restriction per NSW Agency app registration.
+This allows IdP-level user access restriction per Agency app registration.
 
 ## Configuration
 
@@ -43,7 +43,7 @@ NSW Agency instance branding and feature configuration is defined via YAML files
 3. At build time, Vite reads the YAML files from the filesystem (at any path), merges them, and injects the result into the application.
 4. The merged config is validated before the app renders.
 
-### Adding a new NSW Agency instance
+### Adding a new Agency instance
 
 1. Create a new YAML file anywhere on your system (e.g., `./src/brand.yaml`, `../shared/npqs.yaml`, or `/etc/NSW Agency/config.yaml`).
 2. Edit the `branding.appName` field (required).
@@ -53,7 +53,7 @@ NSW Agency instance branding and feature configuration is defined via YAML files
 
 ```yaml
 branding:
-  appName: 'My NSW Agency Name' # Required
+  appName: 'My Agency Name' # Required
   logoUrl: '' # Optional
   favicon: '' # Optional
 ```

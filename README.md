@@ -2,7 +2,7 @@
 
 An additional system provided along with the NSW (National Single Window) platform to enable private or government agencies to review and approve trader-submitted data as part of the NSW workflow.
 
-This repo contains both two components of the NSW Agency system:
+This repo contains both two components of the Agency system:
 
 - [backend/](backend/) — Go service that holds agency side application state, talks to the NSW core backend over OAuth2 M2M, and serves the frontend.
 - [frontend/](frontend/) — React/Vite SPA used by agency officers to review submissions from the NSW core backend.
@@ -11,7 +11,7 @@ The same codebase is deployed per agency, with branding and identity selected vi
 
 ## Quick start
 
-You need the Identity Provider(IdP) running first in order to login in NSW Agency Portal. This live in the [NSW Core](https://github.com/OpenNSW/nsw):
+You need the Identity Provider(IdP) running first in order to login in Agency Portal. This live in the [NSW Core](https://github.com/OpenNSW/nsw):
 
 ```bash
 # In the NSW Core
@@ -52,7 +52,7 @@ Use [start-dev.sh](start-dev.sh) at the repo root to launch the per-agency backe
 
 Every process runs in its own process group (`set -m`), so `Ctrl-C` cleanly stops the whole fleet — including the compiled binary `go run` spawns underneath. Logs from all processes interleave on the same terminal.
 
-| NSW Agency | Backend port | DB file                        | NSW M2M client | Frontend port | Branding config                              | IdP client id            |
+| Agency | Backend port | DB file                        | NSW M2M client | Frontend port | Branding config                              | IdP client id            |
 | ---------- | ------------ | ------------------------------ | -------------- | ------------- | -------------------------------------------- | ------------------------ |
 | NPQS       | 8081         | `backend/npqs_applications.db` | `NPQS_TO_NSW`  | 5174          | `frontend/public/configs/npqs.branding.json` | `AGENCY_PORTAL_APP_NPQS` |
 | FCAU       | 8082         | `backend/fcau_applications.db` | `FCAU_TO_NSW`  | 5175          | `frontend/public/configs/fcau.branding.json` | `AGENCY_PORTAL_APP_FCAU` |
@@ -63,7 +63,7 @@ The branding-config paths above are gitignored — copy them from [default.brand
 
 The script sets `PORT`, `DB_PATH`, `NSW_CLIENT_ID` for the backend and `VITE_PORT`, `VITE_BRANDING_NAME`, `VITE_API_BASE_URL`, `VITE_IDP_CLIENT_ID`, `VITE_APP_URL` for the frontend. Any of these can be overridden by exporting them before invoking the script (other backend/frontend env vars — OAuth secrets, IdP base URL, etc. — still come from `backend/.env` and `frontend/.env`).
 
-Only [default.branding.json](frontend/public/configs/default.branding.json) is tracked in git — per-NSW Agency branding files (`npqs.branding.json`, `fcau.branding.json`, `ird.branding.json`, `cda.branding.json`) are gitignored because branding is deployment-specific. To run a NSW Agency locally, copy the default and edit it:
+Only [default.branding.json](frontend/public/configs/default.branding.json) is tracked in git — per-NSW Agency branding files (`npqs.branding.json`, `fcau.branding.json`, `ird.branding.json`, `cda.branding.json`) are gitignored because branding is deployment-specific. To run a Agency locally, copy the default and edit it:
 
 ```bash
 cd frontend/public/configs
@@ -80,7 +80,7 @@ NSW Agency calls the NSW core backend's `/api/v1/tasks` endpoint to return revie
 
 ### 2. M2M OAuth2 client
 
-Each NSW Agency instance authenticates to NSW with its own M2M client. For local dev the IdP bootstrap creates a generic `NSW_AGENCY_TO_NSW` client; production deployments use agency-specific clients (`NPQS_TO_NSW`, etc.).
+Each Agency instance authenticates to NSW with its own M2M client. For local dev the IdP bootstrap creates a generic `AGENCY_TO_NSW` client; production deployments use agency-specific clients (`NPQS_TO_NSW`, etc.).
 
 ## Architecture
 
@@ -94,7 +94,7 @@ trader-app → nsw-backend → (POST /api/v1/inject) → NSW Agency-backend ← 
 
 - Own database (SQLite or PostgreSQL, per `DB_*` env vars) — not shared with NSW.
 - Templates fetched from [OpenNSW/one-trade-templates](https://github.com/OpenNSW/one-trade-templates) at startup.
-- No Temporal integration — NSW Agency is a stateless HTTP microservice.
+- No Temporal integration — Agency is a stateless HTTP microservice.
 
 For details see [backend/docs/architecture.md](backend/docs/architecture.md).
 

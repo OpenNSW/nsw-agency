@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run NSW Agency backends and/or frontends with per-agency config.
+# Run Agency backends and/or frontends with per-agency config.
 #
 # Usage:
 #   ./start-dev.sh <agency> [target]

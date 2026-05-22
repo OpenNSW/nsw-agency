@@ -19,7 +19,7 @@ GET /health
 
 ## Inject Data
 
-Called by the NSW workflow engine to submit data for NSW Agency review.
+Called by the NSW workflow engine to submit data for Agency review.
 
 ```
 POST /api/v1/inject

@@ -2,18 +2,18 @@ import { StrictMode, type ComponentProps, type ReactElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { Theme } from '@radix-ui/themes'
-import { AsgardeoProvider } from '@asgardeo/react'
+import { AsgardeoProvider as OriginalAsgardeoProvider } from '@asgardeo/react'
 import '@radix-ui/themes/styles.css'
 import './index.css'
 import App from './App.tsx'
 import { getEnv, getRequiredEnv } from './runtimeConfig'
 import { initAppConfig } from './config.ts'
 
-type AgencyAsgardeoProviderProps = ComponentProps<typeof AsgardeoProvider> & {
+type AsgardeoProviderProps = ComponentProps<typeof OriginalAsgardeoProvider> & {
   periodicTokenRefresh?: boolean
 }
 
-const AgencyAsgardeoProvider = AsgardeoProvider as unknown as (props: AgencyAsgardeoProviderProps) => ReactElement
+const AsgardeoProvider = OriginalAsgardeoProvider as unknown as (props: AsgardeoProviderProps) => ReactElement
 
 const normalizeIdpPlatform = (value: string): 'AsgardeoV2' | 'Asgardeo' | 'IdentityServer' | 'Unknown' => {
   if (value === 'AsgardeoV2' || value === 'Asgardeo' || value === 'IdentityServer' || value === 'Unknown') {
@@ -35,7 +35,7 @@ const IDP_SCOPES = rawScopes
 void initAppConfig().then(() => {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
-      <AgencyAsgardeoProvider
+      <AsgardeoProvider
         clientId={CLIENT_ID}
         baseUrl={IDP_BASE_URL}
         platform={IDP_PLATFORM}
@@ -50,7 +50,7 @@ void initAppConfig().then(() => {
             <App />
           </BrowserRouter>
         </Theme>
-      </AgencyAsgardeoProvider>
+      </AsgardeoProvider>
     </StrictMode>,
   )
 })

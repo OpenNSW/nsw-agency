@@ -1,20 +1,20 @@
-# NSW Agency Portal Backend
+# Agency Portal Backend
 
 A standalone Go microservice that acts as a verification hub for external agencies within the [NSW (National Single Window)](../README.md) trade facilitation platform. It enables the NSW core service to inject data for review, supports configurable dynamic forms per agency, and sends callback responses to the originating service upon review completion.
 
 ## How It Fits Into NSW
 
-The NSW Agency service is an implementation of the **Agency Service Module (Agency SM)** described in the NSW architecture. It embodies the "state vs. data decoupling" principle:
+The Agency service is an implementation of the **Agency Service Module (Agency SM)** described in the NSW architecture. It embodies the "state vs. data decoupling" principle:
 
 - **NSW Core Workflow Engine (CWE)** manages process state (e.g., "Waiting for Approval")
 - **NSW Agency Service Module** manages domain data (e.g., phytosanitary inspection details)
 
-Each government agency runs its own NSW Agency instance with its own database, ensuring data isolation and sovereignty.
+Each agency runs its own instance with its own database, ensuring data isolation and sovereignty.
 
 ```
 ┌─────────────────┐         POST /api/v1/inject           ┌──────────────────┐
 │                 │ ──────────────────────────────────────▶│                  │
-│  NSW Core       │                                        │   NSW Agency Service    │
+│  NSW Core       │                                        │   Agency Service    │
 │    Service      │◀────────────────────────────────────── │   (per agency)   │
 │                 │     POST {serviceUrl} (callback)       │                  │
 └─────────────────┘                                        └──────────────────┘
@@ -27,13 +27,13 @@ Each government agency runs its own NSW Agency instance with its own database, e
 
 ## Features
 
-- **Data Injection** – External services POST data for NSW Agency review via `/api/v1/inject`
+- **Data Injection** – External services POST data for Agency review via `/api/v1/inject`
 - **Task Configurations** – Per-taskCode metadata (title, icon, category), form references, and outcome-to-status mapping
 - **Dynamic Forms** – Reusable [JSON Forms](https://jsonforms.io/) definitions referenced by ID from task configs
 - **Paginated Listings** – Fetch applications with status filtering and pagination
 - **Review Workflow** – Approve/Reject driven by configurable status maps
 - **Callback Responses** – Automatically POSTs review results back to the originating service
-- **Per-agency Isolation** – Each NSW Agency instance has its own database and port
+- **Per-agency Isolation** – Each Agency instance has its own database and port
 - **Graceful Shutdown** -- Signal-based shutdown with in-flight request draining
 
 ## Getting Started
@@ -67,9 +67,9 @@ go build -o bin/agency ./cmd/server
 ./bin/agency
 ```
 
-### Running Multiple NSW Agency Instances
+### Running Multiple Agency Instances
 
-Each NSW Agency should run as a separate instance:
+Each Agency should run as a separate instance:
 
 ```bash
 # Terminal 1 -- NPQS (National Plant Quarantine Service)
@@ -98,8 +98,8 @@ All configuration is via environment variables:
 | `DEFAULT_TASK_CONFIG_ID`         | Fallback task config ID when `taskCode` has no match   | `default`                      |
 | `ALLOWED_ORIGINS`                | Comma-separated CORS origins (`*` to allow all)        | `*`                            |
 | `NSW_API_BASE_URL`               | NSW API base URL for calling NSW endpoints             | `http://localhost:8080/api/v1` |
-| `NSW_CLIENT_ID`                  | OAuth2 client ID for NSW Agency -> NSW                        | required                       |
-| `NSW_CLIENT_SECRET`              | OAuth2 client secret for NSW Agency -> NSW                    | required                       |
+| `NSW_CLIENT_ID`                  | OAuth2 client ID for Agency -> NSW                        | required                       |
+| `NSW_CLIENT_SECRET`              | OAuth2 client secret for Agency -> NSW                    | required                       |
 | `NSW_TOKEN_URL`                  | OAuth2 token endpoint URL                              | required                       |
 | `NSW_SCOPES`                     | Optional comma-separated OAuth2 scopes                 | empty                          |
 | `NSW_TOKEN_INSECURE_SKIP_VERIFY` | DEV-only: skip TLS verification for token fetch        | `false`                        |
@@ -130,7 +130,7 @@ Detailed documentation lives in the [`docs/`](docs/) folder:
 | [API Reference](docs/api.md)                | Complete endpoint docs with examples                                                       |
 | [Task Configurations](docs/task-configs.md) | Per-taskCode metadata, form references, and status-mapping behavior; how to add a new task |
 | [Forms](docs/forms.md)                      | JSON Forms file structure and how to add new forms referenced from task configs            |
-| [NSW Integration](docs/nsw-integration.md)  | How NSW Agency connects to the NSW workflow engine                                                |
+| [NSW Integration](docs/nsw-integration.md)  | How Agency connects to the NSW workflow engine                                                |
 
 ## Project Structure
 
@@ -169,7 +169,7 @@ backend/
 
 Please read the project-level [CONTRIBUTING.md](../docs/CONTRIBUTING.md) before submitting changes.
 
-When working on the NSW Agency module:
+When working on the Agency module:
 
 1. All application code lives in `internal/` (unexported package)
 2. Task configs go in `data/task-configs/` and form definitions go in `data/forms/`. See [`docs/task-configs.md`](docs/task-configs.md) and [`docs/forms.md`](docs/forms.md).

@@ -14,7 +14,7 @@ type SQLiteConnector struct {
 func (c *SQLiteConnector) Open() (*gorm.DB, error) {
 	path := c.Path
 	if path == "" {
-		path = "nsw_agency_applications.db"
+		path = "agency_applications.db"
 	}
 	return gorm.Open(sqlite.Open(path), &gorm.Config{})
 }

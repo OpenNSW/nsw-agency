@@ -1,4 +1,4 @@
-// API service for NSW Agency Portal
+// API service for Agency Portal
 import type { JsonSchema, UISchemaElement } from '@jsonforms/core'
 import { API_BASE_URL } from './constants'
 
@@ -184,7 +184,7 @@ export async function fetchApplications(
   )
 }
 
-// Fetch application detail by taskId from NSW Agency Service
+// Fetch application detail by taskId from Agency Service
 export async function fetchApplicationDetail(
   apiClient: ApiClient,
   taskId: string,
@@ -193,7 +193,7 @@ export async function fetchApplicationDetail(
   return apiClient.get<AgencyApplication>(`/api/v1/applications/${taskId}`, {}, signal)
 }
 
-// Submit review for a task via NSW Agency Service
+// Submit review for a task via Agency Service
 export async function submitReview(
   apiClient: ApiClient,
   taskId: string,
@@ -207,7 +207,7 @@ export async function submitReview(
   )
 }
 
-// Submit feedback (request changes) for a task via NSW Agency Service
+// Submit feedback (request changes) for a task via Agency Service
 export async function submitFeedback(
   apiClient: ApiClient,
   taskId: string,

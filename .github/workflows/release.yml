@@ -1,4 +1,4 @@
-name: Release - Build and Publish NSW Agency Images
+name: Release - Build and Publish Agency Images
 
 on:
   push:
@@ -25,17 +25,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - service_name: NSW Agency Backend
+          - service_name: Agency Backend
             image_name: nsw-agency-backend
             context: ./backend
             dockerfile: ./backend/Dockerfile
-            description: NSW Agency Backend Service
+            description: Agency Backend Service
 
-          - service_name: NSW Agency Portal
+          - service_name: Agency Portal
             image_name: nsw-agency-app
             context: ./frontend
             dockerfile: ./frontend/Dockerfile
-            description: NSW Agency Officer Portal Frontend
+            description: Agency Officer Portal Frontend
 
     env:
       GIT_COMMIT: ${{ github.sha }}

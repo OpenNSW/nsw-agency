@@ -13,7 +13,7 @@ results.sarif
 /backend/data/*.db
 /backend/data/*.sqlite
 
-# Local per NSW Agency SQLite databases (created by start.sh in backend/)
+# Local per Agency SQLite databases (created by start.sh in backend/)
 /backend/*.db
 /backend/*.db-journal
 /backend/*.db-wal
@@ -26,7 +26,7 @@ results.sarif
 .env.local
 .env.*.local
 
-# Per NSW Agency branding configs are deployment-specific; only the default template is tracked.
+# Per Agency branding configs are deployment-specific; only the default template is tracked.
 /frontend/public/configs/*.branding.json
 !/frontend/public/configs/default.branding.json
 

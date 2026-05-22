@@ -45,7 +45,7 @@ func (j *JSONB) Scan(value any) error {
 	return json.Unmarshal(bytes, j)
 }
 
-// ConsignmentRecord represents a consignment (workflow) in the NSW Agency database.
+// ConsignmentRecord represents a consignment (workflow) in the Agency database.
 // Each consignment groups one or more ApplicationRecords.
 type ConsignmentRecord struct {
 	ID        string    `gorm:"type:text;primaryKey"`
@@ -59,7 +59,7 @@ func (ConsignmentRecord) TableName() string {
 	return "consignments"
 }
 
-// ApplicationRecord represents an application (task) in the NSW Agency database
+// ApplicationRecord represents an application (task) in the Agency database
 type ApplicationRecord struct {
 	TaskID                string            `gorm:"type:text;primaryKey"`
 	TaskCode              string            `gorm:"type:varchar(100);not null"`
@@ -80,7 +80,7 @@ func (ApplicationRecord) TableName() string {
 	return "applications"
 }
 
-// ApplicationStore handles database operations for NSW Agency applications
+// ApplicationStore handles database operations for Agency applications
 type ApplicationStore struct {
 	db *gorm.DB
 }

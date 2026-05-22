@@ -15,14 +15,14 @@ import (
 // ---------- helpers ----------
 
 // newTestStore creates an ApplicationStore for tests.
-// When NSW_AGENCY_DB_DRIVER=postgres (set via env), it connects to the configured
+// When AGENCY_DB_DRIVER=postgres (set via env), it connects to the configured
 // PostgreSQL instance and truncates the table before each test.
 // Otherwise it falls back to an in-memory SQLite database.
 func newTestStore(t *testing.T) *ApplicationStore {
 	t.Helper()
 
 	var cfg config.Config
-	if os.Getenv("NSW_AGENCY_DB_DRIVER") == "postgres" {
+	if os.Getenv("AGENCY_DB_DRIVER") == "postgres" {
 		var err error
 		cfg, err = config.LoadConfig()
 		if err != nil {
@@ -447,7 +447,7 @@ func TestApplicationStore_UpdateDataAndResetStatus(t *testing.T) {
 	store := newTestStore(t)
 	seedRecord(t, store, "task-resub-1", JSONB{"old": "data"})
 
-	// Simulate NSW Agency requesting feedback
+	// Simulate Agency requesting feedback
 	_ = store.AppendFeedback("task-resub-1", feedback.Entry{Content: map[string]any{"comment": "fix it"}})
 
 	app, _ := store.GetByTaskID("task-resub-1")

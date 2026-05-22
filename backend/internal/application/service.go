@@ -19,7 +19,7 @@ import (
 // ErrApplicationNotFound is returned when an application is not found
 var ErrApplicationNotFound = errors.New("application not found")
 
-// Service handles NSW Agency portal operations
+// Service handles Agency portal operations
 type Service interface {
 	// CreateApplication creates a new application from injected data
 	CreateApplication(ctx context.Context, req *InjectRequest) error
@@ -70,7 +70,7 @@ type Application struct {
 	Category    string `json:"category,omitempty"`
 
 	DataForm        json.RawMessage  `json:"dataForm,omitempty"`   // Schema for rendering the data in Read Only mode in the UI
-	AgencyForm      json.RawMessage  `json:"agencyForm,omitempty"` // Schema for rendering the NSW Agency Action form in the UI
+	AgencyForm      json.RawMessage  `json:"agencyForm,omitempty"` // Schema for rendering the Agency Action form in the UI
 	Status          string           `json:"status"`
 	FeedbackHistory []feedback.Entry `json:"feedbackHistory,omitempty"`
 	ReviewedAt      *time.Time       `json:"reviewedAt,omitempty"`
@@ -100,7 +100,7 @@ type service struct {
 	httpClient  *httpclient.Client
 }
 
-// NewService creates a new NSW Agency service instance with database storage
+// NewService creates a new Agency service instance with database storage
 func NewService(store *ApplicationStore, configStore *taskconfig.TaskConfigStore, formStore *form.FormStore, httpClient *httpclient.Client) Service {
 	if store == nil || configStore == nil || formStore == nil || httpClient == nil {
 		panic("NewService: all dependencies must be non-nil")
@@ -276,7 +276,7 @@ func (s *service) ReviewApplication(ctx context.Context, taskID string, reviewer
 		TaskID:        app.TaskID,
 		ConsignmentID: app.ConsignmentID,
 		Payload: map[string]any{
-			"action":  "NSW_AGENCY_VERIFICATION",
+			"action":  "AGENCY_VERIFICATION",
 			"content": reviewerResponse,
 		},
 	}
@@ -301,7 +301,7 @@ func (s *service) ReviewApplication(ctx context.Context, taskID string, reviewer
 	return s.store.UpdateStatus(taskID, status, reviewerResponse)
 }
 
-// FeedbackApplication sends NSW Agency feedback to the trader
+// FeedbackApplication sends Agency feedback to the trader
 func (s *service) FeedbackApplication(ctx context.Context, taskID string, content map[string]any) error {
 	app, err := s.GetApplication(ctx, taskID)
 	if err != nil {
@@ -318,7 +318,7 @@ func (s *service) FeedbackApplication(ctx context.Context, taskID string, conten
 		TaskID:        app.TaskID,
 		ConsignmentID: app.ConsignmentID,
 		Payload: map[string]any{
-			"action":  "NSW_AGENCY_VERIFICATION_FEEDBACK",
+			"action":  "AGENCY_VERIFICATION_FEEDBACK",
 			"content": content,
 		},
 	}

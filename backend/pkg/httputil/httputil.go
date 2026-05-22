@@ -1,4 +1,4 @@
-// Package httputil provides common HTTP utilities for NSW Agency services.
+// Package httputil provides common HTTP utilities for Agency services.
 package httputil
 
 import (

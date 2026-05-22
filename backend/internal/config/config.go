@@ -28,48 +28,34 @@ type Config struct {
 	MaxRequestBytes     int64
 }
 
-func getEnv(key string) string {
-	if !strings.HasPrefix(key, "NSW_AGENCY_") {
-		if value := os.Getenv(key); value != "" {
-			return value
-		}
-		return os.Getenv("NSW_AGENCY_" + key)
-	}
-	k := strings.TrimPrefix(key, "NSW_AGENCY_")
-	if value := os.Getenv(k); value != "" {
-		return value
-	}
-	return os.Getenv(key)
-}
-
 // LoadConfig loads configuration from environment variables
 func LoadConfig() (Config, error) {
-	driver := envOrDefault("NSW_AGENCY_DB_DRIVER", "sqlite")
+	driver := envOrDefault("DB_DRIVER", "sqlite")
 	var dbConfig database.Config
 
 	// Isolate required configurations per driver
 	switch driver {
 	case "postgres":
-		password := getEnv("NSW_AGENCY_DB_PASSWORD")
+		password := os.Getenv("DB_PASSWORD")
 		if password == "" {
 			return Config{}, fmt.Errorf("database password secret is missing: DB_PASSWORD is required for postgres driver")
 		}
 
 		dbConfig = database.Config{
 			Driver:   driver,
-			Host:     envOrDefault("NSW_AGENCY_DB_HOST", "localhost"),
-			Port:     envOrDefault("NSW_AGENCY_DB_PORT", "5432"),
-			User:     envOrDefault("NSW_AGENCY_DB_USER", "postgres"),
+			Host:     envOrDefault("DB_HOST", "localhost"),
+			Port:     envOrDefault("DB_PORT", "5432"),
+			User:     envOrDefault("DB_USER", "postgres"),
 			Password: password, // Uses the strictly validated password
-			Name:     envOrDefault("NSW_AGENCY_DB_NAME", "nsw_agency_db"),
-			SSLMode:  envOrDefault("NSW_AGENCY_DB_SSLMODE", "disable"),
+			Name:     envOrDefault("DB_NAME", "nsw_agency_db"),
+			SSLMode:  envOrDefault("DB_SSLMODE", "disable"),
 		}
 
 	case "sqlite":
 		// SQLite only requires a file path
 		dbConfig = database.Config{
 			Driver: driver,
-			Path:   envOrDefault("NSW_AGENCY_DB_PATH", "./nsw_agency_applications.db"),
+			Path:   envOrDefault("DB_PATH", "./agency_applications.db"),
 		}
 
 	default:
@@ -77,27 +63,26 @@ func LoadConfig() (Config, error) {
 	}
 
 	cfg := Config{
-		Port:                envOrDefault("NSW_AGENCY_PORT", "8081"),
+		Port:                envOrDefault("PORT", "8081"),
 		DB:                  dbConfig,
-		ConfigDir:           envOrDefault("NSW_AGENCY_CONFIG_DIR", "./data"),
-		DefaultTaskConfigID: envOrDefault("NSW_AGENCY_DEFAULT_TASK_CONFIG_ID", "default"),
-		AllowedOrigins:      parseCommaSeparated(envOrDefault("NSW_AGENCY_ALLOWED_ORIGINS", "*")),
+		ConfigDir:           envOrDefault("CONFIG_DIR", "./data"),
+		DefaultTaskConfigID: envOrDefault("DEFAULT_TASK_CONFIG_ID", "default"),
+		AllowedOrigins:      parseCommaSeparated(envOrDefault("ALLOWED_ORIGINS", "*")),
 		NSW: NSWConfig{
-			BaseURL:      getEnv("NSW_AGENCY_NSW_API_BASE_URL"),
-			ClientID:     getEnv("NSW_AGENCY_NSW_CLIENT_ID"),
-			ClientSecret: getEnv("NSW_AGENCY_NSW_CLIENT_SECRET"),
-			TokenURL:     getEnv("NSW_AGENCY_NSW_TOKEN_URL"),
-			Scopes:       parseCommaSeparated(getEnv("NSW_AGENCY_NSW_SCOPES")),
+			BaseURL:      os.Getenv("NSW_API_BASE_URL"),
+			ClientID:     os.Getenv("NSW_CLIENT_ID"),
+			ClientSecret: os.Getenv("NSW_CLIENT_SECRET"),
+			TokenURL:     os.Getenv("NSW_TOKEN_URL"),
+			Scopes:       parseCommaSeparated(os.Getenv("NSW_SCOPES")),
 		},
 	}
-
-	maxRequestBytes, err := parseInt64Env("NSW_AGENCY_MAX_REQUEST_BYTES", 32<<20)
+	maxRequestBytes, err := parseInt64Env("MAX_REQUEST_BYTES", 32<<20)
 	if err != nil {
 		return Config{}, err
 	}
 	cfg.MaxRequestBytes = maxRequestBytes
 
-	tokenInsecureSkipVerify, err := parseBoolEnv("NSW_AGENCY_NSW_TOKEN_INSECURE_SKIP_VERIFY", false)
+	tokenInsecureSkipVerify, err := parseBoolEnv("NSW_TOKEN_INSECURE_SKIP_VERIFY", false)
 	if err != nil {
 		return Config{}, err
 	}
@@ -127,7 +112,7 @@ func (c Config) validateNSWOAuth2Config() error {
 }
 
 func envOrDefault(key, defaultValue string) string {
-	if value := getEnv(key); value != "" {
+	if value := os.Getenv(key); value != "" {
 		return value
 	}
 	return defaultValue
@@ -146,7 +131,7 @@ func parseCommaSeparated(value string) []string {
 }
 
 func parseBoolEnv(key string, defaultValue bool) (bool, error) {
-	raw := strings.TrimSpace(getEnv(key))
+	raw := strings.TrimSpace(os.Getenv(key))
 	if raw == "" {
 		return defaultValue, nil
 	}
@@ -160,7 +145,7 @@ func parseBoolEnv(key string, defaultValue bool) (bool, error) {
 }
 
 func parseInt64Env(key string, defaultValue int64) (int64, error) {
-	raw := strings.TrimSpace(getEnv(key))
+	raw := strings.TrimSpace(os.Getenv(key))
 	if raw == "" {
 		return defaultValue, nil
 	}

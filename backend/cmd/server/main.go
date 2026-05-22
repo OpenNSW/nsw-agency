@@ -65,7 +65,7 @@ func main() {
 		WithTLS(&httpclient.TLSConfig{InsecureSkipVerify: cfg.NSW.TokenInsecureSkipVerify}).
 		Build()
 
-	// Initialize NSW Agency service
+	// Initialize Agency service
 	service := application.NewService(store, configStore, formStore, nswHttpClient)
 	defer func() {
 		if err := service.Close(); err != nil {
@@ -76,7 +76,7 @@ func main() {
 	// Initialize handlers
 	handler, err := application.NewHandler(service, cfg.MaxRequestBytes)
 	if err != nil {
-		slog.Error("failed to create NSW Agency handler", "error", err)
+		slog.Error("failed to create Agency handler", "error", err)
 		return
 	}
 
@@ -141,7 +141,7 @@ func main() {
 
 	// Start server in a goroutine
 	go func() {
-		slog.Info("starting NSW Agency service", "port", cfg.Port)
+		slog.Info("starting Agency service", "port", cfg.Port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("failed to start server", "error", err)
 			quit <- syscall.SIGTERM
@@ -150,7 +150,7 @@ func main() {
 
 	// Wait for interrupt signal
 	<-quit
-	slog.Info("shutting down NSW Agency service...")
+	slog.Info("shutting down Agency service...")
 
 	// Create a context with timeout for graceful shutdown
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)

@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the internal architecture of the NSW Agency service module.
+This document describes the internal architecture of the Agency service module.
 
 ## Layered Architecture
 
@@ -48,7 +48,7 @@ Responsible for:
 - Coordinating between the store and form store
 - Attaching the correct review form to application responses
 - Dispatching HTTP callbacks to the originating NSW service after a review
-- Defining the `AgencyService` interface for testability
+- Defining the `Service` interface for testability
 
 Key design decisions:
 - The service layer owns the HTTP client for callbacks (30-second timeout)
@@ -79,11 +79,11 @@ config, err := LoadConfig()
 // handle error...
 store     := NewApplicationStore(config)
 formStore := NewFormStore(config.FormsPath, config.DefaultFormID)
-service   := NewAgencyService(config, store, formStore)
-handler   := NewAgencyHandler(service, config.NSWAPIBaseURL)
+service   := NewService(config, store, formStore)
+handler   := NewHandler(service, config.NSWAPIBaseURL)
 ```
 
-The `AgencyService` interface allows the handler to depend on an abstraction rather than a concrete implementation, enabling mock-based testing.
+The `Service` interface allows the handler to depend on an abstraction rather than a concrete implementation, enabling mock-based testing.
 
 ## Database Schema
 
@@ -132,7 +132,7 @@ Officer UI ──POST──▶ HandleReviewApplication ──▶ ReviewApplicati
                                                       │
                                                       ▼
                                                NSW Workflow Engine
-                                          (receives NSW_AGENCY_VERIFICATION action)
+                                          (receives AGENCY_VERIFICATION action)
 ```
 
 ## Concurrency and Shutdown
@@ -147,4 +147,4 @@ The server uses Go's standard `net/http` server with signal-based graceful shutd
 
 ## CORS
 
-A CORS middleware wraps all routes, allowing `GET`, `POST`, `PUT`, `DELETE`, and `OPTIONS` methods. Allowed origins are configured via the `NSW_AGENCY_ALLOWED_ORIGINS` environment variable (space-separated). Defaults to `*` for development; production deployments should set explicit origins (e.g. `NSW_AGENCY_ALLOWED_ORIGINS="https://app.example.com https://admin.example.com"`).
+A CORS middleware wraps all routes, allowing `GET`, `POST`, `PUT`, `DELETE`, and `OPTIONS` methods. Allowed origins are configured via the `ALLOWED_ORIGINS` environment variable (space-separated). Defaults to `*` for development; production deployments should set explicit origins (e.g. `ALLOWED_ORIGINS="https://app.example.com https://admin.example.com"`).

@@ -1,7 +1,3 @@
-/**
- * nsw-agency-app–specific upload implementation. Points to this app's backend;
- * when NSW Agency moves to a separate repo, this file can target NSW Agency-specific endpoints/S3 without touching shared UI.
- */
 import type { ApiClient } from '../api'
 import { API_BASE_URL } from '../constants'
 
