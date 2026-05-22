@@ -59,3 +59,4 @@ configurations:
           name: nsw-api-secrets
           key: client_secret
     - name: NSW_SCOPES
+    - name: NSW_AGENCY

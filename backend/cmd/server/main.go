@@ -16,6 +16,7 @@ import (
 	"github.com/OpenNSW/nsw-agency/backend/internal/form"
 	"github.com/OpenNSW/nsw-agency/backend/internal/storage"
 	"github.com/OpenNSW/nsw-agency/backend/internal/taskconfig"
+	"github.com/OpenNSW/nsw-agency/backend/internal/user"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 )
 
@@ -37,6 +38,17 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to create application store: %v", err)
 	}
+
+	// Initialize user store
+	userStore, err := user.NewUserStore(cfg)
+	if err != nil {
+		log.Fatalf("failed to create user store: %v", err)
+	}
+	defer func() {
+		if err := userStore.Close(); err != nil {
+			slog.Error("failed to close user store", "error", err)
+		}
+	}()
 	// Initialize task config store
 	configStore, err := taskconfig.NewTaskConfigStore(cfg.ConfigDir, cfg.DefaultTaskConfigID)
 	if err != nil {
@@ -89,18 +101,19 @@ func main() {
 	mux := http.NewServeMux()
 	// Health check
 	mux.HandleFunc("GET /health", handler.HandleHealth)
-	// Endpoint for services to inject data
+
+	// Endpoint for services to inject data (service-to-service, no user auth)
 	mux.HandleFunc("POST /api/v1/inject", handler.HandleInjectData)
-	// Endpoints for UI to fetch and manage applications
-	mux.HandleFunc("GET /api/v1/consignments", handler.HandleGetConsignments)
-	mux.HandleFunc("GET /api/v1/applications", handler.HandleGetApplications)
 
-	mux.HandleFunc("GET /api/v1/applications/{taskId}", handler.HandleGetApplication)
-	mux.HandleFunc("POST /api/v1/applications/{taskId}/review", handler.HandleReviewApplication)
-	mux.HandleFunc("POST /api/v1/applications/{taskId}/feedback", feedbackHandler.HandleFeedback)
-
-	mux.HandleFunc("POST /api/v1/storage", storageHandler.HandleCreateUpload)
-	mux.HandleFunc("GET /api/v1/storage/{key}", storageHandler.HandleGetUploadURL)
+	// Endpoints for UI to fetch and manage applications (protected by JIT user auth)
+	protect := userStore.AuthMiddleware
+	mux.Handle("GET /api/v1/consignments", protect(http.HandlerFunc(handler.HandleGetConsignments)))
+	mux.Handle("GET /api/v1/applications", protect(http.HandlerFunc(handler.HandleGetApplications)))
+	mux.Handle("GET /api/v1/applications/{taskId}", protect(http.HandlerFunc(handler.HandleGetApplication)))
+	mux.Handle("POST /api/v1/applications/{taskId}/review", protect(http.HandlerFunc(handler.HandleReviewApplication)))
+	mux.Handle("POST /api/v1/applications/{taskId}/feedback", protect(http.HandlerFunc(feedbackHandler.HandleFeedback)))
+	mux.Handle("POST /api/v1/storage", protect(http.HandlerFunc(storageHandler.HandleCreateUpload)))
+	mux.Handle("GET /api/v1/storage/{key}", protect(http.HandlerFunc(storageHandler.HandleGetUploadURL)))
 
 	// Set up graceful shutdown
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)

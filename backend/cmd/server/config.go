@@ -26,6 +26,7 @@ type Config struct {
 	AllowedOrigins      []string
 	NSW                 NSWConfig
 	MaxRequestBytes     int64
+	Agency              string
 }
 
 // LoadConfig loads configuration from environment variables
@@ -68,6 +69,7 @@ func LoadConfig() (Config, error) {
 		ConfigDir:           envOrDefault("CONFIG_DIR", "./data"),
 		DefaultTaskConfigID: envOrDefault("DEFAULT_TASK_CONFIG_ID", "default"),
 		AllowedOrigins:      parseCommaSeparated(envOrDefault("ALLOWED_ORIGINS", "*")),
+		Agency:              os.Getenv("NSW_AGENCY"),
 		NSW: NSWConfig{
 			BaseURL:      os.Getenv("NSW_API_BASE_URL"),
 			ClientID:     os.Getenv("NSW_CLIENT_ID"),
@@ -88,14 +90,14 @@ func LoadConfig() (Config, error) {
 	}
 	cfg.NSW.TokenInsecureSkipVerify = tokenInsecureSkipVerify
 
-	if err := cfg.validateNSWOAuth2Config(); err != nil {
+	if err := cfg.validateRequiredConfig(); err != nil {
 		return Config{}, err
 	}
 
 	return cfg, nil
 }
 
-func (c Config) validateNSWOAuth2Config() error {
+func (c Config) validateRequiredConfig() error {
 	if strings.TrimSpace(c.NSW.BaseURL) == "" {
 		return fmt.Errorf("NSW_API_BASE_URL is required")
 	}
@@ -107,6 +109,9 @@ func (c Config) validateNSWOAuth2Config() error {
 	}
 	if strings.TrimSpace(c.NSW.TokenURL) == "" {
 		return fmt.Errorf("NSW_TOKEN_URL is required")
+	}
+	if strings.TrimSpace(c.Agency) == "" {
+		return fmt.Errorf("NSW_AGENCY is required")
 	}
 	return nil
 }

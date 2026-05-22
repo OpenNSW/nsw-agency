@@ -6,6 +6,7 @@ func setBaseConfigEnv(t *testing.T) {
 	t.Helper()
 	t.Setenv("DB_DRIVER", "sqlite")
 	t.Setenv("DB_PATH", "./test.db")
+	t.Setenv("NSW_AGENCY", "default")
 }
 
 func setRequiredNSWOAuth2Env(t *testing.T) {
@@ -29,6 +30,7 @@ func TestLoadConfig_RequiresNSWOAuth2Vars(t *testing.T) {
 		{name: "missing client id", missing: "NSW_CLIENT_ID", expected: "NSW_CLIENT_ID is required"},
 		{name: "missing client secret", missing: "NSW_CLIENT_SECRET", expected: "NSW_CLIENT_SECRET is required"},
 		{name: "missing token url", missing: "NSW_TOKEN_URL", expected: "NSW_TOKEN_URL is required"},
+		{name: "missing agency", missing: "NSW_AGENCY", expected: "NSW_AGENCY is required"},
 	}
 
 	for _, tc := range testCases {
