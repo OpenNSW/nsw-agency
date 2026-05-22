@@ -27,5 +27,3 @@ configurations:
       value: openid,profile,email
     - name: VITE_IDP_PLATFORM
       value: AsgardeoV2
-    - name: VITE_OGA_API_BASE_URL
-      value: http://localhost:8080/api/v1
