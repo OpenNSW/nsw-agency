@@ -36,7 +36,7 @@ jobs:
               - 'frontend/**'
 
   build-backend:
-    name: Build & Push Dev - NSW Agency Backend
+    name: Build & Push Dev - Agency Backend
     needs: check-changes
     if: needs.check-changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -70,7 +70,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   build-frontend:
-    name: Build & Push Dev - NSW Agency Portal
+    name: Build & Push Dev - Agency Portal
     needs: check-changes
     if: needs.check-changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -103,18 +103,3 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  trigger-renovate:
-    name: Trigger Renovate Bot
-    needs: [build-backend, build-frontend]
-    runs-on: ubuntu-latest
-    # Run if at least one build job ran (i.e. didn't get skipped entirely)
-    if: |
-      always() &&
-      github.event_name != 'pull_request' &&
-      (needs.build-backend.result == 'success' || needs.build-frontend.result == 'success')
-    steps:
-      - name: Trigger Renovate Bot Webhook
-        run: |
-          curl -sL -X POST -H "Content-Type: application/json" \
-          -d '{"repository": "${{ github.repository_owner }}/nsw-gitops"}' \
-          https://app.renovatebot.com/webhook/github
