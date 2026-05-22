@@ -18,7 +18,7 @@ var ErrUnauthorizedAgency = errors.New("user does not belong to this agency")
 
 type UserRecord struct {
 	UserID    string    `gorm:"type:text;primaryKey"`
-	SSOID     string    `gorm:"type:text;uniqueIndex;not null"`
+	SSOID     string    `gorm:"column:ssoid;type:text;uniqueIndex;not null"`
 	Email     string    `gorm:"type:text"`
 	Name      string    `gorm:"type:text"`
 	CreatedAt time.Time `gorm:"autoCreateTime"`
@@ -65,6 +65,10 @@ func NewUserStore(cfg config.Config) (*UserStore, error) {
 // configured agency before a new user record is created.
 // If the user already exists, email and name are synced from the token claims.
 func (s *UserStore) FindOrProvision(ssoid, email, name, ouHandle string) (*UserRecord, error) {
+	if ouHandle != s.agency {
+		return nil, ErrUnauthorizedAgency
+	}
+
 	var user UserRecord
 	err := s.db.First(&user, "ssoid = ?", ssoid).Error
 	if err == nil {
@@ -84,21 +88,17 @@ func (s *UserStore) FindOrProvision(ssoid, email, name, ouHandle string) (*UserR
 		return nil, fmt.Errorf("failed to query user: %w", err)
 	}
 
-	// New user — validate agency before provisioning.
-	if ouHandle != s.agency {
-		return nil, ErrUnauthorizedAgency
-	}
-
 	user = UserRecord{
 		SSOID: ssoid,
 		Email: email,
 		Name:  name,
 	}
-	if err := s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&user).Error; err != nil {
-		return nil, fmt.Errorf("failed to provision user: %w", err)
+	result := s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&user)
+	if result.Error != nil {
+		return nil, fmt.Errorf("failed to provision user: %w", result.Error)
 	}
-	// Re-fetch in case a concurrent request inserted the same SSOID first.
-	if user.UserID == "" {
+	// RowsAffected == 0 means a concurrent request inserted the same SSOID first.
+	if result.RowsAffected == 0 {
 		if err := s.db.First(&user, "ssoid = ?", ssoid).Error; err != nil {
 			return nil, fmt.Errorf("failed to fetch provisioned user: %w", err)
 		}

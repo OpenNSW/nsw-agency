@@ -116,9 +116,8 @@ func TestFindOrProvision_ExistingUser_SyncsAttributes(t *testing.T) {
 	}
 }
 
-func TestFindOrProvision_ExistingUser_AgencyCheckSkipped(t *testing.T) {
-	// Agency check only blocks NEW users. Existing users pass through regardless
-	// of ouHandle since they were already validated at provisioning time.
+func TestFindOrProvision_ExistingUser_WrongAgency_Returns403(t *testing.T) {
+	// Agency check is enforced on every call, including returning users.
 	store := newTestStore(t, "fcau")
 
 	_, err := store.FindOrProvision("sub-005", "officer@fcau.gov", "Officer", "fcau")
@@ -126,12 +125,9 @@ func TestFindOrProvision_ExistingUser_AgencyCheckSkipped(t *testing.T) {
 		t.Fatalf("unexpected error on initial provision: %v", err)
 	}
 
-	u, err := store.FindOrProvision("sub-005", "officer@fcau.gov", "Officer", "wrong-agency")
-	if err != nil {
-		t.Errorf("expected success for existing user regardless of ouHandle, got: %v", err)
-	}
-	if u == nil {
-		t.Error("expected user to be returned")
+	_, err = store.FindOrProvision("sub-005", "officer@fcau.gov", "Officer", "wrong-agency")
+	if !errors.Is(err, ErrUnauthorizedAgency) {
+		t.Errorf("expected ErrUnauthorizedAgency for wrong agency on existing user, got: %v", err)
 	}
 }
 
