@@ -1,0 +1,694 @@
+openapi: 3.0.3
+info:
+  title: NSW Agency Portal API
+  description: |
+    Backend API for the NSW Agency Portal. Provides endpoints for the workflow
+    engine to inject applications for review, for agency officers to manage and
+    review them, and for the frontend to handle file uploads and downloads.
+  version: 1.0.0
+
+servers:
+  - url: /
+    description: Local development server
+
+tags:
+  - name: Health
+    description: Service health check
+  - name: Applications
+    description: Application lifecycle management
+  - name: Consignments
+    description: Consignment summary views
+  - name: Storage
+    description: File upload and download URL management
+
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Health check
+      description: Returns the current health status of the service.
+      tags:
+        - Health
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: ok
+                service: nsw-agency-portal
+
+  /api/v1/inject:
+    post:
+      operationId: injectData
+      summary: Inject application data
+      description: |
+        Called by the NSW workflow engine to submit an application for agency review.
+        If the application already exists and is in `FEEDBACK_REQUESTED` status, the
+        submitted data is updated and the status is reset to `PENDING`.
+      tags:
+        - Applications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InjectRequest"
+            example:
+              taskId: 927adaaa-b959-4648-880a-16508acafc12
+              taskCode: moa:npqs:phytosanitary:001
+              consignmentId: cefda05e-3071-4e94-b001-328094e570a7
+              serviceUrl: http://localhost:8080/api/v1/tasks
+              data:
+                countryOfOrigin: LK
+                countryOfDestination: UK
+                distinguishingMarks: BWI-UK-LOT01
+      responses:
+        "201":
+          description: Application created or updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InjectResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "413":
+          $ref: "#/components/responses/RequestTooLarge"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/applications:
+    get:
+      operationId: listApplications
+      summary: List applications
+      description: |
+        Returns a paginated list of applications. Can be filtered by status,
+        consignment ID, or a free-text search query that matches task ID or
+        consignment ID.
+      tags:
+        - Applications
+      parameters:
+        - name: status
+          in: query
+          description: Filter by application status
+          schema:
+            type: string
+            enum: [PENDING, FEEDBACK_REQUESTED, DONE]
+        - name: consignmentId
+          in: query
+          description: Filter by consignment ID
+          schema:
+            type: string
+        - name: q
+          in: query
+          description: Free-text search (matches task ID or consignment ID)
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: pageSize
+          in: query
+          description: Items per page (max 100, default 20)
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Paginated list of applications
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/applications/{taskId}:
+    get:
+      operationId: getApplication
+      summary: Get application
+      description: |
+        Returns a specific application by task ID. The response includes task
+        metadata from config (title, description, icon, category) and JSON Forms
+        schemas (`dataForm`, `agencyForm`) for the UI to render the data view
+        and the review form.
+      tags:
+        - Applications
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: Application details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Application"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/applications/{taskId}/review:
+    post:
+      operationId: reviewApplication
+      summary: Review application
+      description: |
+        Submit a review decision for an application. The reviewer response is
+        forwarded as a callback POST to the originating service's `serviceUrl`,
+        and the application status is updated to `DONE` (or a configured mapped
+        status based on the outcome field value).
+      tags:
+        - Applications
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewRequest"
+            example:
+              decision: APPROVED
+              remarks: All documents verified successfully
+      responses:
+        "200":
+          description: Application reviewed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/RequestTooLarge"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/applications/{taskId}/feedback:
+    post:
+      operationId: feedbackApplication
+      summary: Send feedback to trader
+      description: |
+        Send a change-request feedback message to the trader. The application
+        status is set to `FEEDBACK_REQUESTED` and the feedback is forwarded as
+        a callback POST (action: `NSW_AGENCY_VERIFICATION_FEEDBACK`) to the
+        originating service's `serviceUrl`.
+      tags:
+        - Applications
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeedbackRequest"
+            example:
+              feedback: Please provide the fumigation certificate for lot BWI-UK-LOT01.
+      responses:
+        "200":
+          description: Feedback sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/consignments:
+    get:
+      operationId: listConsignments
+      summary: List consignments
+      description: |
+        Returns a paginated list of unique consignments with their task count
+        and latest status. Results can be filtered by a free-text search that
+        matches the consignment ID.
+      tags:
+        - Consignments
+      parameters:
+        - name: q
+          in: query
+          description: Free-text search (matches consignment ID)
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: pageSize
+          in: query
+          description: Items per page (max 100, default 20)
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Paginated list of consignments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsignmentListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/storage:
+    post:
+      operationId: createUpload
+      summary: Create upload URL
+      description: |
+        Requests a pre-signed upload URL from the main backend. The returned
+        `upload_url` should be used to PUT the file directly to object storage.
+        The `key` in the response is used to retrieve a download URL later.
+      tags:
+        - Storage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadRequest"
+            example:
+              filename: phytosanitary-certificate.pdf
+              mime_type: application/pdf
+              size: 102400
+      responses:
+        "200":
+          description: Upload URL created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileMetadata"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/storage/{key}:
+    get:
+      operationId: getDownloadURL
+      summary: Get download URL
+      description: |
+        Returns a pre-signed download URL for a file stored in the main backend.
+        The URL is time-limited; check `expires_at` before caching.
+      tags:
+        - Storage
+      parameters:
+        - name: key
+          in: path
+          required: true
+          description: The file's storage key (from `FileMetadata.key`)
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Download URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DownloadMetadata"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+components:
+  parameters:
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      description: The application's unique task identifier
+      schema:
+        type: string
+      example: 927adaaa-b959-4648-880a-16508acafc12
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters or body
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "Invalid request body: unexpected end of JSON input"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: Application not found
+    RequestTooLarge:
+      description: Request body exceeds the configured size limit
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: Request body too large
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: Failed to get application
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Operation completed successfully
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        service:
+          type: string
+          example: nsw-agency-portal
+
+    InjectRequest:
+      type: object
+      required:
+        - taskId
+        - taskCode
+        - consignmentId
+        - serviceUrl
+      properties:
+        taskId:
+          type: string
+          description: Unique task identifier from the workflow engine
+          example: 927adaaa-b959-4648-880a-16508acafc12
+        taskCode:
+          type: string
+          description: Code identifying the task/verification type, used to select forms and config
+          example: moa:npqs:phytosanitary:001
+        consignmentId:
+          type: string
+          description: Parent consignment identifier
+          example: cefda05e-3071-4e94-b001-328094e570a7
+        serviceUrl:
+          type: string
+          format: uri
+          description: Callback URL where review results will be POSTed
+          example: http://localhost:8080/api/v1/tasks
+        data:
+          type: object
+          additionalProperties: true
+          description: Trader-submitted data to display during review
+        agencyFeedbackHistory:
+          type: array
+          description: Prior feedback rounds, populated on resubmission
+          items:
+            type: object
+            additionalProperties: true
+
+    InjectResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Data injected successfully
+        taskId:
+          type: string
+          example: 927adaaa-b959-4648-880a-16508acafc12
+
+    Application:
+      type: object
+      properties:
+        taskId:
+          type: string
+          example: 927adaaa-b959-4648-880a-16508acafc12
+        taskCode:
+          type: string
+          example: moa:npqs:phytosanitary:001
+        consignmentId:
+          type: string
+          example: cefda05e-3071-4e94-b001-328094e570a7
+        serviceUrl:
+          type: string
+          format: uri
+          example: http://localhost:8080/api/v1/tasks
+        data:
+          type: object
+          additionalProperties: true
+          description: Trader-submitted data
+        agencyActionData:
+          type: object
+          additionalProperties: true
+          description: Copy of the reviewer response payload sent back to NSW after review
+          nullable: true
+        title:
+          type: string
+          description: Human-readable task title from task config
+        description:
+          type: string
+          description: Task description from task config
+        icon:
+          type: string
+          description: Icon identifier from task config
+        category:
+          type: string
+          description: Task category from task config
+        dataForm:
+          description: |
+            JSON Forms schema (schema + uiSchema) for rendering the submitted
+            data in read-only mode. Present when a view form is configured for
+            the task code.
+          nullable: true
+        agencyForm:
+          description: |
+            JSON Forms schema (schema + uiSchema) for rendering the agency review
+            form. Present when a review form is configured for the task code.
+          nullable: true
+        status:
+          type: string
+          enum: [PENDING, FEEDBACK_REQUESTED, DONE]
+          description: Current application status
+        feedbackHistory:
+          type: array
+          description: History of feedback rounds sent to the trader
+          items:
+            $ref: "#/components/schemas/FeedbackEntry"
+        reviewedAt:
+          type: string
+          format: date-time
+          description: Timestamp of the review decision
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    FeedbackEntry:
+      type: object
+      description: A single round of feedback sent to the trader
+      properties:
+        content:
+          type: object
+          additionalProperties: true
+          description: Feedback payload as submitted by the agency officer
+        timestamp:
+          type: string
+          format: date-time
+          description: When the feedback was sent
+        round:
+          type: integer
+          description: Feedback round number (1-indexed)
+          example: 1
+
+    ApplicationListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Application"
+        total:
+          type: integer
+          description: Total number of matching applications across all pages
+          example: 45
+        page:
+          type: integer
+          description: Current page number
+          example: 1
+        pageSize:
+          type: integer
+          description: Number of items per page
+          example: 20
+
+    ConsignmentSummary:
+      type: object
+      description: Aggregated view of a consignment and its applications
+      properties:
+        consignmentId:
+          type: string
+          example: cefda05e-3071-4e94-b001-328094e570a7
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp of the most recent update to this consignment
+        status:
+          type: string
+          enum: [PENDING, FEEDBACK_REQUESTED, DONE]
+          description: Status of the consignment (reflects the most recent application status)
+        taskCount:
+          type: integer
+          description: Total number of applications in this consignment
+          example: 3
+
+    ConsignmentListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConsignmentSummary"
+        total:
+          type: integer
+          description: Total number of matching consignments across all pages
+          example: 12
+        page:
+          type: integer
+          description: Current page number
+          example: 1
+        pageSize:
+          type: integer
+          description: Number of items per page
+          example: 20
+
+    ReviewRequest:
+      type: object
+      description: |
+        Dynamic review payload. The exact fields depend on the task type and
+        configured review form. The outcome field (default: `decision`) drives
+        the status transition and is forwarded verbatim to the originating
+        service as the `content` of the `NSW_AGENCY_VERIFICATION` callback.
+      additionalProperties: true
+      example:
+        decision: APPROVED
+        remarks: All documents verified successfully
+
+    FeedbackRequest:
+      type: object
+      required:
+        - feedback
+      description: |
+        Feedback payload sent to the trader. The `feedback` field is required;
+        any additional fields are forwarded to the originating service as-is.
+      properties:
+        feedback:
+          type: string
+          description: Feedback message for the trader
+          example: Please provide the fumigation certificate for lot BWI-UK-LOT01.
+      additionalProperties: true
+
+    UploadRequest:
+      type: object
+      required:
+        - filename
+        - mime_type
+        - size
+      properties:
+        filename:
+          type: string
+          description: Original filename
+          example: phytosanitary-certificate.pdf
+        mime_type:
+          type: string
+          description: MIME type of the file
+          example: application/pdf
+        size:
+          type: integer
+          format: int64
+          description: File size in bytes
+          example: 102400
+
+    FileMetadata:
+      type: object
+      description: Metadata returned after initiating an upload
+      properties:
+        id:
+          type: string
+          description: Unique file identifier assigned by the backend
+        name:
+          type: string
+          description: Original filename
+        key:
+          type: string
+          description: Storage key used to retrieve the file later
+        url:
+          type: string
+          format: uri
+          description: Direct URL to the file (if available)
+          nullable: true
+        upload_url:
+          type: string
+          format: uri
+          description: Pre-signed URL to PUT the file to
+          nullable: true
+        size:
+          type: integer
+          format: int64
+          description: File size in bytes
+        mime_type:
+          type: string
+          description: MIME type of the file
+
+    DownloadMetadata:
+      type: object
+      description: Pre-signed download URL with expiry information
+      properties:
+        download_url:
+          type: string
+          format: uri
+          description: Pre-signed URL to download the file
+        expires_at:
+          type: integer
+          format: int64
+          description: Unix timestamp (seconds) when the URL expires
