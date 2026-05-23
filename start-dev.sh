@@ -33,7 +33,7 @@ set -euo pipefail
 # group leader — that lets us kill `go run`'s grandchild binary on cleanup.
 set -m
 
-# Single source of truth for per-agency config: "BE_PORT|FE_PORT|IDP_CLIENT_ID|NSW_CLIENT_ID".
+# Single source of truth for per-agency config: "BE_PORT|FE_PORT|IDP_CLIENT_ID|NSW_CLIENT_ID|APP_NAME".
 # Adding an agency means one line here — nothing else.
 # (Scalar vars rather than `declare -A` so this works on stock macOS bash 3.2.)
 CONFIG_npqs="8081|5174|OGA_PORTAL_APP_NPQS|NPQS_TO_NSW|National Plant Quarantine Service (NPQS)"
@@ -113,6 +113,7 @@ resolve_agency() {
     return 1
   fi
   IFS='|' read -r BE_PORT FE_PORT IDP_CLIENT_ID NSW_CLIENT_ID APP_NAME <<<"$config"
+  APP_NAME="${APP_NAME:-$1}"
 }
 
 # Source a .env file without clobbering vars already set in the environment.
@@ -138,7 +139,6 @@ ensure_branding_file() {
   local agency=$1 app_name=$2
   local config_dir="$ROOT_DIR/frontend/public/configs"
   local file="$config_dir/${agency}.branding.json"
-  [[ -f "$file" ]] && return 0
   mkdir -p "$config_dir"
   cat >"$file" <<EOF
 {
@@ -155,7 +155,7 @@ ensure_branding_file() {
   }
 }
 EOF
-  echo "[start-dev] Created branding file: $file"
+  echo "[start-dev] Wrote branding file: $file"
 }
 
 start_backend() {
