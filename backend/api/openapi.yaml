@@ -95,7 +95,7 @@ paths:
           description: Filter by application status
           schema:
             type: string
-            enum: [PENDING, FEEDBACK_REQUESTED, DONE]
+            enum: [PENDING, FEEDBACK_REQUESTED, APPROVED, REJECTED, DONE]
         - name: consignmentId
           in: query
           description: Filter by consignment ID
@@ -331,6 +331,8 @@ paths:
                 $ref: "#/components/schemas/DownloadMetadata"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
@@ -494,19 +496,21 @@ components:
           type: string
           description: Task category from task config
         dataForm:
+          type: object
           description: |
             JSON Forms schema (schema + uiSchema) for rendering the submitted
             data in read-only mode. Present when a view form is configured for
             the task code.
           nullable: true
         agencyForm:
+          type: object
           description: |
             JSON Forms schema (schema + uiSchema) for rendering the agency review
             form. Present when a review form is configured for the task code.
           nullable: true
         status:
           type: string
-          enum: [PENDING, FEEDBACK_REQUESTED, DONE]
+          enum: [PENDING, FEEDBACK_REQUESTED, APPROVED, REJECTED, DONE]
           description: Current application status
         feedbackHistory:
           type: array
@@ -575,7 +579,7 @@ components:
           description: Timestamp of the most recent update to this consignment
         status:
           type: string
-          enum: [PENDING, FEEDBACK_REQUESTED, DONE]
+          enum: [PENDING, FEEDBACK_REQUESTED, APPROVED, REJECTED, DONE]
           description: Status of the consignment (reflects the most recent application status)
         taskCount:
           type: integer
@@ -606,12 +610,12 @@ components:
       type: object
       description: |
         Dynamic review payload. The exact fields depend on the task type and
-        configured review form. The outcome field (default: `decision`) drives
+        configured review form. The outcome field (default: `review_outcome`) drives
         the status transition and is forwarded verbatim to the originating
         service as the `content` of the `NSW_AGENCY_VERIFICATION` callback.
       additionalProperties: true
       example:
-        decision: APPROVED
+        review_outcome: APPROVED
         remarks: All documents verified successfully
 
     FeedbackRequest:
