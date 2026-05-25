@@ -131,7 +131,65 @@ func TestFindOrProvision_ExistingUser_WrongAgency_Returns403(t *testing.T) {
 	}
 }
 
-// ---------- 3. Functional Testing: UUID Generation ----------
+func TestFindOrProvision_EmptyName_PreservesExisting(t *testing.T) {
+	store := newTestStore(t, "fcau")
+
+	_, err := store.FindOrProvision("sub-009", "user@fcau.gov", "OriginalName", "fcau")
+	if err != nil {
+		t.Fatalf("unexpected error on initial provision: %v", err)
+	}
+
+	// Calling via auth middleware path passes empty name — existing name must not be wiped.
+	updated, err := store.FindOrProvision("sub-009", "user@fcau.gov", "", "fcau")
+	if err != nil {
+		t.Fatalf("unexpected error on empty-name call: %v", err)
+	}
+	if updated.Name != "OriginalName" {
+		t.Errorf("expected Name %q to be preserved, got %q", "OriginalName", updated.Name)
+	}
+}
+
+// ---------- 3. Functional Testing: GetOrCreateUser (UserProfileService) ----------
+
+func TestGetOrCreateUser_NewUser_ReturnsUserID(t *testing.T) {
+	store := newTestStore(t, "fcau")
+
+	id, err := store.GetOrCreateUser("sub-010", "a@fcau.gov", "Alice", "", "ou-id", "fcau")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if id == nil || *id == "" {
+		t.Error("expected a non-empty UserID to be returned")
+	}
+}
+
+func TestGetOrCreateUser_ExistingUser_ReturnsSameID(t *testing.T) {
+	store := newTestStore(t, "fcau")
+
+	id1, err := store.GetOrCreateUser("sub-011", "b@fcau.gov", "Bob", "", "ou-id", "fcau")
+	if err != nil {
+		t.Fatalf("unexpected error on first call: %v", err)
+	}
+
+	id2, err := store.GetOrCreateUser("sub-011", "b@fcau.gov", "Bob", "", "ou-id", "fcau")
+	if err != nil {
+		t.Fatalf("unexpected error on second call: %v", err)
+	}
+	if *id1 != *id2 {
+		t.Errorf("expected same UserID, got %q and %q", *id1, *id2)
+	}
+}
+
+func TestGetOrCreateUser_WrongAgency_ReturnsError(t *testing.T) {
+	store := newTestStore(t, "fcau")
+
+	_, err := store.GetOrCreateUser("sub-012", "c@npqs.gov", "Carol", "", "ou-id", "npqs")
+	if !errors.Is(err, ErrUnauthorizedAgency) {
+		t.Errorf("expected ErrUnauthorizedAgency, got %v", err)
+	}
+}
+
+// ---------- 4. Functional Testing: UUID Generation ----------
 
 func TestBeforeCreate_GeneratesUUID(t *testing.T) {
 	store := newTestStore(t, "fcau")

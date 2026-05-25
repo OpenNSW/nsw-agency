@@ -60,10 +60,19 @@ func NewUserStore(cfg config.Config) (*UserStore, error) {
 	return &UserStore{db: db, agency: cfg.Agency}, nil
 }
 
+// GetOrCreateUser implements auth.UserProfileService, enabling JIT provisioning
+// via the auth middleware. Returns the internal UserID on success.
+func (s *UserStore) GetOrCreateUser(idpUserID, email, givenName, phone, organizationID, ouHandle string) (*string, error) {
+	u, err := s.FindOrProvision(idpUserID, email, givenName, ouHandle)
+	if err != nil {
+		return nil, err
+	}
+	return &u.UserID, nil
+}
+
 // FindOrProvision looks up a user by SSOID and creates them if they don't exist.
-// ouHandle is the agency identifier from the JWT and must match this instance's
-// configured agency before a new user record is created.
-// If the user already exists, email and name are synced from the token claims.
+// ouHandle is validated against the configured agency for every call.
+// If the user already exists, email is synced; name is only synced when non-empty.
 func (s *UserStore) FindOrProvision(ssoid, email, name, ouHandle string) (*UserRecord, error) {
 	if ouHandle != s.agency {
 		return nil, ErrUnauthorizedAgency
@@ -72,15 +81,19 @@ func (s *UserStore) FindOrProvision(ssoid, email, name, ouHandle string) (*UserR
 	var user UserRecord
 	err := s.db.First(&user, "ssoid = ?", ssoid).Error
 	if err == nil {
-		if user.Email != email || user.Name != name {
-			if err := s.db.Model(&user).Updates(map[string]any{
-				"email": email,
-				"name":  name,
-			}).Error; err != nil {
+		needsUpdate := user.Email != email || (name != "" && user.Name != name)
+		if needsUpdate {
+			updates := map[string]any{"email": email}
+			if name != "" {
+				updates["name"] = name
+			}
+			if err := s.db.Model(&user).Updates(updates).Error; err != nil {
 				return nil, fmt.Errorf("failed to sync user attributes: %w", err)
 			}
 			user.Email = email
-			user.Name = name
+			if name != "" {
+				user.Name = name
+			}
 		}
 		return &user, nil
 	}

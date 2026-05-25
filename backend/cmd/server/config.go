@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/OpenNSW/nsw-agency/backend/internal/auth"
 	"github.com/OpenNSW/nsw-agency/backend/internal/database"
 )
 
@@ -25,6 +26,7 @@ type Config struct {
 	DefaultTaskConfigID string
 	AllowedOrigins      []string
 	NSW                 NSWConfig
+	Auth                auth.Config
 	MaxRequestBytes     int64
 	Agency              string
 }
@@ -34,7 +36,6 @@ func LoadConfig() (Config, error) {
 	driver := envOrDefault("DB_DRIVER", "sqlite")
 	var dbConfig database.Config
 
-	// Isolate required configurations per driver
 	switch driver {
 	case "postgres":
 		password := os.Getenv("DB_PASSWORD")
@@ -53,7 +54,6 @@ func LoadConfig() (Config, error) {
 		}
 
 	case "sqlite":
-		// SQLite only requires a file path
 		dbConfig = database.Config{
 			Driver: driver,
 			Path:   envOrDefault("DB_PATH", "./agency_applications.db"),
@@ -77,6 +77,12 @@ func LoadConfig() (Config, error) {
 			TokenURL:     os.Getenv("NSW_TOKEN_URL"),
 			Scopes:       parseCommaSeparated(os.Getenv("NSW_SCOPES")),
 		},
+		Auth: auth.Config{
+			JWKSURL:   os.Getenv("AUTH_JWKS_URL"),
+			Issuer:    os.Getenv("AUTH_ISSUER"),
+			Audience:  os.Getenv("AUTH_AUDIENCE"),
+			ClientIDs: parseCommaSeparated(os.Getenv("AUTH_CLIENT_IDS")),
+		},
 	}
 	maxRequestBytes, err := parseInt64Env("MAX_REQUEST_BYTES", 32<<20)
 	if err != nil {
@@ -89,6 +95,12 @@ func LoadConfig() (Config, error) {
 		return Config{}, err
 	}
 	cfg.NSW.TokenInsecureSkipVerify = tokenInsecureSkipVerify
+
+	authInsecureSkipTLSVerify, err := parseBoolEnv("AUTH_JWKS_INSECURE_SKIP_VERIFY", false)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.Auth.InsecureSkipTLSVerify = authInsecureSkipTLSVerify
 
 	if err := cfg.validateRequiredConfig(); err != nil {
 		return Config{}, err
@@ -112,6 +124,9 @@ func (c Config) validateRequiredConfig() error {
 	}
 	if strings.TrimSpace(c.Agency) == "" {
 		return fmt.Errorf("NSW_AGENCY is required")
+	}
+	if err := c.Auth.Validate(); err != nil {
+		return err
 	}
 	return nil
 }

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/OpenNSW/nsw-agency/backend/internal/application"
+	"github.com/OpenNSW/nsw-agency/backend/internal/auth"
 	"github.com/OpenNSW/nsw-agency/backend/internal/feedback"
 	"github.com/OpenNSW/nsw-agency/backend/internal/form"
 	"github.com/OpenNSW/nsw-agency/backend/internal/storage"
@@ -49,6 +50,18 @@ func main() {
 			slog.Error("failed to close user store", "error", err)
 		}
 	}()
+
+	// Initialize auth manager with JIT user provisioning
+	authManager, err := auth.NewManager(userStore, cfg.Auth)
+	if err != nil {
+		log.Fatalf("failed to initialize auth manager: %v", err)
+	}
+	defer func() {
+		if err := authManager.Close(); err != nil {
+			slog.Error("failed to close auth manager", "error", err)
+		}
+	}()
+
 	// Initialize task config store
 	configStore, err := taskconfig.NewTaskConfigStore(cfg.ConfigDir, cfg.DefaultTaskConfigID)
 	if err != nil {
@@ -106,7 +119,7 @@ func main() {
 	mux.HandleFunc("POST /api/v1/inject", handler.HandleInjectData)
 
 	// Endpoints for UI to fetch and manage applications (protected by JIT user auth)
-	protect := userStore.AuthMiddleware
+	protect := authManager.RequireAuthMiddleware()
 	mux.Handle("GET /api/v1/consignments", protect(http.HandlerFunc(handler.HandleGetConsignments)))
 	mux.Handle("GET /api/v1/applications", protect(http.HandlerFunc(handler.HandleGetApplications)))
 	mux.Handle("GET /api/v1/applications/{taskId}", protect(http.HandlerFunc(handler.HandleGetApplication)))

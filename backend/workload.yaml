@@ -60,3 +60,7 @@ configurations:
           key: client_secret
     - name: NSW_SCOPES
     - name: NSW_AGENCY
+    - name: AUTH_JWKS_URL
+    - name: AUTH_ISSUER
+    - name: AUTH_AUDIENCE
+    - name: AUTH_CLIENT_IDS
