@@ -7,12 +7,18 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/OpenNSW/nsw-agency/backend/internal/config"
 	"github.com/OpenNSW/nsw-agency/backend/internal/database"
 	"github.com/OpenNSW/nsw-agency/backend/internal/feedback"
 )
 
 // ---------- helpers ----------
+
+func testEnvOrDefault(key, def string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return def
+}
 
 // newTestStore creates an ApplicationStore for tests.
 // When AGENCY_DB_DRIVER=postgres (set via env), it connects to the configured
@@ -21,26 +27,32 @@ import (
 func newTestStore(t *testing.T) *ApplicationStore {
 	t.Helper()
 
-	var cfg config.Config
+	var dbCfg database.Config
 	if os.Getenv("AGENCY_DB_DRIVER") == "postgres" {
-		var err error
-		cfg, err = config.LoadConfig()
-		if err != nil {
-			t.Fatalf("failed to load config: %v", err)
+		password := os.Getenv("DB_PASSWORD")
+		if password == "" {
+			t.Fatal("DB_PASSWORD is required for postgres driver")
+		}
+		dbCfg = database.Config{
+			Driver:   "postgres",
+			Host:     testEnvOrDefault("DB_HOST", "localhost"),
+			Port:     testEnvOrDefault("DB_PORT", "5432"),
+			User:     testEnvOrDefault("DB_USER", "postgres"),
+			Password: password,
+			Name:     testEnvOrDefault("DB_NAME", "nsw_agency_db"),
+			SSLMode:  testEnvOrDefault("DB_SSLMODE", "disable"),
 		}
 	} else {
-		cfg = config.Config{
-			DB: database.Config{Driver: "sqlite", Path: ":memory:"},
-		}
+		dbCfg = database.Config{Driver: "sqlite", Path: ":memory:"}
 	}
 
-	store, err := NewApplicationStore(cfg)
+	store, err := NewApplicationStore(dbCfg)
 	if err != nil {
-		t.Fatalf("failed to create store (driver=%s): %v", cfg.DB.Driver, err)
+		t.Fatalf("failed to create store (driver=%s): %v", dbCfg.Driver, err)
 	}
 
 	// For persistent backends, clean tables before each test.
-	if cfg.DB.Driver != "sqlite" || cfg.DB.Path != ":memory:" {
+	if dbCfg.Driver != "sqlite" || dbCfg.Path != ":memory:" {
 		if err := store.db.Exec("TRUNCATE TABLE applications").Error; err != nil {
 			t.Fatalf("failed to truncate applications table: %v", err)
 		}
@@ -77,7 +89,7 @@ func TestApplicationStore_SQLite_FileCreated(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test_agency.db")
 
-	_, err := NewApplicationStore(config.Config{DB: database.Config{Driver: "sqlite", Path: dbPath}})
+	_, err := NewApplicationStore(database.Config{Driver: "sqlite", Path: dbPath})
 	if err != nil {
 		t.Fatalf("NewApplicationStore failed: %v", err)
 	}

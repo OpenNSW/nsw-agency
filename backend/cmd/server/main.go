@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/OpenNSW/nsw-agency/backend/internal/application"
-	"github.com/OpenNSW/nsw-agency/backend/internal/config"
 	"github.com/OpenNSW/nsw-agency/backend/internal/feedback"
 	"github.com/OpenNSW/nsw-agency/backend/internal/form"
 	"github.com/OpenNSW/nsw-agency/backend/internal/storage"
@@ -21,7 +20,7 @@ import (
 )
 
 func main() {
-	cfg, err := config.LoadConfig()
+	cfg, err := LoadConfig()
 	if err != nil {
 		log.Fatalf("FATAL: failed to load configuration: %v", err)
 	}
@@ -34,7 +33,7 @@ func main() {
 	)
 
 	// Initialize database store
-	store, err := application.NewApplicationStore(cfg)
+	store, err := application.NewApplicationStore(cfg.DB)
 	if err != nil {
 		log.Fatalf("failed to create application store: %v", err)
 	}

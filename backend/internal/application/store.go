@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/OpenNSW/nsw-agency/backend/internal/config"
 	"github.com/OpenNSW/nsw-agency/backend/internal/database"
 	"github.com/OpenNSW/nsw-agency/backend/internal/feedback"
 	"gorm.io/gorm"
@@ -86,8 +85,8 @@ type ApplicationStore struct {
 }
 
 // NewApplicationStore creates a new ApplicationStore with configured database
-func NewApplicationStore(cfg config.Config) (*ApplicationStore, error) {
-	connector, err := database.NewConnector(cfg.DB)
+func NewApplicationStore(cfg database.Config) (*ApplicationStore, error) {
+	connector, err := database.NewConnector(cfg)
 	if err != nil {
 		return nil, err
 	}
