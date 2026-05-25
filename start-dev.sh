@@ -2,11 +2,18 @@
 # Run Agency backends and/or frontends with per-agency config.
 #
 # Usage:
-#   ./start-dev.sh <agency> [target]
+#   ./start-dev.sh [--clean-run] [--env-file=PATH] <agency> [target]
 #
 #   <agency>  One of: npqs, fcau, ird, cda, all
 #             'all' fans out and starts every agency in parallel.
 #   [target]  One of: all (default), backend, frontend
+#
+# Flags:
+#   --clean-run       Wipe agency database(s) before starting.
+#                     SQLite: deletes {agency}_applications.db files.
+#                     Postgres: drops and recreates the database.
+#   --env-file=PATH   Load additional env vars (non-clobbering) before
+#                     per-agency defaults. Useful for sharing a root .env.
 #
 # Each agency maps to its own:
 #   - backend HTTP port and SQLite DB file
@@ -15,7 +22,7 @@
 #   - IdP client id
 #
 # Env-var precedence (highest to lowest):
-#   parent shell env > backend/.env (for backend vars) > script defaults
+#   parent shell env > --env-file > backend/.env (for backend vars) > script defaults
 # i.e. PORT=9000 ./start-dev.sh npqs honours the override; .env can fill in
 # anything the parent didn't set; the per-agency defaults below are the floor.
 #
@@ -25,6 +32,7 @@
 #   ./start-dev.sh ird frontend      # IRD frontend only
 #   ./start-dev.sh all               # every backend + frontend, in parallel
 #   ./start-dev.sh all backend       # every backend, no frontends
+#   ./start-dev.sh all --clean-run   # wipe all agency DBs, then start
 #
 # Ctrl-C terminates every child process (each runs in its own process group).
 
@@ -53,22 +61,46 @@ unset _v _agency
 
 usage() {
   cat <<EOF >&2
-Usage: $0 <agency> [target]
+Usage: $0 [--clean-run] [--env-file=PATH] <agency> [target]
 
   <agency>  One of: ${ALL_AGENCIES[*]}, all
   [target]  One of: all (default), backend, frontend
 
+Flags:
+  --clean-run       Wipe agency DB(s) before starting
+  --env-file=PATH   Load a root-level env file (non-clobbering)
+
 Examples:
-  $0 npqs                  # NPQS backend + frontend
-  $0 fcau backend          # FCAU backend only
-  $0 all                   # every agency, backends + frontends
-  $0 all frontend          # every agency, frontends only
+  $0 npqs                       # NPQS backend + frontend
+  $0 fcau backend               # FCAU backend only
+  $0 all                        # every agency, backends + frontends
+  $0 all frontend               # every agency, frontends only
+  $0 all --clean-run            # wipe all agency DBs, then start
 EOF
   exit 1
 }
 
-AGENCY="${1:-}"
-TARGET="${2:-all}"
+CLEAN_RUN=false
+ENV_FILE=""
+POSITIONAL=()
+
+for _arg in "$@"; do
+  case "$_arg" in
+    --clean-run)
+      CLEAN_RUN=true
+      ;;
+    --env-file=*)
+      ENV_FILE="${_arg#*=}"
+      ;;
+    *)
+      POSITIONAL+=("$_arg")
+      ;;
+  esac
+done
+unset _arg
+
+AGENCY="${POSITIONAL[0]:-}"
+TARGET="${POSITIONAL[1]:-all}"
 
 [[ -z "$AGENCY" ]] && usage
 
@@ -133,6 +165,52 @@ source_env_nonclobber() {
     eval "$line"
     set +a
   done <"$file"
+}
+
+# ---------------------------------------------------------------------------
+# clean_databases: wipe agency DB(s) before starting.
+#   SQLite   -> delete {agency}_applications.db from BACKEND_DIR
+#   Postgres -> terminate connections, drop, and recreate the database
+# ---------------------------------------------------------------------------
+clean_databases() {
+  local agencies=("$@")
+  local db_driver="${DB_DRIVER:-sqlite}"
+
+  echo "[start-dev] Cleaning agency databases (driver: $db_driver)..."
+
+  if [[ "$db_driver" == "sqlite" ]]; then
+    for agency in "${agencies[@]}"; do
+      local db_path="$BACKEND_DIR/${agency}_applications.db"
+      if [[ -f "$db_path" ]]; then
+        echo "[start-dev]   Deleting SQLite DB for $agency: $db_path"
+        rm -f "$db_path"
+      else
+        echo "[start-dev]   SQLite DB for $agency not found (nothing to delete): $db_path"
+      fi
+    done
+
+  elif [[ "$db_driver" == "postgres" ]]; then
+    if ! command -v psql >/dev/null 2>&1; then
+      echo "[start-dev] Error: psql required for Postgres DB cleaning but not found in PATH." >&2
+      exit 1
+    fi
+    local db_host="${DB_HOST:-localhost}"
+    local db_port="${DB_PORT:-5432}"
+    local db_user="${DB_USER:-postgres}"
+    local db_password="${DB_PASSWORD:-changeme}"
+    local db_name="${DB_NAME:-nsw_agency_db}"
+    echo "[start-dev]   Dropping and recreating Postgres database: $db_name"
+    PGPASSWORD="$db_password" psql -h "$db_host" -p "$db_port" -U "$db_user" -d postgres -c \
+      "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$db_name' AND pid <> pg_backend_pid();" \
+      >/dev/null
+    PGPASSWORD="$db_password" psql -h "$db_host" -p "$db_port" -U "$db_user" -d postgres \
+      -c "DROP DATABASE IF EXISTS \"$db_name\";"
+    PGPASSWORD="$db_password" psql -h "$db_host" -p "$db_port" -U "$db_user" -d postgres \
+      -c "CREATE DATABASE \"$db_name\";"
+
+  else
+    echo "[start-dev] Unknown DB_DRIVER '$db_driver'; skipping database clean." >&2
+  fi
 }
 
 ensure_branding_file() {
@@ -204,6 +282,15 @@ start_frontend() {
   PIDS+=("$!")
 }
 
+# Load optional root-level env file before per-agency defaults.
+if [[ -n "$ENV_FILE" ]]; then
+  if [[ ! -f "$ENV_FILE" ]]; then
+    echo "[start-dev] Error: --env-file not found: $ENV_FILE" >&2
+    exit 1
+  fi
+  source_env_nonclobber "$ENV_FILE"
+fi
+
 # Resolve the agency list to launch.
 if [[ "$AGENCY" == "all" ]]; then
   AGENCIES=("${ALL_AGENCIES[@]}")
@@ -211,6 +298,10 @@ else
   # Validate it's a known agency without polluting globals (subshell).
   ( resolve_agency "$AGENCY" > /dev/null ) || usage
   AGENCIES=("$AGENCY")
+fi
+
+if [[ "$CLEAN_RUN" == "true" ]]; then
+  clean_databases "${AGENCIES[@]}"
 fi
 
 for o in "${AGENCIES[@]}"; do
