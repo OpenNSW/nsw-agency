@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/OpenNSW/nsw-agency/backend/internal/validation"
 )
@@ -12,6 +13,7 @@ type Config struct {
 	Audience              string
 	ClientIDs             []string
 	InsecureSkipTLSVerify bool
+	ExpectedOU            string
 }
 
 func (c Config) Validate() error {
@@ -32,6 +34,9 @@ func (c Config) Validate() error {
 	}
 	if len(c.ClientIDs) == 0 {
 		return fmt.Errorf("AUTH_CLIENT_IDS is required")
+	}
+	if strings.TrimSpace(c.ExpectedOU) == "" {
+		return fmt.Errorf("NSW_AGENCY is required")
 	}
 	return nil
 }

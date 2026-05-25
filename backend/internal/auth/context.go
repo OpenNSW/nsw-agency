@@ -51,15 +51,15 @@ type AuthContext struct {
 	Client *ClientContext
 }
 
-// ContextKey is a custom type for context keys to avoid collisions.
-type ContextKey string
+// contextKey is an unexported type for context keys to avoid collisions with other packages.
+type contextKey struct{}
 
-const AuthContextKey ContextKey = "authContext"
+var authContextKey = contextKey{}
 
 // GetAuthContext extracts the AuthContext from a request context.
 // Returns nil if no auth context is available.
 func GetAuthContext(ctx context.Context) *AuthContext {
-	authCtx, ok := ctx.Value(AuthContextKey).(*AuthContext)
+	authCtx, ok := ctx.Value(authContextKey).(*AuthContext)
 	if !ok {
 		return nil
 	}

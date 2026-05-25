@@ -6,16 +6,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/OpenNSW/nsw-agency/backend/internal/config"
 	"github.com/OpenNSW/nsw-agency/backend/internal/database"
 )
 
 func newTestStore(t *testing.T, agency string) *UserStore {
 	t.Helper()
-	store, err := NewUserStore(config.Config{
-		DB:     database.Config{Driver: "sqlite", Path: ":memory:"},
-		Agency: agency,
-	})
+	store, err := NewUserStore(database.Config{Driver: "sqlite", Path: ":memory:"}, agency)
 	if err != nil {
 		t.Fatalf("failed to create user store: %v", err)
 	}
@@ -28,10 +24,7 @@ func newTestStore(t *testing.T, agency string) *UserStore {
 func TestUserStore_SQLite_FileCreated(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "test_users.db")
 
-	_, err := NewUserStore(config.Config{
-		DB:     database.Config{Driver: "sqlite", Path: dbPath},
-		Agency: "fcau",
-	})
+	_, err := NewUserStore(database.Config{Driver: "sqlite", Path: dbPath}, "fcau")
 	if err != nil {
 		t.Fatalf("NewUserStore failed: %v", err)
 	}

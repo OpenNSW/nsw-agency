@@ -6,7 +6,6 @@ func setBaseConfigEnv(t *testing.T) {
 	t.Helper()
 	t.Setenv("DB_DRIVER", "sqlite")
 	t.Setenv("DB_PATH", "./test.db")
-	t.Setenv("NSW_AGENCY", "default")
 }
 
 func setRequiredNSWOAuth2Env(t *testing.T) {
@@ -23,6 +22,7 @@ func setRequiredAuthEnv(t *testing.T) {
 	t.Setenv("AUTH_ISSUER", "https://localhost:8090")
 	t.Setenv("AUTH_AUDIENCE", "OGA_PORTAL_APP")
 	t.Setenv("AUTH_CLIENT_IDS", "OGA_PORTAL_APP")
+	t.Setenv("NSW_AGENCY", "default")
 }
 
 func TestLoadConfig_RequiresNSWOAuth2Vars(t *testing.T) {
@@ -39,7 +39,6 @@ func TestLoadConfig_RequiresNSWOAuth2Vars(t *testing.T) {
 		{name: "missing client id", missing: "NSW_CLIENT_ID", expected: "NSW_CLIENT_ID is required"},
 		{name: "missing client secret", missing: "NSW_CLIENT_SECRET", expected: "NSW_CLIENT_SECRET is required"},
 		{name: "missing token url", missing: "NSW_TOKEN_URL", expected: "NSW_TOKEN_URL is required"},
-		{name: "missing agency", missing: "NSW_AGENCY", expected: "NSW_AGENCY is required"},
 	}
 
 	for _, tc := range testCases {
@@ -70,6 +69,7 @@ func TestLoadConfig_RequiresAuthVars(t *testing.T) {
 		{name: "missing issuer", missing: "AUTH_ISSUER", expected: "AUTH_ISSUER is required"},
 		{name: "missing audience", missing: "AUTH_AUDIENCE", expected: "AUTH_AUDIENCE is required"},
 		{name: "missing client ids", missing: "AUTH_CLIENT_IDS", expected: "AUTH_CLIENT_IDS is required"},
+		{name: "missing agency", missing: "NSW_AGENCY", expected: "NSW_AGENCY is required"},
 	}
 
 	for _, tc := range testCases {

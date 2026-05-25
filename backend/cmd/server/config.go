@@ -28,7 +28,6 @@ type Config struct {
 	NSW                 NSWConfig
 	Auth                auth.Config
 	MaxRequestBytes     int64
-	Agency              string
 }
 
 // LoadConfig loads configuration from environment variables
@@ -69,7 +68,6 @@ func LoadConfig() (Config, error) {
 		ConfigDir:           envOrDefault("CONFIG_DIR", "./data"),
 		DefaultTaskConfigID: envOrDefault("DEFAULT_TASK_CONFIG_ID", "default"),
 		AllowedOrigins:      parseCommaSeparated(envOrDefault("ALLOWED_ORIGINS", "*")),
-		Agency:              os.Getenv("NSW_AGENCY"),
 		NSW: NSWConfig{
 			BaseURL:      os.Getenv("NSW_API_BASE_URL"),
 			ClientID:     os.Getenv("NSW_CLIENT_ID"),
@@ -78,10 +76,11 @@ func LoadConfig() (Config, error) {
 			Scopes:       parseCommaSeparated(os.Getenv("NSW_SCOPES")),
 		},
 		Auth: auth.Config{
-			JWKSURL:   os.Getenv("AUTH_JWKS_URL"),
-			Issuer:    os.Getenv("AUTH_ISSUER"),
-			Audience:  os.Getenv("AUTH_AUDIENCE"),
-			ClientIDs: parseCommaSeparated(os.Getenv("AUTH_CLIENT_IDS")),
+			JWKSURL:    os.Getenv("AUTH_JWKS_URL"),
+			Issuer:     os.Getenv("AUTH_ISSUER"),
+			Audience:   os.Getenv("AUTH_AUDIENCE"),
+			ClientIDs:  parseCommaSeparated(os.Getenv("AUTH_CLIENT_IDS")),
+			ExpectedOU: os.Getenv("NSW_AGENCY"),
 		},
 	}
 	maxRequestBytes, err := parseInt64Env("MAX_REQUEST_BYTES", 32<<20)
@@ -102,14 +101,17 @@ func LoadConfig() (Config, error) {
 	}
 	cfg.Auth.InsecureSkipTLSVerify = authInsecureSkipTLSVerify
 
-	if err := cfg.validateRequiredConfig(); err != nil {
+	if err := cfg.validateNSWOAuth2Config(); err != nil {
+		return Config{}, err
+	}
+	if err := cfg.Auth.Validate(); err != nil {
 		return Config{}, err
 	}
 
 	return cfg, nil
 }
 
-func (c Config) validateRequiredConfig() error {
+func (c Config) validateNSWOAuth2Config() error {
 	if strings.TrimSpace(c.NSW.BaseURL) == "" {
 		return fmt.Errorf("NSW_API_BASE_URL is required")
 	}
@@ -121,12 +123,6 @@ func (c Config) validateRequiredConfig() error {
 	}
 	if strings.TrimSpace(c.NSW.TokenURL) == "" {
 		return fmt.Errorf("NSW_TOKEN_URL is required")
-	}
-	if strings.TrimSpace(c.Agency) == "" {
-		return fmt.Errorf("NSW_AGENCY is required")
-	}
-	if err := c.Auth.Validate(); err != nil {
-		return err
 	}
 	return nil
 }

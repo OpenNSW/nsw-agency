@@ -229,10 +229,6 @@ func (te *TokenExtractor) userPrincipalFromClaims(claims *tokenClaims) (*UserPri
 		return nil, fmt.Errorf("jwt missing ouHandle claim for user principal")
 	}
 
-	if claims.PhoneNumber != nil && strings.TrimSpace(*claims.PhoneNumber) == "" {
-		return nil, fmt.Errorf("jwt has empty phone_number claim for user principal")
-	}
-
 	return &UserPrincipal{
 		UserID:      claims.Subject,
 		Email:       *claims.Email,

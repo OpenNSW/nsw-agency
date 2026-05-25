@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/OpenNSW/nsw-agency/backend/internal/config"
 	"github.com/OpenNSW/nsw-agency/backend/internal/database"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -42,8 +41,8 @@ type UserStore struct {
 	agency string
 }
 
-func NewUserStore(cfg config.Config) (*UserStore, error) {
-	connector, err := database.NewConnector(cfg.DB)
+func NewUserStore(dbCfg database.Config, expectedOU string) (*UserStore, error) {
+	connector, err := database.NewConnector(dbCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +56,7 @@ func NewUserStore(cfg config.Config) (*UserStore, error) {
 		return nil, fmt.Errorf("failed to migrate users table: %w", err)
 	}
 
-	return &UserStore{db: db, agency: cfg.Agency}, nil
+	return &UserStore{db: db, agency: expectedOU}, nil
 }
 
 // GetOrCreateUser implements auth.UserProfileService, enabling JIT provisioning

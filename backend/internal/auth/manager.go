@@ -14,6 +14,7 @@ import (
 type Manager struct {
 	userProfileService UserProfileService
 	tokenExtractor     *TokenExtractor
+	authConfig         Config
 	middleware         func(http.Handler) http.Handler
 }
 
@@ -23,8 +24,10 @@ func NewManager(userProfileService UserProfileService, authConfig Config) (*Mana
 
 	httpClient := &http.Client{Timeout: 10 * time.Second}
 	if authConfig.InsecureSkipTLSVerify {
-		httpClient.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+		if tr, ok := http.DefaultTransport.(*http.Transport); ok {
+			customTransport := tr.Clone()
+			customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec
+			httpClient.Transport = customTransport
 		}
 	}
 
@@ -41,13 +44,14 @@ func NewManager(userProfileService UserProfileService, authConfig Config) (*Mana
 	return &Manager{
 		userProfileService: userProfileService,
 		tokenExtractor:     tokenExtractor,
-		middleware:         Middleware(userProfileService, tokenExtractor),
+		authConfig:         authConfig,
+		middleware:         Middleware(userProfileService, tokenExtractor, authConfig.ExpectedOU),
 	}, nil
 }
 
 // RequireAuthMiddleware returns a middleware that rejects unauthenticated requests with 401.
 func (m *Manager) RequireAuthMiddleware() func(http.Handler) http.Handler {
-	return RequireAuth(m.userProfileService, m.tokenExtractor)
+	return RequireAuth(m.userProfileService, m.tokenExtractor, m.authConfig.ExpectedOU)
 }
 
 // OptionalAuthMiddleware returns a middleware that injects auth context when present
