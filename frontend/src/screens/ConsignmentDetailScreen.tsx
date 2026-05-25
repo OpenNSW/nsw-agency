@@ -27,7 +27,9 @@ export function ConsignmentDetailScreen() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
-  const [agencyFormConfig, setAgencyFormConfig] = useState<{ schema: JsonSchema; uiSchema: UISchemaElement } | null>(null)
+  const [agencyFormConfig, setAgencyFormConfig] = useState<{ schema: JsonSchema; uiSchema: UISchemaElement } | null>(
+    null,
+  )
   const [agencyFormData, setAgencyFormData] = useState<Record<string, unknown>>({})
   const [formErrors, setFormErrors] = useState<unknown[]>([])
 

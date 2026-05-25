@@ -162,7 +162,9 @@ export function ConsignmentListScreen() {
                           {consignment.status}
                         </Badge>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-600">{formatDateForTable(consignment.updatedAt)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-600">
+                        {formatDateForTable(consignment.updatedAt)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
