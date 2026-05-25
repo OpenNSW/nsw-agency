@@ -13,7 +13,7 @@
 #                     SQLite: deletes {agency}_applications.db files.
 #                     Postgres: drops and recreates the database.
 #   --env-file=PATH   Load additional env vars (non-clobbering) before
-#                     per-agency defaults. Useful for sharing a root .env.
+#   --env-file PATH   per-agency defaults. Useful for sharing a root .env.
 #
 # Each agency maps to its own:
 #   - backend HTTP port and SQLite DB file
@@ -68,7 +68,8 @@ Usage: $0 [--clean-run] [--env-file=PATH] <agency> [target]
 
 Flags:
   --clean-run       Wipe agency DB(s) before starting
-  --env-file=PATH   Load a root-level env file (non-clobbering)
+  --env-file=PATH   Load a root-level env file (non-clobbering);
+  --env-file PATH   both forms are supported
 
 Examples:
   $0 npqs                       # NPQS backend + frontend
@@ -84,20 +85,28 @@ CLEAN_RUN=false
 ENV_FILE=""
 POSITIONAL=()
 
-for _arg in "$@"; do
-  case "$_arg" in
+while [[ $# -gt 0 ]]; do
+  case "$1" in
     --clean-run)
       CLEAN_RUN=true
       ;;
     --env-file=*)
-      ENV_FILE="${_arg#*=}"
+      ENV_FILE="${1#*=}"
+      ;;
+    --env-file)
+      shift
+      if [[ $# -eq 0 ]] || [[ "$1" == --* ]]; then
+        echo "[start-dev] Error: --env-file requires a path value." >&2
+        usage
+      fi
+      ENV_FILE="$1"
       ;;
     *)
-      POSITIONAL+=("$_arg")
+      POSITIONAL+=("$1")
       ;;
   esac
+  shift
 done
-unset _arg
 
 AGENCY="${POSITIONAL[0]:-}"
 TARGET="${POSITIONAL[1]:-all}"
@@ -199,6 +208,11 @@ clean_databases() {
     local db_user="${DB_USER:-postgres}"
     local db_password="${DB_PASSWORD:-changeme}"
     local db_name="${DB_NAME:-nsw_agency_db}"
+    # Postgres uses a single shared database; warn if only a subset of agencies
+    # was selected since this will wipe data for all agencies, not just the chosen ones.
+    if [[ "${#agencies[@]}" -lt "${#ALL_AGENCIES[@]}" ]]; then
+      echo "[start-dev] Warning: Postgres uses a shared database ($db_name). --clean-run will wipe data for ALL agencies, not just: ${agencies[*]}." >&2
+    fi
     echo "[start-dev]   Dropping and recreating Postgres database: $db_name"
     PGPASSWORD="$db_password" psql -h "$db_host" -p "$db_port" -U "$db_user" -d postgres -c \
       "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$db_name' AND pid <> pg_backend_pid();" \
