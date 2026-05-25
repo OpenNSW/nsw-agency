@@ -57,7 +57,7 @@ export function Sidebar({ isExpanded, onToggle }: SidebarProps) {
           }
         }
       })
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+
       setExpandedGroups(groupsToExpand)
     }
   }, [location.pathname])

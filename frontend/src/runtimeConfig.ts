@@ -38,3 +38,7 @@ export function getRequiredEnv(name: string): string {
 
   return value
 }
+
+export function getExpectedOuHandle(): string {
+  return getRequiredEnv('VITE_IDP_EXPECTED_OU_HANDLE')
+}
