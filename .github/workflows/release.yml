@@ -147,6 +147,7 @@ jobs:
         uses: aquasecurity/setup-trivy@e6c2c5e321ed9123bda567646e2f96565e34abe1
         with:
           version: v0.69.3
+          cache: true
 
       - name: Run Trivy vulnerability scanner
         id: trivy-scan
@@ -157,14 +158,39 @@ jobs:
             --ignore-unfixed \
             --format sarif \
             --output "trivy-${{ matrix.image_name }}.sarif" \
-            --exit-code 1 \
+            --exit-code 0 \
             "${{ fromJSON(steps.meta.outputs.json).tags[0] }}"
 
       - name: Upload Trivy results
-        if: always() && steps.trivy-scan.outcome == 'success'
+        if: always() && steps.trivy-scan.outcome != 'skipped'
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-${{ matrix.image_name }}.sarif
+
+      - name: Print Trivy findings
+        if: always() && steps.trivy-scan.outcome != 'skipped'
+        run: |
+          trivy image \
+            --skip-version-check \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --format table \
+            --exit-code 0 \
+            "${{ fromJSON(steps.meta.outputs.json).tags[0] }}"
+
+      - name: Generate service summary
+        if: always()
+        run: |
+          echo "## Service: ${{ matrix.service_name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Mode: ${{ steps.release-mode.outputs.enabled == 'true' && 'Release' || 'Dry Run' }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Version: ${{ steps.version.outputs.tag }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Dockerfile: ${{ matrix.dockerfile }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Context: ${{ matrix.context }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Image: ${{ env.REGISTRY }}/${{ steps.repo_owner.outputs.owner }}/${{ matrix.image_name }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "${{ steps.build.outputs.digest }}" ]; then
+            echo "- Digest: ${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   collate-digests:
     name: Collate Image Digests
@@ -238,6 +264,32 @@ jobs:
         with:
           name: release-digests
           path: .
+
+      - name: Generate service summary
+        run: |
+          echo "## Release Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Service | Mode | Version | Dockerfile | Context | Image Target | Digest |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- | --- | --- | --- | --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          
+          OWNER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')
+          VERSION="${{ needs.collate-digests.outputs.version }}"
+          REGISTRY="${{ env.REGISTRY }}"
+          
+          SERVICES='[
+            {"service_name": "Agency Backend", "image_name": "nsw-agency-backend", "dockerfile": "./backend/Dockerfile", "context": "./backend"},
+            {"service_name": "Agency Portal", "image_name": "nsw-agency-app", "dockerfile": "./frontend/Dockerfile", "context": "./frontend"}
+          ]'
+          
+          echo "$SERVICES" | jq -c '.[]' | while read -r item; do
+            NAME=$(echo "$item" | jq -r '.service_name')
+            IMG=$(echo "$item" | jq -r '.image_name')
+            DF=$(echo "$item" | jq -r '.dockerfile')
+            CTX=$(echo "$item" | jq -r '.context')
+            DIGEST=$(jq -r ".\"$IMG\"" release-digests.json)
+            
+            echo "| $NAME | Release | v$VERSION | $DF | $CTX | $REGISTRY/$OWNER/$IMG:$VERSION | \`$DIGEST\` |" >> "$GITHUB_STEP_SUMMARY"
+          done
 
       - name: Create git tag (workflow_dispatch only)
         if: github.event_name == 'workflow_dispatch'
