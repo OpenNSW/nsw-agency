@@ -58,12 +58,8 @@ func parseFilename(base string) (int64, string, error) {
 
 // parseBlocks splits file content into UP and DOWN SQL sections
 // delimited by the -- @UP and -- @DOWN annotations.
+// Matching is case-insensitive and space-insensitive (e.g. "--@up", "-- @UP", "--  @Down" all match).
 func parseBlocks(content string) (up, down string, err error) {
-	const (
-		tagUp   = "-- @UP"
-		tagDown = "-- @DOWN"
-	)
-
 	var (
 		section   string
 		upLines   []string
@@ -71,10 +67,11 @@ func parseBlocks(content string) (up, down string, err error) {
 	)
 
 	for _, line := range strings.Split(content, "\n") {
-		switch strings.TrimSpace(line) {
-		case tagUp:
+		normalized := strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(line), " ", ""))
+		switch normalized {
+		case "--@UP":
 			section = "up"
-		case tagDown:
+		case "--@DOWN":
 			section = "down"
 		default:
 			switch section {

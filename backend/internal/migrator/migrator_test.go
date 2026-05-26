@@ -22,7 +22,11 @@ func newTestMigrator(t *testing.T, files map[string]string) (*Migrator, *sql.DB)
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
-	return New(db, dir, "sqlite"), db
+	m, err := New(db, dir, "sqlite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return m, db
 }
 
 func TestUp_AppliesPendingMigrations(t *testing.T) {
@@ -36,11 +40,11 @@ func TestUp_AppliesPendingMigrations(t *testing.T) {
 	}
 
 	var count int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&count); err != nil {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM __migrations`).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
 	if count != 2 {
-		t.Errorf("schema_migrations count = %d, want 2", count)
+		t.Errorf("__migrations count = %d, want 2", count)
 	}
 }
 
@@ -57,11 +61,11 @@ func TestUp_IdempotentOnSecondCall(t *testing.T) {
 	}
 
 	var count int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&count); err != nil {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM __migrations`).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
 	if count != 1 {
-		t.Errorf("schema_migrations count = %d, want 1 (idempotent)", count)
+		t.Errorf("__migrations count = %d, want 1 (idempotent)", count)
 	}
 }
 
@@ -79,11 +83,11 @@ func TestDown_RollsBackLastMigration(t *testing.T) {
 	}
 
 	var count int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&count); err != nil {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM __migrations`).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
 	if count != 1 {
-		t.Errorf("schema_migrations count = %d, want 1 after rollback", count)
+		t.Errorf("__migrations count = %d, want 1 after rollback", count)
 	}
 
 	// bar table must be gone; foo must still exist
@@ -129,10 +133,10 @@ func TestUp_RollsBackOnFailure(t *testing.T) {
 	}
 
 	var count int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&count); err != nil {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM __migrations`).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
 	if count != 0 {
-		t.Errorf("schema_migrations count = %d, want 0 after failed migration", count)
+		t.Errorf("__migrations count = %d, want 0 after failed migration", count)
 	}
 }

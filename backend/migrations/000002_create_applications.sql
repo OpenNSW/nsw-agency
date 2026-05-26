@@ -1,3 +1,5 @@
+-- Created at: 2026-05-25T00:00:00Z
+
 -- @UP
 CREATE TABLE IF NOT EXISTS applications (
     task_id                 TEXT         PRIMARY KEY,

@@ -68,6 +68,18 @@ CREATE TABLE users (id INTEGER PRIMARY KEY);`,
 			content: `-- @DOWN\nDROP TABLE users;`,
 			wantErr: true,
 		},
+		{
+			name:     "no space variant --@UP",
+			content:  "--@UP\nCREATE TABLE users (id INTEGER PRIMARY KEY);\n--@DOWN\nDROP TABLE users;",
+			wantUp:   "CREATE TABLE users (id INTEGER PRIMARY KEY);",
+			wantDown: "DROP TABLE users;",
+		},
+		{
+			name:     "lowercase variant",
+			content:  "-- @up\nCREATE TABLE users (id INTEGER PRIMARY KEY);\n-- @down\nDROP TABLE users;",
+			wantUp:   "CREATE TABLE users (id INTEGER PRIMARY KEY);",
+			wantDown: "DROP TABLE users;",
+		},
 	}
 
 	for _, tt := range tests {

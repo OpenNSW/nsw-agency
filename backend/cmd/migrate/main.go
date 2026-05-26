@@ -38,7 +38,11 @@ func main() {
 		if len(os.Args) < 3 {
 			fatalf("generate requires a migration name, e.g: migrate generate create_users")
 		}
-		if err := migrator.New(nil, cfg.Dir, cfg.DB.Driver).Generate(os.Args[2]); err != nil {
+		m, err := migrator.New(nil, cfg.Dir, cfg.DB.Driver)
+		if err != nil {
+			fatalf("%v", err)
+		}
+		if err := m.Generate(os.Args[2]); err != nil {
 			fatalf("%v", err)
 		}
 		return
@@ -50,7 +54,10 @@ func main() {
 	}
 	defer db.Close() //nolint:errcheck
 
-	m := migrator.New(db, cfg.Dir, cfg.DB.Driver)
+	m, err := migrator.New(db, cfg.Dir, cfg.DB.Driver)
+	if err != nil {
+		fatalf("%v", err)
+	}
 
 	switch cmd {
 	case "up":
@@ -67,9 +74,13 @@ func main() {
 }
 
 func openDB(cfg database.Config) (*sql.DB, error) {
+	var (
+		db  *sql.DB
+		err error
+	)
 	switch cfg.Driver {
 	case "sqlite":
-		return sql.Open("sqlite3", cfg.Path)
+		db, err = sql.Open("sqlite3", cfg.Path)
 	case "postgres":
 		u := &url.URL{
 			Scheme:   "postgres",
@@ -78,10 +89,18 @@ func openDB(cfg database.Config) (*sql.DB, error) {
 			Path:     "/" + cfg.Name,
 			RawQuery: "sslmode=" + url.QueryEscape(cfg.SSLMode),
 		}
-		return sql.Open("pgx", u.String())
+		db, err = sql.Open("pgx", u.String())
 	default:
 		return nil, fmt.Errorf("unsupported driver %q", cfg.Driver)
 	}
+	if err != nil {
+		return nil, err
+	}
+	if err := db.Ping(); err != nil {
+		db.Close() //nolint:errcheck
+		return nil, fmt.Errorf("database unreachable: %w", err)
+	}
+	return db, nil
 }
 
 func usage() {

@@ -25,8 +25,11 @@ type migrationRecord struct {
 
 // New creates a Migrator backed by db, reading .sql files from dir.
 // driver must be "sqlite" or "postgres".
-func New(db *sql.DB, dir string, driver string) *Migrator {
-	return &Migrator{db: db, dir: dir, driver: driver}
+func New(db *sql.DB, dir string, driver string) (*Migrator, error) {
+	if driver != "sqlite" && driver != "postgres" {
+		return nil, fmt.Errorf("invalid migration driver %q (must be 'sqlite' or 'postgres')", driver)
+	}
+	return &Migrator{db: db, dir: dir, driver: driver}, nil
 }
 
 // Up applies all pending migrations in version order.
@@ -131,13 +134,13 @@ func (m *Migrator) Status() error {
 func (m *Migrator) initTable() error {
 	var q string
 	if m.driver == "postgres" {
-		q = `CREATE TABLE IF NOT EXISTS schema_migrations (
+		q = `CREATE TABLE IF NOT EXISTS __migrations (
 			version    BIGINT      PRIMARY KEY,
 			name       TEXT        NOT NULL,
 			applied_at TIMESTAMPTZ NOT NULL
 		)`
 	} else {
-		q = `CREATE TABLE IF NOT EXISTS schema_migrations (
+		q = `CREATE TABLE IF NOT EXISTS __migrations (
 			version    INTEGER  PRIMARY KEY,
 			name       TEXT     NOT NULL,
 			applied_at DATETIME NOT NULL
@@ -148,7 +151,7 @@ func (m *Migrator) initTable() error {
 }
 
 func (m *Migrator) appliedMigrations() (map[int64]migrationRecord, error) {
-	rows, err := m.db.Query(`SELECT version, name, applied_at FROM schema_migrations ORDER BY version`)
+	rows, err := m.db.Query(`SELECT version, name, applied_at FROM __migrations ORDER BY version`)
 	if err != nil {
 		return nil, fmt.Errorf("querying applied migrations: %w", err)
 	}
@@ -208,9 +211,9 @@ func (m *Migrator) apply(mg *Migration) error {
 
 	var insertQ string
 	if m.driver == "postgres" {
-		insertQ = `INSERT INTO schema_migrations (version, name, applied_at) VALUES ($1, $2, $3)`
+		insertQ = `INSERT INTO __migrations (version, name, applied_at) VALUES ($1, $2, $3)`
 	} else {
-		insertQ = `INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)`
+		insertQ = `INSERT INTO __migrations (version, name, applied_at) VALUES (?, ?, ?)`
 	}
 	if _, err := tx.Exec(insertQ, mg.Version, mg.Name, time.Now().UTC()); err != nil {
 		return err
@@ -231,9 +234,9 @@ func (m *Migrator) rollback(mg *Migration) error {
 
 	var deleteQ string
 	if m.driver == "postgres" {
-		deleteQ = `DELETE FROM schema_migrations WHERE version = $1`
+		deleteQ = `DELETE FROM __migrations WHERE version = $1`
 	} else {
-		deleteQ = `DELETE FROM schema_migrations WHERE version = ?`
+		deleteQ = `DELETE FROM __migrations WHERE version = ?`
 	}
 	if _, err := tx.Exec(deleteQ, mg.Version); err != nil {
 		return err
