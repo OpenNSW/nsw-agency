@@ -265,6 +265,32 @@ jobs:
           name: release-digests
           path: .
 
+      - name: Generate service summary
+        run: |
+          echo "## Release Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Service | Mode | Version | Dockerfile | Context | Image Target | Digest |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- | --- | --- | --- | --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          
+          OWNER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')
+          VERSION="${{ needs.collate-digests.outputs.version }}"
+          REGISTRY="${{ env.REGISTRY }}"
+          
+          SERVICES='[
+            {"service_name": "Agency Backend", "image_name": "nsw-agency-backend", "dockerfile": "./backend/Dockerfile", "context": "./backend"},
+            {"service_name": "Agency Portal", "image_name": "nsw-agency-app", "dockerfile": "./frontend/Dockerfile", "context": "./frontend"}
+          ]'
+          
+          echo "$SERVICES" | jq -c '.[]' | while read -r item; do
+            NAME=$(echo "$item" | jq -r '.service_name')
+            IMG=$(echo "$item" | jq -r '.image_name')
+            DF=$(echo "$item" | jq -r '.dockerfile')
+            CTX=$(echo "$item" | jq -r '.context')
+            DIGEST=$(jq -r ".\"$IMG\"" release-digests.json)
+            
+            echo "| $NAME | Release | v$VERSION | $DF | $CTX | $REGISTRY/$OWNER/$IMG:$VERSION | \`$DIGEST\` |" >> "$GITHUB_STEP_SUMMARY"
+          done
+
       - name: Create git tag (workflow_dispatch only)
         if: github.event_name == 'workflow_dispatch'
         run: |
