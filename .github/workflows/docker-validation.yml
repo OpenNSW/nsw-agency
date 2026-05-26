@@ -53,6 +53,11 @@ jobs:
     name: Validate ${{ matrix.name }} image
     needs: detect-changes
     runs-on: ubuntu-latest
+    # Skip this matrix entry (and avoid provisioning a runner) when neither
+    # its specific build context nor the workflow file itself changed.
+    if: |
+      needs.detect-changes.outputs.workflow == 'true' ||
+      needs.detect-changes.outputs[matrix.trigger] == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -68,26 +73,12 @@ jobs:
             tag: nsw-agency-app:validate
             trigger: frontend
     steps:
-      # Each step carries the same condition: skip this matrix entry entirely
-      # if neither its specific context nor the workflow file changed.
       - uses: actions/checkout@v4
-        if: |
-          needs.detect-changes.outputs.workflow == 'true' ||
-          (matrix.trigger == 'backend' && needs.detect-changes.outputs.backend == 'true') ||
-          (matrix.trigger == 'frontend' && needs.detect-changes.outputs.frontend == 'true')
 
       # BuildKit is required for cache-from/cache-to and multi-stage build optimisations.
       - uses: docker/setup-buildx-action@v3
-        if: |
-          needs.detect-changes.outputs.workflow == 'true' ||
-          (matrix.trigger == 'backend' && needs.detect-changes.outputs.backend == 'true') ||
-          (matrix.trigger == 'frontend' && needs.detect-changes.outputs.frontend == 'true')
 
       - name: Build ${{ matrix.name }} image
-        if: |
-          needs.detect-changes.outputs.workflow == 'true' ||
-          (matrix.trigger == 'backend' && needs.detect-changes.outputs.backend == 'true') ||
-          (matrix.trigger == 'frontend' && needs.detect-changes.outputs.frontend == 'true')
         uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.context }}
