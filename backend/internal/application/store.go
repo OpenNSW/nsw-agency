@@ -10,7 +10,6 @@ import (
 	"github.com/OpenNSW/nsw-agency/backend/internal/database"
 	"github.com/OpenNSW/nsw-agency/backend/internal/feedback"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // JSONB is a custom type for storing JSON data in SQLite
@@ -84,7 +83,8 @@ type ApplicationStore struct {
 	db *gorm.DB
 }
 
-// NewApplicationStore creates a new ApplicationStore with configured database
+// NewApplicationStore creates a new ApplicationStore with configured database.
+// Schema must be applied before starting the server via the migrate command.
 func NewApplicationStore(cfg database.Config) (*ApplicationStore, error) {
 	connector, err := database.NewConnector(cfg)
 	if err != nil {
@@ -96,75 +96,7 @@ func NewApplicationStore(cfg database.Config) (*ApplicationStore, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	// Step 1: Create the consignments table first (no FK yet).
-	if err := db.AutoMigrate(&ConsignmentRecord{}); err != nil {
-		return nil, fmt.Errorf("failed to migrate consignments: %w", err)
-	}
-
-	// Step 2: Backfill consignments from existing applications data before the FK
-	// constraint is applied, so the constraint addition doesn't fail on existing rows.
-	if err := backfillConsignments(db); err != nil {
-		return nil, fmt.Errorf("failed to backfill consignments: %w", err)
-	}
-
-	// Step 3: Migrate applications — adds the FK constraint now that consignments exist.
-	if err := db.AutoMigrate(&ApplicationRecord{}); err != nil {
-		return nil, fmt.Errorf("failed to migrate applications: %w", err)
-	}
-
 	return &ApplicationStore{db: db}, nil
-}
-
-// backfillConsignments seeds the consignments table from distinct consignment_id
-// values in the applications table. Idempotent: no-op if consignments already has rows
-// or if the applications table does not yet exist (fresh database).
-func backfillConsignments(db *gorm.DB) error {
-	if !db.Migrator().HasTable(&ApplicationRecord{}) {
-		return nil
-	}
-
-	var count int64
-	if err := db.Model(&ConsignmentRecord{}).Count(&count).Error; err != nil {
-		return fmt.Errorf("backfill count check failed: %w", err)
-	}
-	if count > 0 {
-		return nil
-	}
-
-	type row struct {
-		ConsignmentID string
-		Status        string
-	}
-
-	var rows []row
-
-	latestSubq := db.Model(&ApplicationRecord{}).
-		Select("consignment_id, MAX(updated_at) AS max_updated").
-		Group("consignment_id")
-
-	err := db.Model(&ApplicationRecord{}).
-		Select("a.consignment_id, a.status").
-		Table("applications AS a").
-		Joins("JOIN (?) AS latest ON a.consignment_id = latest.consignment_id AND a.updated_at = latest.max_updated", latestSubq).
-		Group("a.consignment_id, a.status, a.updated_at").
-		Scan(&rows).Error
-	if err != nil {
-		return fmt.Errorf("backfill query failed: %w", err)
-	}
-
-	if len(rows) == 0 {
-		return nil
-	}
-
-	records := make([]ConsignmentRecord, len(rows))
-	for i, r := range rows {
-		records[i] = ConsignmentRecord{
-			ID:     r.ConsignmentID,
-			Status: r.Status,
-		}
-	}
-
-	return db.Clauses(clause.OnConflict{DoNothing: true}).CreateInBatches(records, 100).Error
 }
 
 // CreateOrUpdate creates or updates an application record and its parent consignment.

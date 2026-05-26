@@ -51,6 +51,10 @@ func newTestStore(t *testing.T) *ApplicationStore {
 		t.Fatalf("failed to create store (driver=%s): %v", dbCfg.Driver, err)
 	}
 
+	if err := store.db.AutoMigrate(&ConsignmentRecord{}, &ApplicationRecord{}); err != nil {
+		t.Fatalf("failed to migrate schema: %v", err)
+	}
+
 	// For persistent backends, clean tables before each test.
 	if dbCfg.Driver != "sqlite" || dbCfg.Path != ":memory:" {
 		if err := store.db.Exec("TRUNCATE TABLE applications").Error; err != nil {
@@ -89,23 +93,14 @@ func TestApplicationStore_SQLite_FileCreated(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test_agency.db")
 
-	_, err := NewApplicationStore(database.Config{Driver: "sqlite", Path: dbPath})
+	store, err := NewApplicationStore(database.Config{Driver: "sqlite", Path: dbPath})
 	if err != nil {
 		t.Fatalf("NewApplicationStore failed: %v", err)
 	}
+	t.Cleanup(func() { store.Close() })
 
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		t.Error("expected .db file to be created at configured DBPath")
-	}
-}
-
-func TestApplicationStore_SQLite_SchemaMigration(t *testing.T) {
-	store := newTestStore(t)
-	if !store.db.Migrator().HasTable(&ApplicationRecord{}) {
-		t.Error("applications table was not created after migration")
-	}
-	if !store.db.Migrator().HasTable(&ConsignmentRecord{}) {
-		t.Error("consignments table was not created after migration")
 	}
 }
 
@@ -530,46 +525,5 @@ func TestApplicationStore_UpdateStatus_PropagatesConsignment(t *testing.T) {
 	}
 	if cr.Status != "APPROVED" {
 		t.Errorf("expected consignment status 'APPROVED', got %q", cr.Status)
-	}
-}
-
-func TestApplicationStore_Backfill(t *testing.T) {
-	store := newTestStore(t)
-
-	// PostgreSQL enforces the FK constraint, so direct inserts without a consignment
-	// row are rejected. In production this scenario (applications with no consignments)
-	// only occurs before the FK is applied — i.e., exactly the moment backfill runs in
-	// NewApplicationStore (between the two AutoMigrate calls). Skip on postgres.
-	if store.db.Name() == "postgres" {
-		t.Skip("backfill pre-condition (FK-free inserts) cannot be simulated on PostgreSQL")
-	}
-
-	// Insert application rows directly, bypassing CreateOrUpdate (simulates pre-migration data).
-	apps := []ApplicationRecord{
-		{TaskID: "bf-t1", TaskCode: "test", ConsignmentID: "bf-wf1", ServiceURL: "http://test", Status: "PENDING"},
-		{TaskID: "bf-t2", TaskCode: "test", ConsignmentID: "bf-wf1", ServiceURL: "http://test", Status: "APPROVED"},
-		{TaskID: "bf-t3", TaskCode: "test", ConsignmentID: "bf-wf2", ServiceURL: "http://test", Status: "PENDING"},
-	}
-	for _, a := range apps {
-		if err := store.db.Create(&a).Error; err != nil {
-			t.Fatalf("direct insert failed: %v", err)
-		}
-	}
-
-	// Delete consignment rows to simulate a pre-migration state.
-	if err := store.db.Exec("DELETE FROM consignments").Error; err != nil {
-		t.Fatalf("failed to clear consignments: %v", err)
-	}
-
-	if err := backfillConsignments(store.db); err != nil {
-		t.Fatalf("backfillConsignments failed: %v", err)
-	}
-
-	var count int64
-	if err := store.db.Model(&ConsignmentRecord{}).Count(&count).Error; err != nil {
-		t.Fatalf("count failed: %v", err)
-	}
-	if count != 2 {
-		t.Errorf("expected 2 consignment rows after backfill, got %d", count)
 	}
 }
