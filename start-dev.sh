@@ -41,13 +41,15 @@ set -euo pipefail
 # group leader — that lets us kill `go run`'s grandchild binary on cleanup.
 set -m
 
-# Single source of truth for per-agency config: "BE_PORT|FE_PORT|IDP_CLIENT_ID|NSW_CLIENT_ID|APP_NAME".
+IDP_BASE_URL="https://localhost:8090" # For frontend Vite proxying to a local IdP instance; not used by backend.
+
+# Single source of truth for per-agency config: "BE_PORT|FE_PORT|IDP_CLIENT_ID|NSW_CLIENT_ID|APP_NAME|OU_HANDLE".
 # Adding an agency means one line here — nothing else.
 # (Scalar vars rather than `declare -A` so this works on stock macOS bash 3.2.)
-CONFIG_npqs="8081|5174|OGA_PORTAL_APP_NPQS|NPQS_TO_NSW|National Plant Quarantine Service (NPQS)"
-CONFIG_fcau="8082|5175|OGA_PORTAL_APP_FCAU|FCAU_TO_NSW|Food Control Administration Unit (FCAU)"
-CONFIG_ird="8083|5176|OGA_PORTAL_APP_IRD|IRD_TO_NSW|Inland Revenue Department (IRD)"
-CONFIG_cda="8084|5177|OGA_PORTAL_APP_CDA|CDA_TO_NSW|Coconut Development Authority (CDA)"
+CONFIG_npqs="8081|5174|OGA_PORTAL_APP_NPQS|NPQS_TO_NSW|National Plant Quarantine Service (NPQS)|npqs"
+CONFIG_fcau="8082|5175|OGA_PORTAL_APP_FCAU|FCAU_TO_NSW|Food Control Administration Unit (FCAU)|fcau"
+CONFIG_ird="8083|5176|OGA_PORTAL_APP_IRD|IRD_TO_NSW|Inland Revenue Department (IRD)|ird"
+CONFIG_cda="8084|5177|OGA_PORTAL_APP_CDA|CDA_TO_NSW|Coconut Development Authority (CDA)|cda"
 
 # Agencies (every CONFIG_* ), alphabetised for predictable launch order in 'all' mode
 #  Derived from the config above so adding an agency only requires editing the CONFIG_* block.
@@ -153,7 +155,7 @@ resolve_agency() {
     echo "Unknown agency '$1'. Expected: ${ALL_AGENCIES[*]}, all." >&2
     return 1
   fi
-  IFS='|' read -r BE_PORT FE_PORT IDP_CLIENT_ID NSW_CLIENT_ID APP_NAME <<<"$config"
+  IFS='|' read -r BE_PORT FE_PORT IDP_CLIENT_ID NSW_CLIENT_ID APP_NAME OU_HANDLE <<<"$config"
   APP_NAME="${APP_NAME:-$1}"
 }
 
@@ -288,8 +290,10 @@ start_frontend() {
     VITE_PORT="${VITE_PORT:-$FE_PORT}" \
     VITE_BRANDING_NAME="${VITE_BRANDING_NAME:-$agency}" \
     VITE_API_BASE_URL="${VITE_API_BASE_URL:-http://localhost:$BE_PORT}" \
-    VITE_IDP_BASE_URL="${VITE_IDP_BASE_URL:-https://localhost:8090}" \
+    VITE_IDP_BASE_URL="${VITE_IDP_BASE_URL:-$IDP_BASE_URL}" \
     VITE_IDP_CLIENT_ID="${VITE_IDP_CLIENT_ID:-$IDP_CLIENT_ID}" \
+    VITE_IDP_SCOPES="${VITE_IDP_SCOPES:-openid,profile,email,ou}" \
+    VITE_IDP_EXPECTED_OU_HANDLE="${VITE_IDP_EXPECTED_OU_HANDLE:-$OU_HANDLE}" \
     VITE_APP_URL="${VITE_APP_URL:-http://localhost:$FE_PORT}" \
     exec pnpm run dev
   ) &

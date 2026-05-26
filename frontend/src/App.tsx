@@ -6,8 +6,10 @@ import { ConsignmentTasksScreen } from './screens/ConsignmentTasksScreen'
 import { ConsignmentDetailScreen } from './screens/ConsignmentDetailScreen'
 import { appConfig } from './config.ts'
 import { useEffect } from 'react'
-import { SignedOut, useAsgardeo } from '@asgardeo/react'
+import { SignedOut } from '@asgardeo/react'
 import { LoginScreen } from './screens/LoginScreen'
+import { useAuthContext } from './hooks/useAuthContext'
+import { UnauthorizedScreen } from './screens/UnauthorizedScreen'
 import { ApiProvider } from './services/ApiProvider'
 import { useApi } from './services/useApi'
 import { UploadProvider } from '@opennsw/jsonforms-renderers'
@@ -23,10 +25,12 @@ function UploadWrapper({ children }: { children: ReactNode }) {
 }
 
 function ProtectedLayout() {
-  const { isSignedIn, isLoading } = useAsgardeo()
+  const { isSignedIn, isLoading, isAuthorized, isResolvingOrg } = useAuthContext()
 
-  if (isLoading) return null
+  if (isLoading || (isSignedIn && (isResolvingOrg || isAuthorized === null))) return null
   if (!isSignedIn) return <Navigate to="/login" replace />
+  if (isAuthorized === false || isAuthorized === null) return <UnauthorizedScreen />
+
   return (
     <ApiProvider>
       <UploadWrapper>
