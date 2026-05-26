@@ -118,6 +118,17 @@ func TestStatus_NoError(t *testing.T) {
 	}
 }
 
+func TestUp_ErrorsOnGappedVersions(t *testing.T) {
+	m, _ := newTestMigrator(t, map[string]string{
+		"000001_create_foo.sql": "-- @UP\nCREATE TABLE foo (id INTEGER PRIMARY KEY);\n-- @DOWN\nDROP TABLE foo;",
+		"000003_create_bar.sql": "-- @UP\nCREATE TABLE bar (id INTEGER PRIMARY KEY);\n-- @DOWN\nDROP TABLE bar;",
+	})
+
+	if err := m.Up(); err == nil {
+		t.Fatal("Up() expected error for gap in versions, got nil")
+	}
+}
+
 func TestUp_RollsBackOnFailure(t *testing.T) {
 	m, db := newTestMigrator(t, map[string]string{
 		"000001_create_foo.sql": "-- @UP\nCREATE TABLE foo (id INTEGER PRIMARY KEY);\nINVALID SQL HERE;\n-- @DOWN\nDROP TABLE foo;",

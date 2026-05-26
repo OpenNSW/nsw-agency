@@ -46,6 +46,10 @@ func (m *Migrator) Up() error {
 		return err
 	}
 
+	if err := validateSequence(migrations); err != nil {
+		return err
+	}
+
 	count := 0
 	for _, mg := range migrations {
 		if _, ok := applied[mg.Version]; ok {
@@ -270,6 +274,18 @@ func (m *Migrator) Generate(name string) error {
 	}
 
 	fmt.Println("created", path)
+	return nil
+}
+
+// validateSequence ensures migration versions form a contiguous sequence with no gaps.
+func validateSequence(migrations []*Migration) error {
+	for i := 1; i < len(migrations); i++ {
+		if migrations[i].Version != migrations[i-1].Version+1 {
+			return fmt.Errorf("gap in migration versions: missing version between %d (%s) and %d (%s)",
+				migrations[i-1].Version, migrations[i-1].Name,
+				migrations[i].Version, migrations[i].Name)
+		}
+	}
 	return nil
 }
 
