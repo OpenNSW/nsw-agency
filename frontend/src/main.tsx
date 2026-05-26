@@ -39,6 +39,7 @@ void initAppConfig().then(() => {
         clientId={CLIENT_ID}
         baseUrl={IDP_BASE_URL}
         platform={IDP_PLATFORM}
+        signInUrl={APP_URL}
         afterSignInUrl={APP_URL}
         afterSignOutUrl={APP_URL}
         scopes={IDP_SCOPES}
