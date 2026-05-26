@@ -64,6 +64,8 @@ function App() {
         <Route path="/consignments" element={<ConsignmentListScreen />} />
         <Route path="/consignments/:consignmentId/tasks" element={<ConsignmentTasksScreen />} />
         <Route path="/consignments/:consignmentId" element={<ConsignmentDetailScreen />} />
+        <Route path="/workflows" element={<Navigate to="/consignments" replace />} />
+        <Route path="/workflows/:consignmentId" element={<Navigate to="/consignments/:consignmentId" replace />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />
