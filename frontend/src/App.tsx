@@ -27,9 +27,13 @@ function UploadWrapper({ children }: { children: ReactNode }) {
 function ProtectedLayout() {
   const { isSignedIn, isLoading, isAuthorized, isResolvingOrg } = useAuthContext()
 
-  if (isLoading || (isSignedIn && (isResolvingOrg || isAuthorized === null))) return null
+  // Show nothing while the SDK is initialising or we're mid-resolution.
+  // isAuthorized===null here means the effect hasn't run yet, which only
+  // happens during the initial isLoading window — so this is safe.
+  if (isLoading || (isSignedIn && isResolvingOrg)) return null
   if (!isSignedIn) return <Navigate to="/login" replace />
-  if (isAuthorized === false || isAuthorized === null) return <UnauthorizedScreen />
+  // false  = OU mismatch or resolution error; null = effect not yet fired (treat as unauthorized)
+  if (!isAuthorized) return <UnauthorizedScreen />
 
   return (
     <ApiProvider>

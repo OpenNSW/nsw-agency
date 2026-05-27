@@ -5,6 +5,11 @@ import { getExpectedOuHandle } from '../runtimeConfig'
 interface UseAuthContextResult {
   isSignedIn: boolean
   isLoading: boolean
+  /**
+   * null  = not yet resolved (initial state, only while effect hasn't run)
+   * true  = signed in and OU handle matches
+   * false = signed in but OU handle mismatched, missing, or resolution failed
+   */
   isAuthorized: boolean | null
   isResolvingOrg: boolean
 }
@@ -24,6 +29,7 @@ export function useAuthContext(): UseAuthContextResult {
 
       if (!isSignedIn) {
         if (isMounted) {
+          // Reset to null so state is clean for next sign-in attempt
           setIsAuthorized(null)
           setIsResolvingOrg(false)
         }
@@ -46,12 +52,15 @@ export function useAuthContext(): UseAuthContextResult {
         const expectedOu = getExpectedOuHandle()
 
         setIsAuthorized(typeof ouHandle === 'string' && ouHandle === expectedOu)
-      } catch {
+      } catch (err) {
         if (!isMounted) {
           return
         }
 
-        setIsAuthorized(null)
+        // Set to false (not null) so ProtectedLayout renders <UnauthorizedScreen>
+        // instead of a permanent blank page. null is reserved for "not yet resolved".
+        console.error('[useAuthContext] Failed to resolve OU handle:', err)
+        setIsAuthorized(false)
       } finally {
         if (isMounted) {
           setIsResolvingOrg(false)
