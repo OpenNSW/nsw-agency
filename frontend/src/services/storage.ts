@@ -1,5 +1,5 @@
-import type { HttpRequest } from '../api'
 import { API_BASE_URL } from '../constants'
+import { http } from './http'
 
 interface UploadMetadataRequest {
   filename: string
@@ -23,8 +23,8 @@ export interface UploadResponse {
   name: string
 }
 
-export async function uploadFile(request: HttpRequest, file: File): Promise<UploadResponse> {
-  const res = await request({
+export async function uploadFile(file: File): Promise<UploadResponse> {
+  const res = await http.request({
     url: `${API_BASE_URL}/api/v1/storage`,
     method: 'POST',
     data: {
@@ -54,8 +54,8 @@ export async function uploadFile(request: HttpRequest, file: File): Promise<Uplo
   return { key: metadata.key, name: metadata.name }
 }
 
-export async function getDownloadUrl(request: HttpRequest, key: string): Promise<{ url: string; expiresAt: number }> {
-  const res = await request({
+export async function getDownloadUrl(key: string): Promise<{ url: string; expiresAt: number }> {
+  const res = await http.request({
     url: `${API_BASE_URL}/api/v1/storage/${key}`,
     method: 'GET',
     attachToken: true,

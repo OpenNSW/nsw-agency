@@ -2,14 +2,13 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Badge, Text, TextField, Spinner, IconButton } from '@radix-ui/themes'
 import { MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, ArchiveIcon } from '@radix-ui/react-icons'
-import { type ConsignmentSummary } from '../api'
-import { useApi } from '../services/useApi'
+import { type ConsignmentSummary } from '../services/types'
+import { fetchConsignments } from '../services/consignments'
 
 const PAGE_SIZE = 20
 
 export function ConsignmentListScreen() {
   const navigate = useNavigate()
-  const { fetchConsignments } = useApi()
   const [consignments, setConsignments] = useState<ConsignmentSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -44,7 +43,7 @@ export function ConsignmentListScreen() {
     // Poll for new consignments every 15 seconds
     const interval = setInterval(() => void fetchData(true), 15000)
     return () => clearInterval(interval)
-  }, [fetchConsignments, page, searchQuery])
+  }, [page, searchQuery])
 
   // Format date: Jan 27, 2026
   const formatDateForTable = (dateString?: string) => {

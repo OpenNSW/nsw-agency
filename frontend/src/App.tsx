@@ -6,15 +6,14 @@ import { ConsignmentTasksScreen } from './screens/ConsignmentTasksScreen'
 import { ConsignmentDetailScreen } from './screens/ConsignmentDetailScreen'
 import { appConfig } from './config.ts'
 import { useEffect } from 'react'
-import { SignedOut } from '@thunderid/react'
+import { SignedOut } from './components/Auth'
 import { LoginScreen } from './screens/LoginScreen'
 import { useAuthContext } from './hooks/useAuthContext'
 import { UnauthorizedScreen } from './screens/UnauthorizedScreen'
-import { useApi } from './services/useApi'
+import { uploadFile, getDownloadUrl } from './services/storage'
 import { UploadProvider } from '@opennsw/jsonforms-renderers'
 
 function UploadWrapper({ children }: { children: ReactNode }) {
-  const { uploadFile, getDownloadUrl } = useApi()
   return (
     <UploadProvider onUpload={uploadFile} getDownloadUrl={getDownloadUrl}>
       {children}

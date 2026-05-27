@@ -8,11 +8,12 @@ import {
   InfoCircledIcon,
   ChatBubbleIcon,
 } from '@radix-ui/react-icons'
-import { type AgencyApplication } from '../api'
+import { type AgencyApplication } from '../services/types'
 import { JsonForms } from '@jsonforms/react'
 import { radixRenderers } from '@opennsw/jsonforms-renderers'
 import type { JsonSchema, UISchemaElement } from '@jsonforms/core'
-import { useApi } from '../services/useApi'
+import { fetchApplicationDetail, submitReview, submitFeedback } from '../services/applications'
+
 interface SchemaOption {
   const: unknown
   title?: string
@@ -25,7 +26,6 @@ interface SchemaProperty {
 
 export function ConsignmentDetailScreen() {
   const navigate = useNavigate()
-  const { fetchApplicationDetail, submitReview, submitFeedback } = useApi()
 
   const [searchParams] = useSearchParams()
   const taskId = searchParams.get('taskId')
@@ -136,7 +136,7 @@ export function ConsignmentDetailScreen() {
       }
     }
     void fetchData()
-  }, [fetchApplicationDetail, taskId])
+  }, [taskId])
 
   if (loading) {
     return (
