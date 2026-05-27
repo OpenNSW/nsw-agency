@@ -1,8 +1,8 @@
-import { useThunderID } from '@thunderid/react'
+import { useAuth } from 'react-oidc-context'
 import { appConfig } from '../config'
 
 export function LoginScreen() {
-  const { signIn } = useThunderID()
+  const auth = useAuth()
   const { systemName, appName, logoUrl, portalName, description, heroImageUrl, partnerLogos } = appConfig.branding
 
   return (
@@ -39,7 +39,7 @@ export function LoginScreen() {
 
               <button
                 onClick={() => {
-                  void signIn()
+                  void auth.signinRedirect()
                 }}
                 className="bg-primary-500 hover:bg-primary-600 text-white px-10 py-2.5 rounded-2xl text-lg font-bold transition-all hover:scale-105 active:scale-95 shadow-lg cursor-pointer"
               >

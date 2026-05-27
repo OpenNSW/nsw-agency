@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react'
-import { useThunderID } from '@thunderid/react'
+import { useAuth } from 'react-oidc-context'
 import { getExpectedOuHandle } from '../runtimeConfig'
 
 interface UseAuthContextResult {
@@ -10,52 +9,29 @@ interface UseAuthContextResult {
 }
 
 export function useAuthContext(): UseAuthContextResult {
-  const { isSignedIn, isLoading, getDecodedIdToken } = useThunderID()
-  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null)
-  const [isResolvingOrg, setIsResolvingOrg] = useState(false)
+  const auth = useAuth()
 
-  useEffect(() => {
-    let isMounted = true
+  const isSignedIn = auth.isAuthenticated
+  const isLoading = auth.isLoading
 
-    const resolveOuHandle = async () => {
-      if (isLoading) return
+  let isAuthorized: boolean | null = null
 
-      if (!isSignedIn) {
-        if (isMounted) {
-          setIsAuthorized(null)
-          setIsResolvingOrg(false)
-        }
-        return
-      }
-
-      // Resolve expected OU before any async work so a misconfigured env var throws
-      // immediately (loudly) rather than being swallowed by the catch below.
+  if (isSignedIn && auth.user) {
+    try {
       const expectedOu = getExpectedOuHandle()
-
-      if (isMounted) setIsResolvingOrg(true)
-      try {
-        const decodedToken = await getDecodedIdToken()
-        if (!isMounted) return
-
-        // Thunder issues `ouHandle` when the `ou` scope is requested.
-        // Narrow from `any` explicitly via a typeof guard.
-        // If `ouHandle` is absent the token was issued without the `ou` scope —
-        // deny access so the server configuration is fixed rather than silently bypassed.
-        const ouHandle = typeof decodedToken.ouHandle === 'string' ? decodedToken.ouHandle : undefined
-        setIsAuthorized(ouHandle === expectedOu)
-      } catch {
-        if (isMounted) setIsAuthorized(null)
-      } finally {
-        if (isMounted) setIsResolvingOrg(false)
-      }
+      const profile = auth.user.profile as Record<string, unknown>
+      const ouHandle = typeof profile.ouHandle === 'string' ? profile.ouHandle : undefined
+      isAuthorized = ouHandle === expectedOu
+    } catch (e) {
+      console.error('Error verifying organization handle:', e)
+      isAuthorized = false
     }
+  }
 
-    void resolveOuHandle()
-
-    return () => {
-      isMounted = false
-    }
-  }, [getDecodedIdToken, isLoading, isSignedIn])
-
-  return { isSignedIn, isLoading, isAuthorized, isResolvingOrg }
+  return {
+    isSignedIn,
+    isLoading,
+    isAuthorized,
+    isResolvingOrg: false,
+  }
 }

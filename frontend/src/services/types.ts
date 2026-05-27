@@ -1,0 +1,57 @@
+import type { JsonSchema, UISchemaElement } from '@jsonforms/core'
+
+export interface ReviewResponse {
+  success: boolean
+  message?: string
+  error?: string
+}
+
+export interface FeedbackEntry {
+  content: Record<string, unknown>
+  timestamp: string
+  round: number
+}
+
+export interface FormDefinition {
+  schema: JsonSchema
+  uiSchema: UISchemaElement
+}
+
+export interface AgencyApplication {
+  taskId: string
+  consignmentId: string
+  serviceUrl: string
+  data: Record<string, unknown>
+  agencyActionData?: Record<string, unknown>
+
+  // Task metadata from config
+  title?: string
+  description?: string
+  icon?: string
+  category?: string
+
+  // Form definitions
+  dataForm?: FormDefinition
+  agencyForm?: FormDefinition
+
+  status: string
+  feedbackHistory?: FeedbackEntry[]
+  reviewerNotes?: string
+  reviewedAt?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ConsignmentSummary {
+  consignmentId: string
+  updatedAt: string
+  status: string
+  taskCount: number
+}
+
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  page: number
+  pageSize: number
+}
