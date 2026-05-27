@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useAsgardeo } from '@asgardeo/react'
+import { useThunderID } from '@thunderid/react'
 import { getExpectedOuHandle } from '../runtimeConfig'
 
 interface UseAuthContextResult {
@@ -10,7 +10,7 @@ interface UseAuthContextResult {
 }
 
 export function useAuthContext(): UseAuthContextResult {
-  const { isSignedIn, isLoading, getDecodedIdToken } = useAsgardeo()
+  const { isSignedIn, isLoading, getDecodedIdToken } = useThunderID()
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null)
   const [isResolvingOrg, setIsResolvingOrg] = useState(false)
 
@@ -18,9 +18,7 @@ export function useAuthContext(): UseAuthContextResult {
     let isMounted = true
 
     const resolveOuHandle = async () => {
-      if (isLoading) {
-        return
-      }
+      if (isLoading) return
 
       if (!isSignedIn) {
         if (isMounted) {
@@ -30,32 +28,25 @@ export function useAuthContext(): UseAuthContextResult {
         return
       }
 
-      setIsResolvingOrg(true)
+      // Resolve expected OU before any async work so a misconfigured env var throws
+      // immediately (loudly) rather than being swallowed by the catch below.
+      const expectedOu = getExpectedOuHandle()
+
+      if (isMounted) setIsResolvingOrg(true)
       try {
-        const decodedIdToken = await getDecodedIdToken()
-        if (!isMounted) {
-          return
-        }
+        const decodedToken = await getDecodedIdToken()
+        if (!isMounted) return
 
-        const payload =
-          (decodedIdToken as { decodedIDTokenPayload?: unknown })?.decodedIDTokenPayload ??
-          (decodedIdToken as { payload?: unknown })?.payload ??
-          decodedIdToken
-
-        const ouHandle = (payload as { ouHandle?: unknown })?.ouHandle
-        const expectedOu = getExpectedOuHandle()
-
-        setIsAuthorized(typeof ouHandle === 'string' && ouHandle === expectedOu)
+        // Thunder issues `ouHandle` when the `ou` scope is requested.
+        // Narrow from `any` explicitly via a typeof guard.
+        // If `ouHandle` is absent the token was issued without the `ou` scope —
+        // deny access so the server configuration is fixed rather than silently bypassed.
+        const ouHandle = typeof decodedToken.ouHandle === 'string' ? decodedToken.ouHandle : undefined
+        setIsAuthorized(ouHandle === expectedOu)
       } catch {
-        if (!isMounted) {
-          return
-        }
-
-        setIsAuthorized(null)
+        if (isMounted) setIsAuthorized(null)
       } finally {
-        if (isMounted) {
-          setIsResolvingOrg(false)
-        }
+        if (isMounted) setIsResolvingOrg(false)
       }
     }
 
@@ -66,10 +57,5 @@ export function useAuthContext(): UseAuthContextResult {
     }
   }, [getDecodedIdToken, isLoading, isSignedIn])
 
-  return {
-    isSignedIn,
-    isLoading,
-    isAuthorized,
-    isResolvingOrg,
-  }
+  return { isSignedIn, isLoading, isAuthorized, isResolvingOrg }
 }

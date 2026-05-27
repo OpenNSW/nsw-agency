@@ -1,10 +1,10 @@
 import { useCallback } from 'react'
-import { useAsgardeo } from '@asgardeo/react'
+import { useThunderID } from '@thunderid/react'
 
 type SignOutFn = (options?: unknown, callback?: (url: string) => void) => Promise<unknown>
 
 export function useSignOutHandler(): () => void {
-  const { signOut } = useAsgardeo() as unknown as { signOut: SignOutFn }
+  const { signOut } = useThunderID() as unknown as { signOut: SignOutFn }
 
   return useCallback(() => {
     void (async () => {

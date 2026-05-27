@@ -8,7 +8,7 @@ import {
   InfoCircledIcon,
   ChatBubbleIcon,
 } from '@radix-ui/react-icons'
-import { fetchApplicationDetail, submitReview, type AgencyApplication } from '../api'
+import { type AgencyApplication } from '../api'
 import { JsonForms } from '@jsonforms/react'
 import { radixRenderers } from '@opennsw/jsonforms-renderers'
 import type { JsonSchema, UISchemaElement } from '@jsonforms/core'
@@ -25,7 +25,7 @@ interface SchemaProperty {
 
 export function ConsignmentDetailScreen() {
   const navigate = useNavigate()
-  const apiClient = useApi()
+  const { fetchApplicationDetail, submitReview, submitFeedback } = useApi()
 
   const [searchParams] = useSearchParams()
   const taskId = searchParams.get('taskId')
@@ -42,6 +42,26 @@ export function ConsignmentDetailScreen() {
   const [agencyFormData, setAgencyFormData] = useState<Record<string, unknown>>({})
   const [formErrors, setFormErrors] = useState<unknown[]>([])
 
+  const [activeTab, setActiveTab] = useState('review')
+  const [showFeedbackInput, setShowFeedbackInput] = useState(false)
+  const [feedbackText, setFeedbackText] = useState('')
+  const [isSendingFeedback, setIsSendingFeedback] = useState(false)
+
+  const handleSendFeedback = async () => {
+    if (!taskId || !feedbackText.trim()) return
+    setIsSendingFeedback(true)
+    setError(null)
+    try {
+      await submitFeedback(taskId, { feedback: feedbackText.trim() })
+      setSuccess(true)
+      setTimeout(() => navigate('/consignments'), 2000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send feedback')
+    } finally {
+      setIsSendingFeedback(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!taskId || !application) {
@@ -55,7 +75,7 @@ export function ConsignmentDetailScreen() {
     setIsSubmitting(true)
     setError(null)
     try {
-      await submitReview(apiClient, taskId, agencyFormData)
+      await submitReview(taskId, agencyFormData)
       setSuccess(true)
       setTimeout(() => navigate('/consignments'), 500)
     } catch (err) {
@@ -73,7 +93,7 @@ export function ConsignmentDetailScreen() {
         return
       }
       try {
-        const data = await fetchApplicationDetail(apiClient, taskId)
+        const data = await fetchApplicationDetail(taskId)
         setApplication(data)
         if (data.agencyForm) {
           const schema = structuredClone(data.agencyForm.schema)
@@ -116,7 +136,7 @@ export function ConsignmentDetailScreen() {
       }
     }
     void fetchData()
-  }, [apiClient, taskId])
+  }, [fetchApplicationDetail, taskId])
 
   if (loading) {
     return (
