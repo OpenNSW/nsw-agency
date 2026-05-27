@@ -1,10 +1,53 @@
 import { BellIcon, MagnifyingGlassIcon } from '@radix-ui/react-icons'
-import { SignedIn, SignedOut, SignInButton, UserDropdown, useAsgardeo } from '@asgardeo/react'
+import { SignedIn, SignedOut, SignInButton, useAsgardeo } from '@asgardeo/react'
 import { appConfig } from '../../config'
+import { useState, useEffect, useRef } from 'react'
 
 export function TopBar() {
-  const { signOut } = useAsgardeo() as unknown as {
+  const { signOut, getDecodedIdToken } = useAsgardeo() as unknown as {
     signOut: (options?: unknown, callback?: (url: string) => void) => Promise<unknown>
+    getDecodedIdToken: () => Promise<unknown>
+  }
+
+  const [userInfo, setUserInfo] = useState<{ name?: string; email?: string } | null>(null)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    getDecodedIdToken()
+      .then((decoded) => {
+        const payload =
+          (decoded as { decodedIDTokenPayload?: any })?.decodedIDTokenPayload ??
+          (decoded as { payload?: any })?.payload ??
+          decoded
+        const name = payload?.name ?? `${payload?.given_name ?? ''} ${payload?.family_name ?? ''}`.trim()
+        setUserInfo({
+          name: name || payload?.username || 'User',
+          email: payload?.email || '',
+        })
+      })
+      .catch(() => {})
+  }, [getDecodedIdToken])
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+
+  const getInitials = (name: string) => {
+    if (!name) return 'U'
+    const parts = name.split(' ')
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase()
+    }
+    return name.slice(0, 2).toUpperCase()
   }
 
   const handleSignOut = async () => {
@@ -58,11 +101,32 @@ export function TopBar() {
         {/* User */}
         <div className="flex items-center gap-3 pl-3 border-l border-gray-200">
           <SignedIn>
-            <UserDropdown
-              onSignOut={() => {
-                void handleSignOut()
-              }}
-            />
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="flex items-center justify-center w-9 h-9 rounded-full bg-blue-600 text-white font-semibold text-sm cursor-pointer shadow-sm hover:bg-blue-700 active:scale-95 transition-all"
+              >
+                {userInfo ? getInitials(userInfo.name || '') : 'U'}
+              </button>
+
+              {isMenuOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-100 rounded-xl shadow-lg py-2 z-50">
+                  <div className="px-4 py-2 border-b border-gray-50">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{userInfo?.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{userInfo?.email}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setIsMenuOpen(false)
+                      void handleSignOut()
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 cursor-pointer flex items-center gap-2 transition-colors"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
           </SignedIn>
           <SignedOut>
             <SignInButton />
