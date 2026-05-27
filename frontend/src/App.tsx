@@ -6,19 +6,17 @@ import { ConsignmentTasksScreen } from './screens/ConsignmentTasksScreen'
 import { ConsignmentDetailScreen } from './screens/ConsignmentDetailScreen'
 import { appConfig } from './config.ts'
 import { useEffect } from 'react'
-import { SignedOut } from '@asgardeo/react'
+import { SignedOut } from '@thunderid/react'
 import { LoginScreen } from './screens/LoginScreen'
 import { useAuthContext } from './hooks/useAuthContext'
 import { UnauthorizedScreen } from './screens/UnauthorizedScreen'
-import { ApiProvider } from './services/ApiProvider'
 import { useApi } from './services/useApi'
 import { UploadProvider } from '@opennsw/jsonforms-renderers'
-import { uploadFile, getDownloadUrl } from './services/storage'
 
 function UploadWrapper({ children }: { children: ReactNode }) {
-  const api = useApi()
+  const { uploadFile, getDownloadUrl } = useApi()
   return (
-    <UploadProvider onUpload={(file) => uploadFile(api, file)} getDownloadUrl={(key) => getDownloadUrl(api, key)}>
+    <UploadProvider onUpload={uploadFile} getDownloadUrl={getDownloadUrl}>
       {children}
     </UploadProvider>
   )
@@ -29,14 +27,12 @@ function ProtectedLayout() {
 
   if (isLoading || (isSignedIn && (isResolvingOrg || isAuthorized === null))) return null
   if (!isSignedIn) return <Navigate to="/login" replace />
-  if (isAuthorized === false || isAuthorized === null) return <UnauthorizedScreen />
+  if (isAuthorized === false) return <UnauthorizedScreen />
 
   return (
-    <ApiProvider>
-      <UploadWrapper>
-        <Layout />
-      </UploadWrapper>
-    </ApiProvider>
+    <UploadWrapper>
+      <Layout />
+    </UploadWrapper>
   )
 }
 

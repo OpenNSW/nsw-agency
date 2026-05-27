@@ -1,8 +1,8 @@
-import { useAsgardeo } from '@asgardeo/react'
+import { useThunderID } from '@thunderid/react'
 import { appConfig } from '../config'
 
 export function LoginScreen() {
-  const { signIn } = useAsgardeo()
+  const { signIn } = useThunderID()
   const { systemName, appName, logoUrl, portalName, description, heroImageUrl, partnerLogos } = appConfig.branding
 
   return (

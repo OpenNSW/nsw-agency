@@ -1,4 +1,4 @@
-import type { ApiClient } from '../api'
+import type { HttpRequest } from '../api'
 import { API_BASE_URL } from '../constants'
 
 interface UploadMetadataRequest {
@@ -23,14 +23,20 @@ export interface UploadResponse {
   name: string
 }
 
-export async function uploadFile(apiClient: ApiClient, file: File): Promise<UploadResponse> {
-  const metadata = await apiClient.post<UploadMetadataRequest, UploadMetadataResponse>('/api/v1/storage', {
-    filename: file.name,
-    mime_type: file.type || 'application/octet-stream',
-    size: file.size,
+export async function uploadFile(request: HttpRequest, file: File): Promise<UploadResponse> {
+  const res = await request({
+    url: `${API_BASE_URL}/api/v1/storage`,
+    method: 'POST',
+    data: {
+      filename: file.name,
+      mime_type: file.type || 'application/octet-stream',
+      size: file.size,
+    } satisfies UploadMetadataRequest,
+    attachToken: true,
   })
+  const metadata = res.data as UploadMetadataResponse
 
-  // Upload file bytes directly to the storage destination (presigned URL)
+  // Upload file bytes directly to the storage destination (presigned URL — no auth header needed)
   const uploadResponse = await fetch(metadata.upload_url, {
     method: 'PUT',
     headers: {
@@ -48,8 +54,13 @@ export async function uploadFile(apiClient: ApiClient, file: File): Promise<Uplo
   return { key: metadata.key, name: metadata.name }
 }
 
-export async function getDownloadUrl(apiClient: ApiClient, key: string): Promise<{ url: string; expiresAt: number }> {
-  const response = await apiClient.get<DownloadMetadataResponse>(`/api/v1/storage/${key}`)
+export async function getDownloadUrl(request: HttpRequest, key: string): Promise<{ url: string; expiresAt: number }> {
+  const res = await request({
+    url: `${API_BASE_URL}/api/v1/storage/${key}`,
+    method: 'GET',
+    attachToken: true,
+  })
+  const response = res.data as DownloadMetadataResponse
 
   // Normalize the URL if it's a relative path (common in local dev)
   const url = response.download_url.startsWith('/')
