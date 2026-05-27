@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Button, Badge, Spinner, Text, Card, Flex, Box, Callout, Tabs } from '@radix-ui/themes'
+import { Button, Badge, Spinner, Text, Card, Flex, Box, Callout } from '@radix-ui/themes'
 import {
   ArrowLeftIcon,
   CheckCircledIcon,
@@ -8,11 +8,20 @@ import {
   InfoCircledIcon,
   ChatBubbleIcon,
 } from '@radix-ui/react-icons'
-import { fetchApplicationDetail, submitReview, submitFeedback, type AgencyApplication } from '../api'
+import { fetchApplicationDetail, submitReview, type AgencyApplication } from '../api'
 import { JsonForms } from '@jsonforms/react'
 import { radixRenderers } from '@opennsw/jsonforms-renderers'
 import type { JsonSchema, UISchemaElement } from '@jsonforms/core'
 import { useApi } from '../services/useApi'
+interface SchemaOption {
+  const: unknown
+  title?: string
+}
+
+interface SchemaProperty {
+  oneOf?: SchemaOption[]
+  enum?: string[]
+}
 
 export function ConsignmentDetailScreen() {
   const navigate = useNavigate()
@@ -33,26 +42,6 @@ export function ConsignmentDetailScreen() {
   const [agencyFormData, setAgencyFormData] = useState<Record<string, unknown>>({})
   const [formErrors, setFormErrors] = useState<unknown[]>([])
 
-  const [activeTab, setActiveTab] = useState('review')
-  const [showFeedbackInput, setShowFeedbackInput] = useState(false)
-  const [feedbackText, setFeedbackText] = useState('')
-  const [isSendingFeedback, setIsSendingFeedback] = useState(false)
-
-  const handleSendFeedback = async () => {
-    if (!taskId || !feedbackText.trim()) return
-    setIsSendingFeedback(true)
-    setError(null)
-    try {
-      await submitFeedback(apiClient, taskId, { feedback: feedbackText.trim() })
-      setSuccess(true)
-      setTimeout(() => navigate('/consignments'), 2000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send feedback')
-    } finally {
-      setIsSendingFeedback(false)
-    }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!taskId || !application) {
@@ -68,7 +57,7 @@ export function ConsignmentDetailScreen() {
     try {
       await submitReview(apiClient, taskId, agencyFormData)
       setSuccess(true)
-      setTimeout(() => navigate('/consignments'), 2000)
+      setTimeout(() => navigate('/consignments'), 500)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit review')
     } finally {
@@ -87,7 +76,34 @@ export function ConsignmentDetailScreen() {
         const data = await fetchApplicationDetail(apiClient, taskId)
         setApplication(data)
         if (data.agencyForm) {
-          setAgencyFormConfig({ schema: data.agencyForm.schema, uiSchema: data.agencyForm.uiSchema })
+          const schema = structuredClone(data.agencyForm.schema)
+          const capitalizeOptions = (prop: SchemaProperty) => {
+            if (prop.oneOf) {
+              prop.oneOf = prop.oneOf.map((opt) => {
+                const titleVal = opt.title || String(opt.const)
+                const formattedTitle = titleVal
+                  .split(/[_\s]+/)
+                  .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                  .join(' ')
+                return { ...opt, title: formattedTitle }
+              })
+            } else if (prop.enum) {
+              prop.oneOf = prop.enum.map((val: string) => {
+                const title = val
+                  .split(/[_\s]+/)
+                  .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                  .join(' ')
+                return { const: val, title }
+              })
+              delete prop.enum
+            }
+          }
+          if (schema.properties) {
+            Object.values(schema.properties).forEach((prop) => {
+              capitalizeOptions(prop as SchemaProperty)
+            })
+          }
+          setAgencyFormConfig({ schema, uiSchema: data.agencyForm.uiSchema })
         } else {
           setAgencyFormConfig(null)
         }
@@ -158,7 +174,6 @@ export function ConsignmentDetailScreen() {
   }
 
   const isActionable = application.status === 'PENDING'
-  const feedbackCount = application.feedbackHistory?.length ?? 0
 
   const statusColor =
     application.status === 'APPROVED'
@@ -170,7 +185,7 @@ export function ConsignmentDetailScreen() {
           : 'blue'
 
   return (
-    <div className="animate-fade-in max-w-5xl mx-auto">
+    <div className="animate-fade-in max-w-6xl mx-auto">
       <Flex justify="between" align="center" mb="6">
         <Button
           variant="ghost"
@@ -220,14 +235,86 @@ export function ConsignmentDetailScreen() {
         </Callout.Root>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Info */}
-        <div className="lg:col-span-1 space-y-6">
+      {(application.status === 'APPROVED' || application.status === 'REJECTED') && (
+        <Callout.Root color={application.status === 'APPROVED' ? 'green' : 'red'} mb="6">
+          <Callout.Icon>
+            {application.status === 'APPROVED' ? <CheckCircledIcon /> : <ExclamationTriangleIcon />}
+          </Callout.Icon>
+          <Callout.Text>This application has been {application.status.toLowerCase()}.</Callout.Text>
+        </Callout.Root>
+      )}
+
+      <div className="space-y-6">
+        {/* Main Column */}
+        <div className="space-y-6">
+          {/* Review form is now at the very top of the page */}
+          <Box className="bg-white rounded-lg p-5 border border-gray-200">
+            <Text
+              size="2"
+              weight="bold"
+              color="gray"
+              mb="3"
+              as="div"
+              className="uppercase tracking-wider flex items-center gap-2"
+            >
+              <InfoCircledIcon />
+              Review
+            </Text>
+            {agencyFormConfig && isActionable ? (
+              <form
+                onSubmit={(event) => {
+                  void handleSubmit(event)
+                }}
+                noValidate
+              >
+                <JsonForms
+                  schema={agencyFormConfig.schema}
+                  uischema={agencyFormConfig.uiSchema}
+                  data={agencyFormData}
+                  renderers={radixRenderers}
+                  onChange={({ data, errors }: { data: Record<string, unknown>; errors?: unknown[] }) => {
+                    setAgencyFormData(data)
+                    setFormErrors(errors || [])
+                  }}
+                />
+                <Flex justify="end" gap="3" mt="6">
+                  <Button
+                    variant="soft"
+                    color="gray"
+                    onClick={() => {
+                      void navigate('/consignments')
+                    }}
+                    disabled={isSubmitting}
+                    type="button"
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? <Spinner size="1" /> : null}
+                    Submit Review
+                  </Button>
+                </Flex>
+              </form>
+            ) : agencyFormConfig ? (
+              <JsonForms
+                schema={agencyFormConfig.schema}
+                uischema={agencyFormConfig.uiSchema}
+                data={agencyFormData}
+                renderers={radixRenderers}
+                readonly
+                onChange={({ data, errors }: { data: Record<string, unknown>; errors?: unknown[] }) => {
+                  setAgencyFormData(data)
+                  setFormErrors(errors || [])
+                }}
+              />
+            ) : null}
+          </Box>
+
           <Card size="2">
             <Text size="2" weight="bold" color="gray" mb="3" as="div" className="uppercase tracking-wider">
               Application Details
             </Text>
-            <div className="space-y-4 mt-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
               <Box>
                 <Text size="1" color="gray" as="div" mb="1">
                   Consignment ID
@@ -251,45 +338,91 @@ export function ConsignmentDetailScreen() {
                 <Text size="2" weight="medium">
                   {(() => {
                     const date = new Date(application.createdAt)
-                    const datePart = date.toLocaleDateString('en-US', {
+                    return `${date.toLocaleDateString(undefined, {
                       month: 'long',
                       day: 'numeric',
                       year: 'numeric',
-                    })
-                    const timePart = date.toLocaleTimeString('en-US', {
+                    })} at ${date.toLocaleTimeString(undefined, {
                       hour: '2-digit',
                       minute: '2-digit',
                       hour12: true,
-                    })
-                    return `${datePart} at ${timePart}`
+                    })}`
                   })()}
                 </Text>
               </Box>
-              {application.reviewedAt && (
+            </div>
+          </Card>
+
+          <Box className="bg-white rounded-lg p-5 border border-gray-200">
+            <Text
+              size="2"
+              weight="bold"
+              color="gray"
+              mb="3"
+              as="div"
+              className="uppercase tracking-wider flex items-center gap-2"
+            >
+              <InfoCircledIcon />
+              Submitted Information
+            </Text>
+            {(() => {
+              if (application.dataForm) {
+                return (
+                  <JsonForms
+                    schema={application.dataForm.schema}
+                    uischema={application.dataForm.uiSchema}
+                    data={application.data}
+                    renderers={radixRenderers}
+                    readonly={true}
+                  />
+                )
+              }
+
+              if (application.data && Object.keys(application.data).length > 0) {
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {Object.entries(application.data).map(([key, value]) => (
+                      <Box key={key}>
+                        <Text size="1" color="gray" as="div" className="capitalize mb-1">
+                          {key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ')}
+                        </Text>
+                        <Text size="2" weight="medium">
+                          {typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value)}
+                        </Text>
+                      </Box>
+                    ))}
+                  </div>
+                )
+              }
+
+              return (
+                <Text size="2" color="gray" className="italic">
+                  No submission data available
+                </Text>
+              )
+            })()}
+          </Box>
+        </div>
+
+        {/* Sidebar elements now at the bottom of the main flow */}
+        <div className="space-y-6">
+          {application.reviewedAt && (
+            <Card size="2">
+              <Text size="2" weight="bold" color="gray" mb="3" as="div" className="uppercase tracking-wider">
+                Review Metadata
+              </Text>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
                 <Box>
                   <Text size="1" color="gray" as="div" mb="1">
                     Reviewed On
                   </Text>
                   <Text size="2" weight="medium">
-                    {(() => {
-                      const date = new Date(application.reviewedAt)
-                      const datePart = date.toLocaleDateString('en-US', {
-                        month: 'long',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })
-                      const timePart = date.toLocaleTimeString('en-US', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: true,
-                      })
-                      return `${datePart} at ${timePart}`
-                    })()}
+                    {new Date(application.reviewedAt).toLocaleString()}
                   </Text>
                 </Box>
-              )}
-            </div>
-          </Card>
+              </div>
+            </Card>
+          )}
 
           {application.reviewerNotes && application.status !== 'PENDING' && (
             <Card size="2">
@@ -301,259 +434,39 @@ export function ConsignmentDetailScreen() {
               </Text>
             </Card>
           )}
-        </div>
 
-        {/* Right Column: Tabbed content */}
-        <div className="lg:col-span-2">
-          <Card size="3">
-            {(application.status === 'APPROVED' || application.status === 'REJECTED') && (
-              <Callout.Root color={application.status === 'APPROVED' ? 'green' : 'red'} mb="4">
-                <Callout.Icon>
-                  {application.status === 'APPROVED' ? <CheckCircledIcon /> : <ExclamationTriangleIcon />}
-                </Callout.Icon>
-                <Callout.Text>This application has been {application.status.toLowerCase()}.</Callout.Text>
-              </Callout.Root>
-            )}
-
-            {/* Submitted Information — always visible, above the tab bar */}
-            <div className="bg-gray-50 rounded-lg p-5 border border-gray-200 mb-5">
+          {application.feedbackHistory && application.feedbackHistory.length > 0 && (
+            <Box className="bg-white rounded-lg p-5 border border-gray-200">
               <Text
                 size="2"
                 weight="bold"
                 color="gray"
-                mb="4"
+                mb="3"
                 as="div"
                 className="uppercase tracking-wider flex items-center gap-2"
               >
-                <InfoCircledIcon />
-                Submitted Information
+                <ChatBubbleIcon />
+                Feedback History
               </Text>
-              {(() => {
-                if (application.dataForm) {
-                  return (
-                    <Box className="bg-white p-4 rounded border border-gray-100">
-                      <JsonForms
-                        schema={application.dataForm.schema}
-                        uischema={application.dataForm.uiSchema}
-                        data={application.data}
-                        renderers={radixRenderers}
-                        readonly={true}
-                      />
-                    </Box>
-                  )
-                }
-
-                if (application.data && Object.keys(application.data).length > 0) {
-                  return (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {Object.entries(application.data).map(([key, value]) => (
-                        <Box key={key} className="bg-white p-3 rounded border border-gray-100">
-                          <Text size="1" color="gray" as="div" className="capitalize mb-1">
-                            {key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ')}
-                          </Text>
-                          <Text size="2" weight="medium">
-                            {typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value)}
-                          </Text>
-                        </Box>
-                      ))}
-                    </div>
-                  )
-                }
-
-                return (
-                  <Text size="2" color="gray" className="italic text-center py-2">
-                    No submission data available
-                  </Text>
-                )
-              })()}
-            </div>
-
-            <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
-              <Tabs.List>
-                <Tabs.Trigger value="review">
-                  <Flex align="center" gap="2">
-                    <InfoCircledIcon />
-                    Review
-                  </Flex>
-                </Tabs.Trigger>
-                <Tabs.Trigger value="comments">
-                  <Flex align="center" gap="2">
-                    <ChatBubbleIcon />
-                    Comments
-                    {feedbackCount > 0 && (
-                      <Badge color="amber" size="1" variant="solid" radius="full">
-                        {feedbackCount}
-                      </Badge>
-                    )}
-                  </Flex>
-                </Tabs.Trigger>
-              </Tabs.List>
-
-              <Box pt="4">
-                {/* Review Tab */}
-                <Tabs.Content value="review">
-                  {agencyFormConfig && isActionable ? (
-                    <form
-                      onSubmit={(event) => {
-                        void handleSubmit(event)
-                      }}
-                      noValidate
-                    >
-                      <JsonForms
-                        schema={agencyFormConfig.schema}
-                        uischema={agencyFormConfig.uiSchema}
-                        data={agencyFormData}
-                        renderers={radixRenderers}
-                        onChange={({ data, errors }: { data: Record<string, unknown>; errors?: unknown[] }) => {
-                          setAgencyFormData(data)
-                          setFormErrors(errors || [])
-                        }}
-                      />
-                      <Flex justify="end" gap="3" mt="6">
-                        <Button
-                          variant="soft"
-                          color="gray"
-                          onClick={() => {
-                            void navigate('/consignments')
-                          }}
-                          disabled={isSubmitting || isSendingFeedback}
-                          type="button"
-                        >
-                          Cancel
-                        </Button>
-                        {application.status !== 'FEEDBACK_REQUESTED' && (
-                          <Button
-                            variant="soft"
-                            color="amber"
-                            type="button"
-                            disabled={isSubmitting || isSendingFeedback}
-                            onClick={() => {
-                              setShowFeedbackInput(true)
-                              setActiveTab('comments')
-                            }}
-                          >
-                            Request Changes
-                          </Button>
-                        )}
-                        <Button type="submit" disabled={isSubmitting || isSendingFeedback}>
-                          {isSubmitting ? <Spinner size="1" /> : null}
-                          Submit Review
-                        </Button>
-                      </Flex>
-                    </form>
-                  ) : agencyFormConfig ? (
-                    <JsonForms
-                      schema={agencyFormConfig.schema}
-                      uischema={agencyFormConfig.uiSchema}
-                      data={agencyFormData}
-                      renderers={radixRenderers}
-                      readonly
-                      onChange={({ data, errors }: { data: Record<string, unknown>; errors?: unknown[] }) => {
-                        setAgencyFormData(data)
-                        setFormErrors(errors || [])
-                      }}
-                    />
-                  ) : null}
-                </Tabs.Content>
-
-                {/* Comments Tab */}
-                <Tabs.Content value="comments">
-                  <div className="space-y-4">
-                    {feedbackCount > 0 ? (
-                      <div className="rounded-lg border border-amber-200 overflow-hidden">
-                        <div className="bg-amber-50 px-4 py-2 border-b border-amber-200">
-                          <Text size="1" weight="bold" className="uppercase tracking-wider text-amber-700">
-                            Feedback History
-                          </Text>
-                        </div>
-                        <div className="divide-y divide-amber-100">
-                          {application.feedbackHistory!.map((entry) => (
-                            <div key={entry.round} className="bg-white px-4 py-3">
-                              <Flex justify="between" mb="1">
-                                <Text size="1" weight="bold" color="amber">
-                                  Round {entry.round}
-                                </Text>
-                                <Text size="1" color="gray">
-                                  {new Date(entry.timestamp).toLocaleString()}
-                                </Text>
-                              </Flex>
-                              <Text size="2" className="whitespace-pre-wrap">
-                                {entry.content.feedback as string}
-                              </Text>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : !showFeedbackInput ? (
-                      <Text size="2" color="gray" className="italic text-center py-8">
-                        No comments yet.
+              <div className="divide-y divide-gray-100">
+                {application.feedbackHistory.map((entry) => (
+                  <div key={entry.round} className="py-3 first:pt-0 last:pb-0">
+                    <Flex justify="between" mb="1">
+                      <Text size="1" weight="bold" color="amber">
+                        Round {entry.round}
                       </Text>
-                    ) : null}
-
-                    {showFeedbackInput && (
-                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                        <Text size="2" weight="bold" color="amber" as="div" mb="2">
-                          Request Changes
-                        </Text>
-                        <textarea
-                          className="w-full rounded border border-amber-300 bg-white p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-400"
-                          rows={4}
-                          placeholder="Describe what the trader needs to correct..."
-                          value={feedbackText}
-                          onChange={(e) => setFeedbackText(e.target.value)}
-                        />
-                        <Flex gap="2" mt="2" justify="end">
-                          <Button
-                            variant="soft"
-                            color="gray"
-                            size="2"
-                            type="button"
-                            onClick={() => {
-                              setShowFeedbackInput(false)
-                              setFeedbackText('')
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            color="amber"
-                            size="2"
-                            type="button"
-                            disabled={isSendingFeedback || !feedbackText.trim()}
-                            onClick={() => {
-                              void handleSendFeedback()
-                            }}
-                          >
-                            {isSendingFeedback ? <Spinner size="1" /> : null}
-                            Send Feedback
-                          </Button>
-                        </Flex>
-                      </div>
-                    )}
-
-                    {application.status === 'PENDING' && !showFeedbackInput && (
-                      <Flex justify="end">
-                        <Button variant="soft" color="amber" type="button" onClick={() => setShowFeedbackInput(true)}>
-                          Request Changes
-                        </Button>
-                      </Flex>
-                    )}
-
-                    {application.status === 'FEEDBACK_REQUESTED' && (
-                      <Callout.Root color="amber" variant="surface">
-                        <Callout.Icon>
-                          <ChatBubbleIcon />
-                        </Callout.Icon>
-                        <Callout.Text>
-                          Feedback has been sent. Awaiting trader resubmission before further changes can be requested.
-                        </Callout.Text>
-                      </Callout.Root>
-                    )}
+                      <Text size="1" color="gray">
+                        {new Date(entry.timestamp).toLocaleString()}
+                      </Text>
+                    </Flex>
+                    <Text size="2" className="whitespace-pre-wrap">
+                      {entry.content.feedback as string}
+                    </Text>
                   </div>
-                </Tabs.Content>
-              </Box>
-            </Tabs.Root>
-          </Card>
+                ))}
+              </div>
+            </Box>
+          )}
         </div>
       </div>
     </div>
