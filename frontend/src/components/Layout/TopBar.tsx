@@ -1,9 +1,9 @@
 import { BellIcon, MagnifyingGlassIcon } from '@radix-ui/react-icons'
-import { SignedIn, SignedOut, SignInButton, UserDropdown, useAsgardeo } from '@asgardeo/react'
+import { SignedIn, SignedOut, SignInButton, UserDropdown, useThunderID } from '@thunderid/react'
 import { appConfig } from '../../config'
 
 export function TopBar() {
-  const { signOut } = useAsgardeo() as unknown as {
+  const { signOut } = useThunderID() as unknown as {
     signOut: (options?: unknown, callback?: (url: string) => void) => Promise<unknown>
   }
 
