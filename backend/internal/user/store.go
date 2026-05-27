@@ -52,10 +52,6 @@ func NewUserStore(dbCfg database.Config, expectedOU string) (*UserStore, error) 
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	if err := db.AutoMigrate(&UserRecord{}); err != nil {
-		return nil, fmt.Errorf("failed to migrate users table: %w", err)
-	}
-
 	return &UserStore{db: db, agency: expectedOU}, nil
 }
 
@@ -110,10 +106,13 @@ func (s *UserStore) FindOrProvision(ssoid, email, name, ouHandle string) (*UserR
 		return nil, fmt.Errorf("failed to provision user: %w", result.Error)
 	}
 	// RowsAffected == 0 means a concurrent request inserted the same SSOID first.
+	// Use a fresh variable so GORM doesn't reuse the partially-filled struct above.
 	if result.RowsAffected == 0 {
-		if err := s.db.First(&user, "ssoid = ?", ssoid).Error; err != nil {
+		var existingUser UserRecord
+		if err := s.db.First(&existingUser, "ssoid = ?", ssoid).Error; err != nil {
 			return nil, fmt.Errorf("failed to fetch provisioned user: %w", err)
 		}
+		return &existingUser, nil
 	}
 	return &user, nil
 }

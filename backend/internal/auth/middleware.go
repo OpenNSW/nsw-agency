@@ -100,7 +100,8 @@ func RequireAuth(userProfileService UserProfileService, tokenExtractor *TokenExt
 				return
 			}
 			// Valid JWT but provisioning failed — user is not authorised for this agency.
-			if authCtx.User != nil && authCtx.User.ID == "" {
+			// Only applies when a userProfileService is active; without one, ID is never populated.
+			if authCtx.User != nil && authCtx.User.ID == "" && userProfileService != nil {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusForbidden)
 				_, _ = w.Write([]byte(`{"error":"forbidden","message":"access denied"}`))

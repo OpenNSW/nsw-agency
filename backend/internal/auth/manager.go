@@ -22,6 +22,10 @@ type Manager struct {
 func NewManager(userProfileService UserProfileService, authConfig Config) (*Manager, error) {
 	slog.Info("initializing auth manager", "user_profile_service_enabled", userProfileService != nil)
 
+	if err := authConfig.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid auth config: %w", err)
+	}
+
 	httpClient := &http.Client{Timeout: 10 * time.Second}
 	if authConfig.InsecureSkipTLSVerify {
 		if tr, ok := http.DefaultTransport.(*http.Transport); ok {

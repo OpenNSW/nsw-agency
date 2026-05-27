@@ -9,11 +9,16 @@ import (
 	"github.com/OpenNSW/nsw-agency/backend/internal/database"
 )
 
+// newTestStore creates an in-memory SQLite UserStore for testing.
+// AutoMigrate is called here only — production uses SQL migration files.
 func newTestStore(t *testing.T, agency string) *UserStore {
 	t.Helper()
 	store, err := NewUserStore(database.Config{Driver: "sqlite", Path: ":memory:"}, agency)
 	if err != nil {
 		t.Fatalf("failed to create user store: %v", err)
+	}
+	if err := store.db.AutoMigrate(&UserRecord{}); err != nil {
+		t.Fatalf("failed to migrate users table: %v", err)
 	}
 	t.Cleanup(func() { _ = store.Close() })
 	return store
@@ -24,19 +29,14 @@ func newTestStore(t *testing.T, agency string) *UserStore {
 func TestUserStore_SQLite_FileCreated(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "test_users.db")
 
-	_, err := NewUserStore(database.Config{Driver: "sqlite", Path: dbPath}, "fcau")
+	store, err := NewUserStore(database.Config{Driver: "sqlite", Path: dbPath}, "fcau")
 	if err != nil {
 		t.Fatalf("NewUserStore failed: %v", err)
 	}
+	defer func() { _ = store.Close() }()
+
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		t.Error("expected .db file to be created at configured path")
-	}
-}
-
-func TestUserStore_SQLite_SchemaMigration(t *testing.T) {
-	store := newTestStore(t, "fcau")
-	if !store.db.Migrator().HasTable(&UserRecord{}) {
-		t.Error("users table was not created after migration")
 	}
 }
 
