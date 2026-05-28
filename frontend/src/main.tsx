@@ -43,7 +43,6 @@ void initAppConfig().then(() => {
         afterSignOutUrl={APP_URL}
         scopes={IDP_SCOPES}
         storage="sessionStorage"
-        periodicTokenRefresh
       >
         <Theme scaling="110%">
           <BrowserRouter>
