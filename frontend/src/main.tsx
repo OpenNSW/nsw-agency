@@ -11,6 +11,7 @@ import { initAppConfig } from './config.ts'
 
 type AgencyAsgardeoProviderProps = ComponentProps<typeof AsgardeoProvider> & {
   periodicTokenRefresh?: boolean
+  skipFetchBranding?: boolean
 }
 
 const AgencyAsgardeoProvider = AsgardeoProvider as unknown as (props: AgencyAsgardeoProviderProps) => ReactElement
@@ -41,6 +42,7 @@ void initAppConfig().then(() => {
         platform={IDP_PLATFORM}
         afterSignInUrl={`${APP_URL}/consignments`}
         afterSignOutUrl={APP_URL}
+        skipFetchBranding={true}
         scopes={IDP_SCOPES}
         storage="sessionStorage"
       >
