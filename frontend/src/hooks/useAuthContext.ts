@@ -13,7 +13,7 @@ export function useAuthContext(): UseAuthContextResult {
   const { isSignedIn, isLoading, getDecodedIdToken } = useThunderID()
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null)
   const [isResolvingOrg, setIsResolvingOrg] = useState(false)
-  const expectedOu = getExpectedOuHandle();
+  const expectedOu = getExpectedOuHandle()
   useEffect(() => {
     let isMounted = true
 
