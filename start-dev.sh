@@ -238,27 +238,30 @@ clean_databases() {
 # ---------------------------------------------------------------------------
 run_migrations() {
   local agencies=("$@")
-  local db_driver="${DB_DRIVER:-sqlite}"
+  (
+    cd "$BACKEND_DIR"
+    # Source .env non-clobber so Postgres credentials (DB_HOST, DB_USER,
+    # DB_PASSWORD, DB_NAME, etc.) are available to the migrate binary, which
+    # does not autoload .env itself.  Parent-shell values still win.
+    if [[ -f .env ]]; then
+      source_env_nonclobber .env
+    fi
 
-  echo "[start-dev] Running migrations (driver: $db_driver)..."
+    local db_driver="${DB_DRIVER:-sqlite}"
+    echo "[start-dev] Running migrations (driver: $db_driver)..."
 
-  if [[ "$db_driver" == "sqlite" ]]; then
-    for agency in "${agencies[@]}"; do
-      echo "[start-dev]   migrate up -> ${agency}_applications.db"
-      (
-        cd "$BACKEND_DIR"
+    if [[ "$db_driver" == "sqlite" ]]; then
+      for agency in "${agencies[@]}"; do
+        echo "[start-dev]   migrate up -> ${agency}_applications.db"
         DB_DRIVER="sqlite" DB_PATH="./${agency}_applications.db" \
           go run ./cmd/migrate up
-      )
-    done
-  else
-    # Postgres uses a single shared DB; run once.
-    echo "[start-dev]   migrate up -> ${DB_NAME:-nsw_agency_db}"
-    (
-      cd "$BACKEND_DIR"
+      done
+    else
+      # Postgres uses a single shared DB; run once.
+      echo "[start-dev]   migrate up -> ${DB_NAME:-nsw_agency_db}"
       go run ./cmd/migrate up
-    )
-  fi
+    fi
+  )
 }
 
 ensure_branding_file() {
