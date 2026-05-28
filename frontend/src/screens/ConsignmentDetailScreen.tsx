@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, Badge, Spinner, Text, Card, Flex, Box, Callout } from '@radix-ui/themes'
 import {
@@ -60,7 +60,6 @@ export function ConsignmentDetailScreen() {
       setTimeout(() => navigate('/consignments'), 500)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit review')
-    } finally {
       setIsSubmitting(false)
     }
   }
@@ -289,7 +288,7 @@ export function ConsignmentDetailScreen() {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={isSubmitting}>
+                  <Button type="submit" disabled={isSubmitting || success}>
                     {isSubmitting ? <Spinner size="1" /> : null}
                     Submit Review
                   </Button>

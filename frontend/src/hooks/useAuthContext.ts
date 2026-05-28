@@ -13,7 +13,7 @@ export function useAuthContext(): UseAuthContextResult {
   const { isSignedIn, isLoading, getDecodedIdToken } = useThunderID()
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null)
   const [isResolvingOrg, setIsResolvingOrg] = useState(false)
-
+  const expectedOu = getExpectedOuHandle();
   useEffect(() => {
     let isMounted = true
 
@@ -27,11 +27,6 @@ export function useAuthContext(): UseAuthContextResult {
         }
         return
       }
-
-      // Resolve expected OU before any async work so a misconfigured env var throws
-      // immediately (loudly) rather than being swallowed by the catch below.
-      const expectedOu = getExpectedOuHandle()
-
       if (isMounted) setIsResolvingOrg(true)
       try {
         const decodedToken = await getDecodedIdToken()
@@ -41,10 +36,10 @@ export function useAuthContext(): UseAuthContextResult {
         // Narrow from `any` explicitly via a typeof guard.
         // If `ouHandle` is absent the token was issued without the `ou` scope —
         // deny access so the server configuration is fixed rather than silently bypassed.
-        const ouHandle = typeof decodedToken.ouHandle === 'string' ? decodedToken.ouHandle : undefined
+        const ouHandle = typeof decodedToken?.ouHandle === 'string' ? decodedToken.ouHandle : undefined
         setIsAuthorized(ouHandle === expectedOu)
       } catch {
-        if (isMounted) setIsAuthorized(null)
+        if (isMounted) setIsAuthorized(false)
       } finally {
         if (isMounted) setIsResolvingOrg(false)
       }

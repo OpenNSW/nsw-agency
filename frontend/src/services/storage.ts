@@ -60,7 +60,10 @@ export async function getDownloadUrl(request: HttpRequest, key: string): Promise
     method: 'GET',
     attachToken: true,
   })
-  const response = res.data as DownloadMetadataResponse
+  const response = res?.data as DownloadMetadataResponse
+  if (!response || typeof response.download_url !== 'string') {
+    throw new Error('Invalid download metadata received from server')
+  }
 
   // Normalize the URL if it's a relative path (common in local dev)
   const url = response.download_url.startsWith('/')

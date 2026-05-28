@@ -88,7 +88,7 @@ export async function fetchConsignments(
     attachToken: true,
     signal,
   })
-  return res.data as PaginatedResponse<ConsignmentSummary>
+  return (res?.data as PaginatedResponse<ConsignmentSummary>) || { items: [], total: 0, page: 1, pageSize: 20 }
 }
 
 export async function fetchApplications(
@@ -111,7 +111,7 @@ export async function fetchApplications(
     attachToken: true,
     signal,
   })
-  return res.data as PaginatedResponse<AgencyApplication>
+  return (res?.data as PaginatedResponse<AgencyApplication>) || { items: [], total: 0, page: 1, pageSize: 20 }
 }
 
 export async function fetchApplicationDetail(
@@ -125,7 +125,7 @@ export async function fetchApplicationDetail(
     attachToken: true,
     signal,
   })
-  return res.data as AgencyApplication
+  return res?.data as AgencyApplication
 }
 
 export async function submitReview(
@@ -141,7 +141,7 @@ export async function submitReview(
     attachToken: true,
     signal,
   })
-  return res.data as ReviewResponse
+  return (res?.data as ReviewResponse) || { success: false, error: 'No response data received' }
 }
 
 export async function submitFeedback(
@@ -157,5 +157,5 @@ export async function submitFeedback(
     attachToken: true,
     signal,
   })
-  return res.data as ReviewResponse
+  return (res?.data as ReviewResponse) || { success: false, error: 'No response data received' }
 }
