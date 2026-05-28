@@ -9,7 +9,9 @@
 #   [target]  One of: all (default), backend, frontend
 #
 # Flags:
-#   --clean-run       Wipe agency database(s) before starting.
+#   --clean-run       Wipe agency database(s) before starting, then run
+#                     migrations (go run ./cmd/migrate up) so the schema is
+#                     applied before the server starts.
 #                     SQLite: deletes {agency}_applications.db files.
 #                     Postgres: drops and recreates the database.
 #   --env-file=PATH   Load additional env vars (non-clobbering) before
@@ -69,7 +71,7 @@ Usage: $0 [--clean-run] [--env-file=PATH] <agency> [target]
   [target]  One of: all (default), backend, frontend
 
 Flags:
-  --clean-run       Wipe agency DB(s) before starting
+  --clean-run       Wipe agency DB(s) then run migrations before starting
   --env-file=PATH   Load a root-level env file (non-clobbering);
   --env-file PATH   both forms are supported
 
@@ -229,6 +231,36 @@ clean_databases() {
   fi
 }
 
+# run_migrations: apply all pending migrations for each agency DB.
+#   Runs `go run ./cmd/migrate up` from BACKEND_DIR with the same DB_DRIVER /
+#   DB_PATH values that start_backend uses, so the schema is ready before the
+#   server starts.  Called automatically after clean_databases on --clean-run.
+# ---------------------------------------------------------------------------
+run_migrations() {
+  local agencies=("$@")
+  local db_driver="${DB_DRIVER:-sqlite}"
+
+  echo "[start-dev] Running migrations (driver: $db_driver)..."
+
+  if [[ "$db_driver" == "sqlite" ]]; then
+    for agency in "${agencies[@]}"; do
+      echo "[start-dev]   migrate up -> ${agency}_applications.db"
+      (
+        cd "$BACKEND_DIR"
+        DB_DRIVER="sqlite" DB_PATH="./${agency}_applications.db" \
+          go run ./cmd/migrate up
+      )
+    done
+  else
+    # Postgres uses a single shared DB; run once.
+    echo "[start-dev]   migrate up -> ${DB_NAME:-nsw_agency_db}"
+    (
+      cd "$BACKEND_DIR"
+      go run ./cmd/migrate up
+    )
+  fi
+}
+
 ensure_branding_file() {
   local agency=$1 app_name=$2
   local config_dir="$ROOT_DIR/frontend/public/configs"
@@ -321,6 +353,7 @@ fi
 
 if [[ "$CLEAN_RUN" == "true" ]]; then
   clean_databases "${AGENCIES[@]}"
+  run_migrations "${AGENCIES[@]}"
 fi
 
 for o in "${AGENCIES[@]}"; do
