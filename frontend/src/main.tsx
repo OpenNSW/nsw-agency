@@ -79,26 +79,30 @@ import { initAppConfig } from './config.ts'
 
 type AgencyAsgardeoProviderProps = ComponentProps<typeof AsgardeoProvider> & {
   periodicTokenRefresh?: boolean
+  endpoints?: Record<string, string>
 }
 
 const AgencyAsgardeoProvider = AsgardeoProvider as unknown as (props: AgencyAsgardeoProviderProps) => ReactElement
 
-const normalizeIdpPlatform = (value: string): 'AsgardeoV2' | 'Asgardeo' | 'IdentityServer' | 'Unknown' => {
-  if (value === 'AsgardeoV2' || value === 'Asgardeo' || value === 'IdentityServer' || value === 'Unknown') {
-    return value
-  }
-
-  return 'AsgardeoV2'
-}
-
 const APP_URL = getEnv('VITE_APP_URL', window.location.origin)
 const CLIENT_ID = getRequiredEnv('VITE_IDP_CLIENT_ID')
 const IDP_BASE_URL = getRequiredEnv('VITE_IDP_BASE_URL')
-const IDP_PLATFORM = normalizeIdpPlatform(getEnv('VITE_IDP_PLATFORM', 'AsgardeoV2')!)
 const rawScopes = getEnv('VITE_IDP_SCOPES')
 const IDP_SCOPES = rawScopes
   ? rawScopes.split(',').map((scope: string) => scope.trim())
   : ['openid', 'profile', 'email', 'ou']
+
+// Explicit OIDC endpoints force the Asgardeo SDK into standard compliance mode.
+// Without idpPlatform: "IdentityServer", the SDK does NOT fire legacy enterprise WSO2
+// hydration calls (/scim2/Me, /api/users/v1/me/organizations) that Thunder does not support.
+// The issuer field resolves the JWT iss claim validation without needing idpPlatform as a workaround.
+const IDP_ENDPOINTS = {
+  authorizationEndpoint: `${IDP_BASE_URL}/oauth2/authorize`,
+  tokenEndpoint: `${IDP_BASE_URL}/oauth2/token`,
+  jwksUri: `${IDP_BASE_URL}/oauth2/jwks`,
+  userinfoEndpoint: `${IDP_BASE_URL}/oauth2/userinfo`,
+  issuer: `${IDP_BASE_URL}/oauth2/token`,
+}
 
 void initAppConfig().then(() => {
   createRoot(document.getElementById('root')!).render(
@@ -106,14 +110,13 @@ void initAppConfig().then(() => {
       <AgencyAsgardeoProvider
         clientId={CLIENT_ID}
         baseUrl={IDP_BASE_URL}
-        platform={IDP_PLATFORM}
         signInUrl={APP_URL}
         afterSignInUrl={APP_URL}
         afterSignOutUrl={APP_URL}
         scopes={IDP_SCOPES}
         storage="sessionStorage"
         periodicTokenRefresh
-
+        endpoints={IDP_ENDPOINTS}
       >
         <Theme scaling="110%">
           <BrowserRouter>
@@ -124,3 +127,4 @@ void initAppConfig().then(() => {
     </StrictMode>,
   )
 })
+
