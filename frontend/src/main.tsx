@@ -101,6 +101,7 @@ const IDP_ENDPOINTS = {
   tokenEndpoint: `${IDP_BASE_URL}/oauth2/token`,
   jwksUri: `${IDP_BASE_URL}/oauth2/jwks`,
   userinfoEndpoint: `${IDP_BASE_URL}/oauth2/userinfo`,
+  endSessionEndpoint: `${IDP_BASE_URL}/oauth2/logout`,
   issuer: `${IDP_BASE_URL}/oauth2/token`,
 }
 
