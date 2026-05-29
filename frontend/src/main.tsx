@@ -1,56 +1,70 @@
-// Hook global fetch to intercept Asgardeo endpoints that are not supported by the lightweight Go IDP (Thunder)
-(function interceptAsgardeoUnsupportedEndpoints() {
-  const originalFetch = window.fetch;
+// Intercept Asgardeo SDK calls to enterprise endpoints unsupported by the lightweight Thunder Go IDP.
+// The SDK uses BOTH window.fetch AND legacy XMLHttpRequest depending on the call — we must patch both.
+;(function interceptAsgardeoUnsupportedEndpoints() {
+  const MOCKED_ENDPOINTS: Record<string, string> = {
+    '/scim2/Me': '{}',
+    '/api/users/v1/me/organizations': '{"count":0,"organizations":[]}',
+    '/api/server/v1/branding-preference/resolve': '{"preference":{"theme":{"LIGHT":{},"DARK":{}}}}',
+  }
 
+  // --- Layer 1: Intercept window.fetch (used for some SDK calls) ---
+  const _originalFetch = window.fetch
   window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-    const url = typeof input === 'string' ? input : (input instanceof Request ? input.url : input.toString());
-
-    if (url) {
-      // 1. Intercept branding preference resolution
-      if (url.includes('/api/server/v1/branding-preference/resolve')) {
-        console.warn("Intercepted Asgardeo branding fetch. Returning mock 200 OK.");
-        return new Response(
-          JSON.stringify({
-            theme: {
-              activeTheme: "default",
-              displayName: "Default Theme"
-            }
-          }),
-          {
-            status: 200,
-            headers: {
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-              "Access-Control-Allow-Methods": "GET, OPTIONS",
-              "Access-Control-Allow-Headers": "*"
-            }
-          }
-        );
-      }
-
-      // 2. Intercept B2B Organization resolution to prevent blank screens on post-login redirect
-      if (url.includes('/api/users/v1/me/organizations')) {
-        console.warn("Intercepted Asgardeo organizations fetch. Returning mock empty organizations list.");
-        return new Response(
-          JSON.stringify({
-            organizations: []
-          }),
-          {
-            status: 200,
-            headers: {
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-              "Access-Control-Allow-Methods": "GET, OPTIONS",
-              "Access-Control-Allow-Headers": "*"
-            }
-          }
-        );
+    const url = typeof input === 'string' ? input : input instanceof Request ? input.url : input.toString()
+    for (const [path, body] of Object.entries(MOCKED_ENDPOINTS)) {
+      if (url.includes(path)) {
+        console.warn(`[Fetch Interceptor] Mocking ${url}`)
+        return new Response(body, {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
       }
     }
+    return _originalFetch(input, init)
+  }
 
-    return originalFetch(input, init);
-  };
-})();
+  // --- Layer 2: Intercept XMLHttpRequest (used by Asgardeo SDK for /scim2/Me and /organizations) ---
+  const _open = XMLHttpRequest.prototype.open
+  const _send = XMLHttpRequest.prototype.send
+
+  XMLHttpRequest.prototype.open = function (
+    this: XMLHttpRequest & { _mockedResponse?: string },
+    method: string,
+    url: string | URL,
+    ...rest: unknown[]
+  ) {
+    const urlStr = typeof url === 'string' ? url : url.toString()
+    for (const [path, body] of Object.entries(MOCKED_ENDPOINTS)) {
+      if (urlStr.includes(path)) {
+        this._mockedResponse = body
+        console.warn(`[XHR Interceptor] Mocking ${method} ${urlStr}`)
+        return _open.call(this, 'GET', 'about:blank', true)
+      }
+    }
+    return (_open as unknown as (...a: unknown[]) => void).call(this, method, url, ...rest)
+  }
+
+  XMLHttpRequest.prototype.send = function (
+    this: XMLHttpRequest & { _mockedResponse?: string },
+    body?: Document | XMLHttpRequestBodyInit | null,
+  ) {
+    if (this._mockedResponse !== undefined) {
+      const mockBody = this._mockedResponse
+      Object.defineProperty(this, 'readyState', { get: () => 4, configurable: true })
+      Object.defineProperty(this, 'status', { get: () => 200, configurable: true })
+      Object.defineProperty(this, 'responseText', { get: () => mockBody, configurable: true })
+      Object.defineProperty(this, 'response', { get: () => mockBody, configurable: true })
+      setTimeout(() => {
+        this.dispatchEvent(new ProgressEvent('load', { loaded: mockBody.length, total: mockBody.length }))
+        this.dispatchEvent(new ProgressEvent('loadend', { loaded: mockBody.length, total: mockBody.length }))
+      }, 0)
+      return
+    }
+    return _send.call(this, body)
+  }
+})()
+
+
 
 import { StrictMode, type ComponentProps, type ReactElement } from 'react'
 import { createRoot } from 'react-dom/client'
