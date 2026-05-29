@@ -147,6 +147,7 @@ function Merge-EnvFile {
         $idx  = $line.IndexOf('=')
         $key  = $line.Substring(0, $idx).Trim()
         $val  = $line.Substring($idx + 1).Trim() -replace '^"(.*)"$', '$1' -replace "^'(.*)'$", '$1'
+        $val  = ($val -split '\s+#')[0].Trim()
         if ($key -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') { continue }
         if (-not $Block.Contains($key)) { $Block[$key] = $val }
     }
@@ -191,8 +192,20 @@ function Clean-Databases {
             $dbName = if ($explicitDbName) { $explicitDbName } else { "${agency}_nsw_agency_db" }
             Write-Host "[start-dev]   Dropping and recreating Postgres database: $dbName"
             psql -h $dbHost -p $dbPort -U $dbUser -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$dbName' AND pid <> pg_backend_pid();" | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "[start-dev] Error: Failed to terminate connections to $dbName" -ForegroundColor Red
+                Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue; exit $LASTEXITCODE
+            }
             psql -h $dbHost -p $dbPort -U $dbUser -d postgres -c "DROP DATABASE IF EXISTS `"$dbName`";"
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "[start-dev] Error: Failed to drop Postgres database $dbName" -ForegroundColor Red
+                Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue; exit $LASTEXITCODE
+            }
             psql -h $dbHost -p $dbPort -U $dbUser -d postgres -c "CREATE DATABASE `"$dbName`";"
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "[start-dev] Error: Failed to create Postgres database $dbName" -ForegroundColor Red
+                Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue; exit $LASTEXITCODE
+            }
         }
         Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue
     } else {
@@ -273,7 +286,7 @@ function Start-Backend {
     $psi = [System.Diagnostics.ProcessStartInfo]::new('cmd.exe', '/c go run ./cmd/server')
     $psi.WorkingDirectory = $BACKEND_DIR
     $psi.UseShellExecute  = $false
-    foreach ($k in $envBlock.Keys) { $psi.Environment[$k] = $envBlock[$k] }
+    foreach ($k in $envBlock.Keys) { $psi.Environment[$k] = [string]$envBlock[$k] }
     $jobs.Add([System.Diagnostics.Process]::Start($psi))
 }
 
@@ -305,7 +318,7 @@ function Start-Frontend {
     $psi = [System.Diagnostics.ProcessStartInfo]::new('cmd.exe', '/c pnpm run dev')
     $psi.WorkingDirectory = $FRONTEND_DIR
     $psi.UseShellExecute  = $false
-    foreach ($k in $envBlock.Keys) { $psi.Environment[$k] = $envBlock[$k] }
+    foreach ($k in $envBlock.Keys) { $psi.Environment[$k] = [string]$envBlock[$k] }
     $jobs.Add([System.Diagnostics.Process]::Start($psi))
 }
 
@@ -338,20 +351,18 @@ try {
 
     Write-Host "[start-dev] $($jobs.Count) process(es) running. Logs from all processes will interleave below. Press Ctrl-C to stop."
 
-    $exitCode = 0
-    $done = $false
-    while (-not $done) {
+    # Mirror bash 'wait': keep running until Ctrl-C even if individual processes crash.
+    # Log exits as they happen but do not kill the remaining processes.
+    $reported = @{}
+    while ($true) {
         foreach ($p in $jobs) {
-            if ($p.HasExited) {
-                Write-Host "[start-dev] Process $($p.Id) exited with code $($p.ExitCode)." -ForegroundColor Red
-                $exitCode = $p.ExitCode
-                $done = $true
-                break
+            if ($p.HasExited -and -not $reported[$p.Id]) {
+                Write-Host "[start-dev] Process $($p.Id) exited with code $($p.ExitCode)." -ForegroundColor Yellow
+                $reported[$p.Id] = $true
             }
         }
-        if (-not $done) { Start-Sleep -Milliseconds 500 }
+        Start-Sleep -Milliseconds 500
     }
 } finally {
     Stop-AllJobs
 }
-exit $exitCode
