@@ -12,7 +12,7 @@ import { type AgencyApplication } from '../services/types'
 import { JsonForms } from '@jsonforms/react'
 import { radixRenderers } from '@opennsw/jsonforms-renderers'
 import type { JsonSchema, UISchemaElement } from '@jsonforms/core'
-import { fetchApplicationDetail, submitReview, submitFeedback } from '../services/applications'
+import { fetchApplicationDetail, submitReview } from '../services/applications'
 
 interface SchemaOption {
   const: unknown
@@ -41,26 +41,6 @@ export function ConsignmentDetailScreen() {
   )
   const [agencyFormData, setAgencyFormData] = useState<Record<string, unknown>>({})
   const [formErrors, setFormErrors] = useState<unknown[]>([])
-
-  const [activeTab, setActiveTab] = useState('review')
-  const [showFeedbackInput, setShowFeedbackInput] = useState(false)
-  const [feedbackText, setFeedbackText] = useState('')
-  const [isSendingFeedback, setIsSendingFeedback] = useState(false)
-
-  const handleSendFeedback = async () => {
-    if (!taskId || !feedbackText.trim()) return
-    setIsSendingFeedback(true)
-    setError(null)
-    try {
-      await submitFeedback(taskId, { feedback: feedbackText.trim() })
-      setSuccess(true)
-      setTimeout(() => navigate('/consignments'), 2000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send feedback')
-    } finally {
-      setIsSendingFeedback(false)
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

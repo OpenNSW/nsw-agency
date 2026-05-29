@@ -1,4 +1,4 @@
-import { getRequiredEnv } from '../runtimeConfig'
+import { userManager } from '../oidcUserManager'
 
 interface RequestConfig {
   url: string
@@ -29,19 +29,9 @@ export const http = {
     const headers = { ...config.headers }
 
     if (config.attachToken) {
-      try {
-        const idpBaseUrl = getRequiredEnv('VITE_IDP_BASE_URL')
-        const clientId = getRequiredEnv('VITE_IDP_CLIENT_ID')
-        const storageKey = `oidc.user:${idpBaseUrl}:${clientId}`
-        const oidcUserStr = sessionStorage.getItem(storageKey)
-        if (oidcUserStr) {
-          const oidcUser = JSON.parse(oidcUserStr) as Record<string, unknown> | null
-          if (oidcUser && typeof oidcUser.access_token === 'string') {
-            headers['Authorization'] = `Bearer ${oidcUser.access_token}`
-          }
-        }
-      } catch (e) {
-        console.error('Error attaching OIDC access token to request:', e)
+      const user = await userManager.getUser()
+      if (user?.access_token) {
+        headers['Authorization'] = `Bearer ${user.access_token}`
       }
     }
 

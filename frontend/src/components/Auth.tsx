@@ -9,6 +9,7 @@ export function SignedIn({ children }: { children: ReactNode }) {
 
 export function SignedOut({ children, fallback }: { children: ReactNode; fallback?: ReactNode }) {
   const auth = useAuth()
+  if (auth.isLoading) return null
   if (!auth.isAuthenticated) {
     return <>{children}</>
   }
@@ -29,7 +30,8 @@ export function UserDropdown({ onSignOut }: { onSignOut: () => void }) {
   const name = (auth.user?.profile?.name as string) || (auth.user?.profile?.email as string) || 'User'
   const email = (auth.user?.profile?.email as string) || ''
   const initials = name
-    .split(' ')
+    .split(/\s+/)
+    .filter(Boolean)
     .map((n) => n[0])
     .join('')
     .toUpperCase()
