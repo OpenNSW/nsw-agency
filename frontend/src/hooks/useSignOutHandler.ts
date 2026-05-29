@@ -1,25 +1,30 @@
 import { useCallback } from 'react'
 import { useAsgardeo } from '@asgardeo/react'
 
-type SignOutFn = (options?: unknown, callback?: (url: string) => void) => Promise<unknown>
-
 export function useSignOutHandler(): () => void {
-  const { signOut } = useAsgardeo() as unknown as { signOut: SignOutFn }
+  const { signOut } = useAsgardeo() as unknown as { signOut: () => Promise<unknown> }
 
   return useCallback(() => {
     void (async () => {
       try {
-        const signOutResult = await signOut(undefined, (redirectUrl: string) => {
-          if (redirectUrl) {
-            window.location.assign(redirectUrl)
+        await signOut()
+      } catch (error) {
+        console.warn('[Auth] Server-side logout failed (expected with Thunder IDP). Forcing local logout.', error)
+      } finally {
+        // Force Local Logout Execution
+        for (const key of Object.keys(sessionStorage)) {
+          if (key.startsWith('asgardeo') || key.startsWith('instance_')) {
+            sessionStorage.removeItem(key)
           }
-        })
-
-        if (typeof signOutResult === 'string' && signOutResult) {
-          window.location.assign(signOutResult)
         }
-      } catch {
-        // Let the SDK configuration drive sign-out redirects.
+        for (const key of Object.keys(localStorage)) {
+          if (key.startsWith('asgardeo') || key.startsWith('instance_')) {
+            localStorage.removeItem(key)
+          }
+        }
+
+        const appUrl = import.meta.env.VITE_APP_URL || window.location.origin
+        window.location.href = appUrl
       }
     })()
   }, [signOut])
