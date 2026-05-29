@@ -1,3 +1,57 @@
+// Hook global fetch to intercept Asgardeo endpoints that are not supported by the lightweight Go IDP (Thunder)
+(function interceptAsgardeoUnsupportedEndpoints() {
+  const originalFetch = window.fetch;
+
+  window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    const url = typeof input === 'string' ? input : (input instanceof Request ? input.url : input.toString());
+
+    if (url) {
+      // 1. Intercept branding preference resolution
+      if (url.includes('/api/server/v1/branding-preference/resolve')) {
+        console.warn("Intercepted Asgardeo branding fetch. Returning mock 200 OK.");
+        return new Response(
+          JSON.stringify({
+            theme: {
+              activeTheme: "default",
+              displayName: "Default Theme"
+            }
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "GET, OPTIONS",
+              "Access-Control-Allow-Headers": "*"
+            }
+          }
+        );
+      }
+
+      // 2. Intercept B2B Organization resolution to prevent blank screens on post-login redirect
+      if (url.includes('/api/users/v1/me/organizations')) {
+        console.warn("Intercepted Asgardeo organizations fetch. Returning mock empty organizations list.");
+        return new Response(
+          JSON.stringify({
+            organizations: []
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "GET, OPTIONS",
+              "Access-Control-Allow-Headers": "*"
+            }
+          }
+        );
+      }
+    }
+
+    return originalFetch(input, init);
+  };
+})();
+
 import { StrictMode, type ComponentProps, type ReactElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
