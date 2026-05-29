@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAsgardeo } from '@asgardeo/react'
-import { getExpectedOuHandle } from '../runtimeConfig'
+import { getEnv } from '../runtimeConfig'
 
 interface UseAuthContextResult {
   isSignedIn: boolean
@@ -43,9 +43,14 @@ export function useAuthContext(): UseAuthContextResult {
           decodedIdToken
 
         const ouHandle = (payload as { ouHandle?: unknown })?.ouHandle
-        const expectedOu = getExpectedOuHandle()
+        const expectedOu = getEnv('VITE_IDP_EXPECTED_OU_HANDLE')
 
-        setIsAuthorized(typeof ouHandle === 'string' && ouHandle === expectedOu)
+        if (!expectedOu) {
+          console.warn('[useAuthContext] VITE_IDP_EXPECTED_OU_HANDLE is not configured. Denying access.')
+          setIsAuthorized(false)
+        } else {
+          setIsAuthorized(typeof ouHandle === 'string' && ouHandle === expectedOu)
+        }
       } catch {
         if (!isMounted) {
           return
