@@ -22,7 +22,7 @@ func setRequiredAuthEnv(t *testing.T) {
 	t.Setenv("AUTH_ISSUER", "https://localhost:8090")
 	t.Setenv("AUTH_AUDIENCE", "OGA_PORTAL_APP")
 	t.Setenv("AUTH_CLIENT_IDS", "OGA_PORTAL_APP")
-	t.Setenv("NSW_AGENCY", "default")
+	t.Setenv("AUTH_EXPECTED_OU", "default")
 }
 
 func TestLoadConfig_RequiresNSWOAuth2Vars(t *testing.T) {
@@ -69,7 +69,7 @@ func TestLoadConfig_RequiresAuthVars(t *testing.T) {
 		{name: "missing issuer", missing: "AUTH_ISSUER", expected: "AUTH_ISSUER is required"},
 		{name: "missing audience", missing: "AUTH_AUDIENCE", expected: "AUTH_AUDIENCE is required"},
 		{name: "missing client ids", missing: "AUTH_CLIENT_IDS", expected: "AUTH_CLIENT_IDS is required"},
-		{name: "missing agency", missing: "NSW_AGENCY", expected: "NSW_AGENCY is required"},
+		{name: "missing agency", missing: "AUTH_EXPECTED_OU", expected: "ExpectedOU is required"},
 	}
 
 	for _, tc := range testCases {

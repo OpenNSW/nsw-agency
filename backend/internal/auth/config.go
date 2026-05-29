@@ -36,7 +36,7 @@ func (c Config) Validate() error {
 		return fmt.Errorf("AUTH_CLIENT_IDS is required")
 	}
 	if strings.TrimSpace(c.ExpectedOU) == "" {
-		return fmt.Errorf("NSW_AGENCY is required")
+		return fmt.Errorf("ExpectedOU is required")
 	}
 	return nil
 }

@@ -50,14 +50,12 @@ func Middleware(userProfileService UserProfileService, tokenExtractor *TokenExtr
 			}
 
 			// Enforce OU check before provisioning — reject cross-agency tokens immediately.
-			if principal.UserPrincipal != nil && expectedOU != "" {
-				if principal.UserPrincipal.OUHandle != expectedOU {
-					slog.Warn("auth: OU handle mismatch", "expected", expectedOU, "got", principal.UserPrincipal.OUHandle)
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusForbidden)
-					_, _ = w.Write([]byte(`{"error":"forbidden","message":"access denied"}`))
-					return
-				}
+			if principal.UserPrincipal != nil && principal.UserPrincipal.OUHandle != expectedOU {
+				slog.Warn("auth: OU handle mismatch", "expected", expectedOU, "got", principal.UserPrincipal.OUHandle)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				_, _ = w.Write([]byte(`{"error":"forbidden","message":"access denied"}`))
+				return
 			}
 
 			authCtx := buildAuthContext(principal)

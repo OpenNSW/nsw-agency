@@ -115,7 +115,8 @@ func main() {
 	// Health check
 	mux.HandleFunc("GET /health", handler.HandleHealth)
 
-	// Endpoint for services to inject data (service-to-service, no user auth)
+	// Endpoint for services to inject data (service-to-service, no user auth).
+	// TODO: protect with m2m auth once required client credentials are registered in the IdP.
 	mux.HandleFunc("POST /api/v1/inject", handler.HandleInjectData)
 
 	// Endpoints for UI to fetch and manage applications (protected by JIT user auth)

@@ -301,6 +301,7 @@ start_backend() {
     export DB_DRIVER="${DB_DRIVER:-sqlite}"
     export DB_PATH="${DB_PATH:-./${agency}_applications.db}"
     export NSW_CLIENT_ID
+    export AUTH_EXPECTED_OU="${AUTH_EXPECTED_OU:-$OU_HANDLE}"
     export ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-http://localhost:$FE_PORT}"
     # The Go server does not autoload .env — source it (non-clobber) so
     # NSW_* vars (API base URL, OAuth client secret, token URL) reach

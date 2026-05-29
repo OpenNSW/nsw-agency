@@ -80,7 +80,7 @@ func LoadConfig() (Config, error) {
 			Issuer:     os.Getenv("AUTH_ISSUER"),
 			Audience:   os.Getenv("AUTH_AUDIENCE"),
 			ClientIDs:  parseCommaSeparated(os.Getenv("AUTH_CLIENT_IDS")),
-			ExpectedOU: os.Getenv("NSW_AGENCY"),
+			ExpectedOU: os.Getenv("AUTH_EXPECTED_OU"),
 		},
 	}
 	maxRequestBytes, err := parseInt64Env("MAX_REQUEST_BYTES", 32<<20)

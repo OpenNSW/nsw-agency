@@ -72,12 +72,12 @@ func TestConfig_Validate_RequiredFields(t *testing.T) {
 		{
 			name:    "missing expected OU",
 			mutate:  func(c *Config) { c.ExpectedOU = "" },
-			wantErr: "NSW_AGENCY is required",
+			wantErr: "ExpectedOU is required",
 		},
 		{
 			name:    "whitespace-only expected OU",
 			mutate:  func(c *Config) { c.ExpectedOU = "   " },
-			wantErr: "NSW_AGENCY is required",
+			wantErr: "ExpectedOU is required",
 		},
 	}
 
