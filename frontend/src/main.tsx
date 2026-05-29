@@ -99,11 +99,7 @@ void initAppConfig().then(() => {
         scopes={IDP_SCOPES}
         storage="sessionStorage"
         periodicTokenRefresh
-        tokenValidation={{
-          idToken: {
-            validateIssuer: false
-          }
-        }}
+
       >
         <Theme scaling="110%">
           <BrowserRouter>
