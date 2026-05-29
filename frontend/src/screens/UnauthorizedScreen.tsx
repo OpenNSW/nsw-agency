@@ -1,4 +1,4 @@
-import { SignedIn } from '@asgardeo/react'
+import { SignedIn } from '../components/Auth'
 import { Button } from '@radix-ui/themes'
 import { useSignOutHandler } from '../hooks/useSignOutHandler'
 
