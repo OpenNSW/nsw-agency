@@ -1,67 +1,72 @@
 package form
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/OpenNSW/nsw-agency/backend/pkg/blobsource"
 )
 
-// newFormsDir creates a temporary config root with an empty <root>/forms/
-// subdirectory and returns the root path. Form files can be written into
-// filepath.Join(root, FormsSubdir).
-func newFormsDir(t *testing.T) string {
+func writeFormFile(t *testing.T, dir, name, content string) {
 	t.Helper()
-	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, FormsSubdir), 0o755); err != nil {
-		t.Fatalf("failed to create forms dir: %v", err)
-	}
-	return root
-}
-
-// writeFormFile writes content to <root>/forms/<name>.
-func writeFormFile(t *testing.T, root, name, content string) {
-	t.Helper()
-	path := filepath.Join(root, FormsSubdir, name)
+	path := filepath.Join(dir, name)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("failed to write %s: %v", path, err)
 	}
 }
 
-func TestFormStore_LoadsValidForms(t *testing.T) {
-	root := newFormsDir(t)
-	writeFormFile(t, root, "alpha.json", `{"schema":{"type":"object"},"uiSchema":{"type":"VerticalLayout"}}`)
-	writeFormFile(t, root, "beta.json", `{"schema":{"type":"object","title":"Beta"}}`)
-
-	store, err := NewFormStore(root)
+func newLocalSource(t *testing.T, dir string) blobsource.Source {
+	t.Helper()
+	src, err := blobsource.NewFromConfig(context.Background(), blobsource.Config{
+		Type:     "local",
+		LocalDir: dir,
+	})
 	if err != nil {
-		t.Fatalf("NewFormStore failed: %v", err)
+		t.Fatalf("NewFromConfig(local, %q): %v", dir, err)
 	}
+	return src
+}
 
-	if _, ok := store.GetForm("alpha"); !ok {
-		t.Errorf("expected form alpha to be loaded")
+func newStore(t *testing.T, primary, builtin blobsource.Source) *FormStore {
+	t.Helper()
+	store, err := NewFormStore(context.Background(), primary, builtin)
+	if err != nil {
+		t.Fatalf("NewFormStore: %v", err)
 	}
-	if _, ok := store.GetForm("beta"); !ok {
-		t.Errorf("expected form beta to be loaded")
+	t.Cleanup(func() { _ = store.Close() })
+	return store
+}
+
+func TestFormStore_LoadsValidForms(t *testing.T) {
+	dir := t.TempDir()
+	writeFormFile(t, dir, "alpha.json", `{"schema":{"type":"object"},"uiSchema":{"type":"VerticalLayout"}}`)
+	writeFormFile(t, dir, "beta.json", `{"schema":{"type":"object","title":"Beta"}}`)
+
+	store := newStore(t, nil, newLocalSource(t, dir))
+
+	ctx := context.Background()
+	if _, ok, err := store.GetForm(ctx, "alpha"); err != nil || !ok {
+		t.Errorf("expected form alpha to be loaded (ok=%v, err=%v)", ok, err)
+	}
+	if _, ok, err := store.GetForm(ctx, "beta"); err != nil || !ok {
+		t.Errorf("expected form beta to be loaded (ok=%v, err=%v)", ok, err)
 	}
 }
 
 func TestFormStore_GetFormReturnsRawJSON(t *testing.T) {
-	root := newFormsDir(t)
+	dir := t.TempDir()
 	body := `{"schema":{"type":"object","required":["foo"]},"uiSchema":{"type":"VerticalLayout"}}`
-	writeFormFile(t, root, "alpha.json", body)
+	writeFormFile(t, dir, "alpha.json", body)
 
-	store, err := NewFormStore(root)
-	if err != nil {
-		t.Fatalf("NewFormStore failed: %v", err)
+	store := newStore(t, nil, newLocalSource(t, dir))
+
+	raw, ok, err := store.GetForm(context.Background(), "alpha")
+	if err != nil || !ok {
+		t.Fatalf("expected alpha to be loaded (ok=%v, err=%v)", ok, err)
 	}
-
-	raw, ok := store.GetForm("alpha")
-	if !ok {
-		t.Fatalf("expected alpha to be loaded")
-	}
-
-	// Verify the returned bytes round-trip through JSON unmarshal.
 	var got map[string]any
 	if err := json.Unmarshal(raw, &got); err != nil {
 		t.Fatalf("returned form is not valid JSON: %v", err)
@@ -71,84 +76,104 @@ func TestFormStore_GetFormReturnsRawJSON(t *testing.T) {
 	}
 }
 
-func TestFormStore_SkipsNonJSONFiles(t *testing.T) {
-	root := newFormsDir(t)
-	writeFormFile(t, root, "alpha.json", `{"schema":{"type":"object"}}`)
-	writeFormFile(t, root, "readme.txt", `this is not a form`)
-	writeFormFile(t, root, "beta.yaml", `schema: {}`)
-
-	store, err := NewFormStore(root)
-	if err != nil {
-		t.Fatalf("NewFormStore failed: %v", err)
-	}
-
-	if _, ok := store.GetForm("alpha"); !ok {
-		t.Errorf("expected alpha to be loaded")
-	}
-	// IDs should be derived from .json filenames only, never from .txt/.yaml.
-	if _, ok := store.GetForm("readme"); ok {
-		t.Errorf("readme.txt should have been skipped")
-	}
-	if _, ok := store.GetForm("beta"); ok {
-		t.Errorf("beta.yaml should have been skipped")
-	}
-}
-
 func TestFormStore_GetFormMiss(t *testing.T) {
-	root := newFormsDir(t)
-	writeFormFile(t, root, "alpha.json", `{"schema":{"type":"object"}}`)
+	dir := t.TempDir()
+	writeFormFile(t, dir, "alpha.json", `{"schema":{"type":"object"}}`)
 
-	store, err := NewFormStore(root)
-	if err != nil {
-		t.Fatalf("NewFormStore failed: %v", err)
-	}
+	store := newStore(t, nil, newLocalSource(t, dir))
 
-	if _, ok := store.GetForm("does-not-exist"); ok {
-		t.Errorf("expected GetForm miss to return (_, false)")
+	_, ok, err := store.GetForm(context.Background(), "does-not-exist")
+	if ok || err != nil {
+		t.Errorf("expected (nil, false, nil) for miss, got (ok=%v, err=%v)", ok, err)
 	}
 }
 
 func TestFormStore_ErrorOnInvalidJSON(t *testing.T) {
-	root := newFormsDir(t)
-	writeFormFile(t, root, "broken.json", `{this is not valid json`)
+	dir := t.TempDir()
+	writeFormFile(t, dir, "broken.json", `{this is not valid json`)
 
-	_, err := NewFormStore(root)
-	if err == nil {
-		t.Fatalf("expected error when loading invalid JSON, got nil")
+	store := newStore(t, nil, newLocalSource(t, dir))
+
+	_, ok, err := store.GetForm(context.Background(), "broken")
+	if ok || err == nil {
+		t.Fatalf("expected error for invalid JSON, got ok=%v err=%v", ok, err)
 	}
 }
 
-func TestFormStore_ErrorOnMissingDir(t *testing.T) {
-	root := t.TempDir()
-	// Intentionally do not create root/forms.
+func TestFormStore_PrimaryWinsOnConflict(t *testing.T) {
+	primaryDir := t.TempDir()
+	builtinDir := t.TempDir()
+	writeFormFile(t, primaryDir, "alpha.json", `{"schema":{"const":"primary"}}`)
+	writeFormFile(t, builtinDir, "alpha.json", `{"schema":{"const":"builtin"}}`)
 
-	_, err := NewFormStore(root)
-	if err == nil {
-		t.Fatalf("expected error when forms directory is missing, got nil")
+	store := newStore(t, newLocalSource(t, primaryDir), newLocalSource(t, builtinDir))
+
+	raw, ok, err := store.GetForm(context.Background(), "alpha")
+	if err != nil || !ok {
+		t.Fatalf("expected alpha to load: ok=%v err=%v", ok, err)
+	}
+	if !containsStr(raw, `"const":"primary"`) {
+		t.Errorf("expected primary content to win, got %s", raw)
 	}
 }
 
-func TestFormStore_IgnoresSubdirectories(t *testing.T) {
-	root := newFormsDir(t)
-	// A nested directory under forms/ should be ignored, not recursed into.
-	if err := os.MkdirAll(filepath.Join(root, FormsSubdir, "nested"), 0o755); err != nil {
-		t.Fatalf("failed to create nested dir: %v", err)
-	}
-	writeFormFile(t, root, "nested/should_be_ignored.json", `{"schema":{}}`)
-	writeFormFile(t, root, "top.json", `{"schema":{"type":"object"}}`)
+func TestFormStore_BuiltinFallback(t *testing.T) {
+	primaryDir := t.TempDir()
+	builtinDir := t.TempDir()
+	writeFormFile(t, primaryDir, "primary_only.json", `{"schema":{"const":"p"}}`)
+	writeFormFile(t, builtinDir, "builtin_only.json", `{"schema":{"const":"b"}}`)
 
-	store, err := NewFormStore(root)
-	if err != nil {
-		t.Fatalf("NewFormStore failed: %v", err)
+	store := newStore(t, newLocalSource(t, primaryDir), newLocalSource(t, builtinDir))
+
+	if _, ok, err := store.GetForm(context.Background(), "primary_only"); err != nil || !ok {
+		t.Errorf("primary_only should resolve from primary")
+	}
+	if _, ok, err := store.GetForm(context.Background(), "builtin_only"); err != nil || !ok {
+		t.Errorf("builtin_only should resolve from builtin fallback")
+	}
+}
+
+func TestFormStore_NilPrimary(t *testing.T) {
+	dir := t.TempDir()
+	writeFormFile(t, dir, "alpha.json", `{"schema":{"type":"object"}}`)
+
+	store := newStore(t, nil, newLocalSource(t, dir))
+
+	if _, ok, err := store.GetForm(context.Background(), "alpha"); err != nil || !ok {
+		t.Errorf("expected alpha to resolve from builtin when primary is disabled (nil)")
+	}
+}
+
+func TestFormStore_ManifestPrimary(t *testing.T) {
+	primaryDir := t.TempDir()
+	nested := filepath.Join(primaryDir, "templates")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	writeFormFile(t, nested, "user-form.json", `{"schema":{"type":"object","title":"UF"}}`)
+	manifest := []byte(`{"byId":{"workflow-user-form":"templates/user-form.json"}}`)
+	if err := os.WriteFile(filepath.Join(primaryDir, "manifest.json"), manifest, 0o644); err != nil {
+		t.Fatalf("write manifest: %v", err)
 	}
 
-	if _, ok := store.GetForm("top"); !ok {
-		t.Errorf("expected top to be loaded")
+	builtinDir := t.TempDir()
+	writeFormFile(t, builtinDir, "default_review.json", `{"schema":{}}`)
+
+	store := newStore(t, newLocalSource(t, primaryDir), newLocalSource(t, builtinDir))
+
+	if _, ok, err := store.GetForm(context.Background(), "workflow-user-form"); err != nil || !ok {
+		t.Errorf("expected manifest-resolved form to be loaded")
 	}
-	if _, ok := store.GetForm("should_be_ignored"); ok {
-		t.Errorf("nested file should not be discovered")
+	if _, ok, err := store.GetForm(context.Background(), "default_review"); err != nil || !ok {
+		t.Errorf("expected builtin default to be loaded")
 	}
-	if _, ok := store.GetForm("nested/should_be_ignored"); ok {
-		t.Errorf("nested file should not be discovered under any key")
+}
+
+func containsStr(haystack []byte, needle string) bool {
+	for i := 0; i+len(needle) <= len(haystack); i++ {
+		if string(haystack[i:i+len(needle)]) == needle {
+			return true
+		}
 	}
+	return false
 }

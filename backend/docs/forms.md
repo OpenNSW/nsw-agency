@@ -7,9 +7,18 @@ Forms are [JSON Forms](https://jsonforms.io/) definitions (`schema` + `uiSchema`
 
 A form file is purpose-agnostic: the same file can be referenced as a view form by one task and a review form by another. Forms are referenced by ID from [task configs](./task-configs.md) — they are not bound to a `taskCode` themselves.
 
-## File Location
+## Source layering
 
-All form files live in `<CONFIG_DIR>/forms/` (default: `./data/forms/`). The form ID is the filename without the `.json` extension:
+At startup the `FormStore` loads forms from two layered sources:
+
+1. **Primary source** (optional) — configured via the `FORMS_SOURCE_*` env vars. Either a local directory or a GitHub repo. The primary source wins on ID conflicts.
+2. **Built-in defaults** (always loaded) — flat JSON files under `<CONFIG_DIR>/forms/` (default: `./data/forms/`). These are bundled with the binary and serve as the fallback layer; the shipped `default_review.json` ensures the default review screen always has a form to render even if the primary source is misconfigured.
+
+Both layers are read into memory at startup, with each form validated as JSON. Lookups are O(1) map reads at request time.
+
+### Built-in defaults
+
+Form ID = filename without `.json`:
 
 ```
 data/forms/
@@ -17,7 +26,15 @@ data/forms/
 └── moh_fcau_health_cert_v1_review.json       # form ID: "moh_fcau_health_cert_v1_review"
 ```
 
-At startup, the `FormStore` reads every `.json` file in the directory, validates that it parses as JSON, and caches the raw bytes in memory. The forms are then resolvable by ID from task configs.
+### Primary source
+
+The primary source resolves a form ID to bytes via one of:
+
+- **Local flat** (`FORMS_SOURCE_TYPE=local`, no `manifest.json` in `FORMS_SOURCE_LOCAL_DIR`) — every `*.json` file in the directory; ID = filename.
+- **Local manifest** (`FORMS_SOURCE_TYPE=local`, with `manifest.json` in `FORMS_SOURCE_LOCAL_DIR`) — IDs come from the manifest's `byId` map; files live at the relative paths it names. Used to consume a clone of e.g. `OpenNSW/one-trade-templates` directly in dev.
+- **GitHub** (`FORMS_SOURCE_TYPE=github`) — `FORMS_SOURCE_GITHUB_REPO` + `FORMS_SOURCE_GITHUB_REF` resolve a `manifest.json` over raw.githubusercontent.com; blobs are fetched lazily and cached. Set `FORMS_SOURCE_GITHUB_REFRESH_INTERVAL` (e.g. `5m`) to re-poll the manifest in the background.
+
+Set `FORMS_SOURCE_TYPE=none` (the default) to disable the primary source and rely only on built-in defaults.
 
 ## File Structure
 
@@ -77,4 +94,8 @@ No fields are required by the Agency service itself — the form is forwarded to
 
 ## Per-Deployment Forms
 
-Only `default_review.json` ships in the repo. Agency-specific forms live outside version control and are provided per deployment by pointing `CONFIG_DIR` at a directory containing your `forms/` (and `task-configs/`) subdirs.
+Only `default_review.json` ships in the repo as a built-in default. Agency-specific forms are normally supplied per deployment via the **primary source** (`FORMS_SOURCE_*` env vars) — typically `OpenNSW/one-trade-templates` in production, or a local clone in dev. `CONFIG_DIR` continues to point at the directory containing the built-in defaults that always remain available as a fallback layer.
+
+## Coherence check
+
+At startup, after both stores have loaded, the service iterates every task config and verifies that every `forms.view` and `forms.review` ID resolves against the form store. Each missing reference is emitted as a `slog.Warn` so misconfiguration (e.g. naming-convention drift between the templates and agency-configs repos) surfaces within seconds of deployment — but the service still comes up; the affected request just gets no form.

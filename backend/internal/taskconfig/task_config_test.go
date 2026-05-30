@@ -1,179 +1,208 @@
 package taskconfig
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/OpenNSW/nsw-agency/backend/pkg/blobsource"
 )
 
-// newTaskConfigsDir creates a temporary config root with an empty
-// <root>/task-configs/ subdirectory and returns the root path.
-func newTaskConfigsDir(t *testing.T) string {
+func writeTaskConfigFile(t *testing.T, dir, name, content string) {
 	t.Helper()
-	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, TaskConfigsSubdir), 0o755); err != nil {
-		t.Fatalf("failed to create task-configs dir: %v", err)
-	}
-	return root
-}
-
-// writeTaskConfigFile writes content to <root>/task-configs/<name>.
-func writeTaskConfigFile(t *testing.T, root, name, content string) {
-	t.Helper()
-	path := filepath.Join(root, TaskConfigsSubdir, name)
+	path := filepath.Join(dir, name)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("failed to write %s: %v", path, err)
 	}
 }
 
+func newLocalSource(t *testing.T, dir string) blobsource.Source {
+	t.Helper()
+	src, err := blobsource.NewFromConfig(context.Background(), blobsource.Config{
+		Type:     "local",
+		LocalDir: dir,
+	})
+	if err != nil {
+		t.Fatalf("NewFromConfig(local, %q): %v", dir, err)
+	}
+	return src
+}
+
+func newStore(t *testing.T, primary, builtin blobsource.Source, defaultID string) *TaskConfigStore {
+	t.Helper()
+	store, err := NewTaskConfigStore(context.Background(), primary, builtin, defaultID)
+	if err != nil {
+		t.Fatalf("NewTaskConfigStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	return store
+}
+
 func TestTaskConfigStore_LoadsValidConfigs(t *testing.T) {
-	root := newTaskConfigsDir(t)
-	writeTaskConfigFile(t, root, "alpha.json", `{
+	dir := t.TempDir()
+	writeTaskConfigFile(t, dir, "alpha.json", `{
 		"taskCode": "alpha",
 		"meta": {"title": "Alpha Review"},
 		"forms": {"review": "alpha_review"}
 	}`)
-	writeTaskConfigFile(t, root, "beta.json", `{
+	writeTaskConfigFile(t, dir, "beta.json", `{
 		"meta": {"title": "Beta Review"},
 		"forms": {"view": "beta_view", "review": "beta_review"},
 		"behavior": {"statusMap": {"approve": "APPROVED"}}
 	}`)
 
-	store, err := NewTaskConfigStore(root, "")
-	if err != nil {
-		t.Fatalf("NewTaskConfigStore failed: %v", err)
-	}
+	store := newStore(t, nil, newLocalSource(t, dir), "")
 
-	alpha, err := store.GetConfig("alpha")
+	ctx := context.Background()
+	alpha, err := store.GetConfig(ctx, "alpha")
 	if err != nil {
 		t.Fatalf("GetConfig(alpha) failed: %v", err)
 	}
 	if alpha.Meta.Title != "Alpha Review" {
-		t.Errorf("expected alpha.Meta.Title = %q, got %q", "Alpha Review", alpha.Meta.Title)
+		t.Errorf("expected Alpha Review, got %q", alpha.Meta.Title)
 	}
 	if alpha.Forms.Review != "alpha_review" {
-		t.Errorf("expected alpha.Forms.Review = %q, got %q", "alpha_review", alpha.Forms.Review)
+		t.Errorf("expected alpha_review, got %q", alpha.Forms.Review)
 	}
 
-	beta, err := store.GetConfig("beta")
+	beta, err := store.GetConfig(ctx, "beta")
 	if err != nil {
 		t.Fatalf("GetConfig(beta) failed: %v", err)
 	}
-	// taskCode should be inferred from the filename when omitted.
 	if beta.TaskCode != "beta" {
-		t.Errorf("expected beta.TaskCode inferred from filename, got %q", beta.TaskCode)
+		t.Errorf("expected taskCode inferred from filename, got %q", beta.TaskCode)
 	}
 	if beta.Behavior == nil || beta.Behavior.StatusMap["approve"] != "APPROVED" {
-		t.Errorf("expected beta.Behavior.StatusMap[approve] = APPROVED, got %v", beta.Behavior)
-	}
-}
-
-func TestTaskConfigStore_SkipsNonJSONFiles(t *testing.T) {
-	root := newTaskConfigsDir(t)
-	writeTaskConfigFile(t, root, "alpha.json", `{"meta":{"title":"A"}}`)
-	writeTaskConfigFile(t, root, "readme.txt", `not a config`)
-	writeTaskConfigFile(t, root, "config.yaml", `meta: { title: B }`)
-
-	store, err := NewTaskConfigStore(root, "")
-	if err != nil {
-		t.Fatalf("NewTaskConfigStore failed: %v", err)
-	}
-
-	if _, err := store.GetConfig("alpha"); err != nil {
-		t.Errorf("expected alpha loaded, got error: %v", err)
-	}
-	if _, err := store.GetConfig("readme"); err == nil {
-		t.Errorf("readme.txt should have been skipped")
-	}
-	if _, err := store.GetConfig("config"); err == nil {
-		t.Errorf("config.yaml should have been skipped")
+		t.Errorf("expected APPROVED in statusMap, got %v", beta.Behavior)
 	}
 }
 
 func TestTaskConfigStore_DefaultFallback(t *testing.T) {
-	root := newTaskConfigsDir(t)
-	writeTaskConfigFile(t, root, "default.json", `{"meta":{"title":"Generic Review"}}`)
-	writeTaskConfigFile(t, root, "specific.json", `{"meta":{"title":"Specific Review"}}`)
+	dir := t.TempDir()
+	writeTaskConfigFile(t, dir, "default.json", `{"meta":{"title":"Generic Review"}}`)
+	writeTaskConfigFile(t, dir, "specific.json", `{"meta":{"title":"Specific Review"}}`)
 
-	store, err := NewTaskConfigStore(root, "default")
-	if err != nil {
-		t.Fatalf("NewTaskConfigStore failed: %v", err)
-	}
+	store := newStore(t, nil, newLocalSource(t, dir), "default")
+	ctx := context.Background()
 
-	// Known taskCode returns its own config.
-	specific, err := store.GetConfig("specific")
+	specific, err := store.GetConfig(ctx, "specific")
 	if err != nil {
-		t.Fatalf("GetConfig(specific) failed: %v", err)
+		t.Fatalf("GetConfig(specific): %v", err)
 	}
 	if specific.Meta.Title != "Specific Review" {
-		t.Errorf("expected specific.Meta.Title = %q, got %q", "Specific Review", specific.Meta.Title)
+		t.Errorf("got %q", specific.Meta.Title)
 	}
 
-	// Unknown taskCode falls back to default.
-	got, err := store.GetConfig("unknown")
+	got, err := store.GetConfig(ctx, "unknown")
 	if err != nil {
-		t.Fatalf("expected default fallback for unknown taskCode, got error: %v", err)
+		t.Fatalf("expected default fallback for unknown, got error: %v", err)
 	}
 	if got.Meta.Title != "Generic Review" {
-		t.Errorf("expected default fallback, got Meta.Title %q", got.Meta.Title)
+		t.Errorf("expected default fallback, got %q", got.Meta.Title)
 	}
 }
 
 func TestTaskConfigStore_NoDefaultReturnsError(t *testing.T) {
-	root := newTaskConfigsDir(t)
-	writeTaskConfigFile(t, root, "alpha.json", `{"meta":{"title":"Alpha"}}`)
+	dir := t.TempDir()
+	writeTaskConfigFile(t, dir, "alpha.json", `{"meta":{"title":"Alpha"}}`)
 
-	// defaultConfigID is empty: an unknown taskCode must return an error.
-	store, err := NewTaskConfigStore(root, "")
-	if err != nil {
-		t.Fatalf("NewTaskConfigStore failed: %v", err)
-	}
+	store := newStore(t, nil, newLocalSource(t, dir), "")
 
-	if _, err := store.GetConfig("missing"); err == nil {
+	if _, err := store.GetConfig(context.Background(), "missing"); err == nil {
 		t.Errorf("expected error for missing taskCode when no default is set")
 	}
 }
 
 func TestTaskConfigStore_DefaultIDNotPresent(t *testing.T) {
-	root := newTaskConfigsDir(t)
-	writeTaskConfigFile(t, root, "alpha.json", `{"meta":{"title":"Alpha"}}`)
+	dir := t.TempDir()
+	writeTaskConfigFile(t, dir, "alpha.json", `{"meta":{"title":"Alpha"}}`)
 
-	// Configured default ID points at a file that doesn't exist.
-	// Store should still construct (no constructor-level enforcement),
-	// but lookups for unknown taskCodes must error since the default can't be resolved.
-	store, err := NewTaskConfigStore(root, "nonexistent")
-	if err != nil {
-		t.Fatalf("NewTaskConfigStore failed: %v", err)
-	}
+	store := newStore(t, nil, newLocalSource(t, dir), "nonexistent")
 
-	if _, err := store.GetConfig("missing"); err == nil {
+	if _, err := store.GetConfig(context.Background(), "missing"); err == nil {
 		t.Errorf("expected error when configured default ID is not in the store")
 	}
 }
 
 func TestTaskConfigStore_ErrorOnInvalidJSON(t *testing.T) {
-	root := newTaskConfigsDir(t)
-	writeTaskConfigFile(t, root, "broken.json", `{not valid`)
+	dir := t.TempDir()
+	writeTaskConfigFile(t, dir, "broken.json", `{not valid`)
 
-	_, err := NewTaskConfigStore(root, "")
+	store := newStore(t, nil, newLocalSource(t, dir), "")
+
+	_, err := store.GetConfig(context.Background(), "broken")
 	if err == nil {
-		t.Fatalf("expected error when loading invalid JSON, got nil")
+		t.Fatalf("expected error for invalid JSON, got nil")
 	}
 }
 
-func TestTaskConfigStore_ErrorOnMissingDir(t *testing.T) {
-	root := t.TempDir()
-	// Intentionally do not create root/task-configs.
+func TestTaskConfigStore_PrimaryWinsOnConflict(t *testing.T) {
+	primaryDir := t.TempDir()
+	builtinDir := t.TempDir()
+	writeTaskConfigFile(t, primaryDir, "shared.json", `{"meta":{"title":"Primary Override"}}`)
+	writeTaskConfigFile(t, builtinDir, "shared.json", `{"meta":{"title":"Builtin Default"}}`)
 
-	_, err := NewTaskConfigStore(root, "")
-	if err == nil {
-		t.Fatalf("expected error when task-configs directory is missing, got nil")
+	store := newStore(t, newLocalSource(t, primaryDir), newLocalSource(t, builtinDir), "")
+
+	cfg, err := store.GetConfig(context.Background(), "shared")
+	if err != nil {
+		t.Fatalf("GetConfig(shared): %v", err)
+	}
+	if cfg.Meta.Title != "Primary Override" {
+		t.Errorf("expected primary to win, got %q", cfg.Meta.Title)
+	}
+}
+
+func TestTaskConfigStore_BuiltinFallback(t *testing.T) {
+	primaryDir := t.TempDir()
+	builtinDir := t.TempDir()
+	writeTaskConfigFile(t, primaryDir, "primary_only.json", `{"meta":{"title":"P"}}`)
+	writeTaskConfigFile(t, builtinDir, "default.json", `{"meta":{"title":"Default Review"}}`)
+
+	store := newStore(t, newLocalSource(t, primaryDir), newLocalSource(t, builtinDir), "default")
+	ctx := context.Background()
+
+	if _, err := store.GetConfig(ctx, "primary_only"); err != nil {
+		t.Errorf("primary_only should resolve, got %v", err)
+	}
+	def, err := store.GetConfig(ctx, "default")
+	if err != nil {
+		t.Fatalf("default should resolve from builtin, got %v", err)
+	}
+	if def.Meta.Title != "Default Review" {
+		t.Errorf("expected builtin default, got %q", def.Meta.Title)
+	}
+	unknown, err := store.GetConfig(ctx, "unknown")
+	if err != nil {
+		t.Fatalf("unknown should fall back to default, got %v", err)
+	}
+	if unknown.Meta.Title != "Default Review" {
+		t.Errorf("expected default fallback, got %q", unknown.Meta.Title)
+	}
+}
+
+func TestTaskConfigStore_MultipleRetrievalsSucceed(t *testing.T) {
+	dir := t.TempDir()
+	writeTaskConfigFile(t, dir, "alpha.json", `{"meta":{"title":"Alpha"}}`)
+
+	store := newStore(t, nil, newLocalSource(t, dir), "")
+	ctx := context.Background()
+
+	for i := range 3 {
+		cfg, err := store.GetConfig(ctx, "alpha")
+		if err != nil {
+			t.Fatalf("GetConfig call %d: %v", i+1, err)
+		}
+		if cfg.Meta.Title != "Alpha" {
+			t.Errorf("call %d: expected Alpha, got %q", i+1, cfg.Meta.Title)
+		}
 	}
 }
 
 func TestTaskConfigStore_OutcomeFieldUnmarshals(t *testing.T) {
-	root := newTaskConfigsDir(t)
-	writeTaskConfigFile(t, root, "labs.json", `{
+	dir := t.TempDir()
+	writeTaskConfigFile(t, dir, "labs.json", `{
 		"meta": {"title": "Lab Results"},
 		"behavior": {
 			"outcomeField": "decision",
@@ -181,26 +210,18 @@ func TestTaskConfigStore_OutcomeFieldUnmarshals(t *testing.T) {
 		}
 	}`)
 
-	store, err := NewTaskConfigStore(root, "")
-	if err != nil {
-		t.Fatalf("NewTaskConfigStore failed: %v", err)
-	}
+	store := newStore(t, nil, newLocalSource(t, dir), "")
 
-	cfg, err := store.GetConfig("labs")
+	cfg, err := store.GetConfig(context.Background(), "labs")
 	if err != nil {
-		t.Fatalf("GetConfig(labs) failed: %v", err)
+		t.Fatalf("GetConfig(labs): %v", err)
 	}
-	if cfg.Behavior == nil {
-		t.Fatalf("expected Behavior to be set")
-	}
-	if cfg.Behavior.OutcomeField != "decision" {
-		t.Errorf("expected OutcomeField = %q, got %q", "decision", cfg.Behavior.OutcomeField)
+	if cfg.Behavior == nil || cfg.Behavior.OutcomeField != "decision" {
+		t.Errorf("expected OutcomeField=decision, got %v", cfg.Behavior)
 	}
 }
 
 func TestDefaultOutcomeFieldConstant(t *testing.T) {
-	// Guard against accidental rename: the constant is part of the public
-	// contract documented in task-configs.md and the .env.example.
 	if DefaultOutcomeField != "review_outcome" {
 		t.Errorf("DefaultOutcomeField changed: expected %q, got %q", "review_outcome", DefaultOutcomeField)
 	}

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -16,8 +17,11 @@ import (
 	"github.com/OpenNSW/nsw-agency/backend/internal/form"
 	"github.com/OpenNSW/nsw-agency/backend/internal/storage"
 	"github.com/OpenNSW/nsw-agency/backend/internal/taskconfig"
+	"github.com/OpenNSW/nsw-agency/backend/pkg/blobsource"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 )
+
+var newBlobSource = blobsource.NewFromConfig
 
 func main() {
 	cfg, err := LoadConfig()
@@ -30,6 +34,8 @@ func main() {
 		"db_path", cfg.DB.Path,
 		"port", cfg.Port,
 		"config_dir", cfg.ConfigDir,
+		"forms_source_type", blobsource.ConfigTypeLabel(cfg.FormsSource),
+		"task_configs_source_type", blobsource.ConfigTypeLabel(cfg.TaskConfigsSource),
 	)
 
 	// Initialize database store
@@ -37,16 +43,60 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to create application store: %v", err)
 	}
-	// Initialize task config store
-	configStore, err := taskconfig.NewTaskConfigStore(cfg.ConfigDir, cfg.DefaultTaskConfigID)
+
+	ctx := context.Background()
+
+	// Built-in defaults live under CONFIG_DIR. They are always loaded as a flat
+	// local source so default_review/default.json bundled with the binary
+	// remain available regardless of how the primary source is configured.
+	builtinForms, err := blobsource.NewFromConfig(ctx, blobsource.Config{
+		Type:     "local",
+		LocalDir: filepath.Join(cfg.ConfigDir, form.FormsSubdir),
+	})
+	if err != nil {
+		log.Fatalf("failed to load built-in forms defaults from %q: %v",
+			filepath.Join(cfg.ConfigDir, form.FormsSubdir), err)
+	}
+	builtinTaskConfigs, err := blobsource.NewFromConfig(ctx, blobsource.Config{
+		Type:     "local",
+		LocalDir: filepath.Join(cfg.ConfigDir, taskconfig.TaskConfigsSubdir),
+	})
+	if err != nil {
+		log.Fatalf("failed to load built-in task config defaults from %q: %v",
+			filepath.Join(cfg.ConfigDir, taskconfig.TaskConfigsSubdir), err)
+	}
+
+	// Primary sources are optional (nil = disabled). Forms fail fast on a
+	// misconfigured primary; task configs fall back to built-in defaults so a
+	// missing per-agency manifest doesn't take the service down.
+	var primaryForms blobsource.Source
+	if cfg.FormsSource != nil {
+		primaryForms, err = newBlobSource(ctx, *cfg.FormsSource)
+		if err != nil {
+			log.Fatalf("failed to construct forms primary source: %v", err)
+		}
+	}
+	primaryTaskConfigs := taskConfigsPrimarySource(ctx, cfg.TaskConfigsSource)
+
+	configStore, err := taskconfig.NewTaskConfigStore(ctx, primaryTaskConfigs, builtinTaskConfigs, cfg.DefaultTaskConfigID)
 	if err != nil {
 		log.Fatalf("failed to create task config store: %v", err)
 	}
-	// Initialize form store
-	formStore, err := form.NewFormStore(cfg.ConfigDir)
+	defer func() {
+		if err := configStore.Close(); err != nil {
+			slog.Error("failed to close task config store", "error", err)
+		}
+	}()
+
+	formStore, err := form.NewFormStore(ctx, primaryForms, builtinForms)
 	if err != nil {
 		log.Fatalf("failed to create form store: %v", err)
 	}
+	defer func() {
+		if err := formStore.Close(); err != nil {
+			slog.Error("failed to close form store", "error", err)
+		}
+	}()
 
 	// Create OAuth2 Authenticator for NSW API
 	nswOAuth2Client := httpclient.NewOAuth2Authenticator(
@@ -163,4 +213,20 @@ func main() {
 	}
 
 	slog.Info("NSW Agency service stopped")
+}
+
+// taskConfigsPrimarySource builds the task-configs primary source, returning
+// nil (disabled) when no source is configured or when construction fails. A
+// failure is logged and tolerated so a missing per-agency manifest falls back
+// to the built-in defaults rather than taking the service down.
+func taskConfigsPrimarySource(ctx context.Context, cfg *blobsource.Config) blobsource.Source {
+	if cfg == nil {
+		return nil
+	}
+	src, err := newBlobSource(ctx, *cfg)
+	if err != nil {
+		slog.Warn("failed to construct task configs primary source; continuing with built-in defaults only", "error", err)
+		return nil
+	}
+	return src
 }

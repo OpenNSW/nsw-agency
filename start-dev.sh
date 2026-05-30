@@ -53,6 +53,28 @@ CONFIG_fcau="8082|5175|OGA_PORTAL_APP_FCAU|FCAU_TO_NSW|Food Control Administrati
 CONFIG_ird="8083|5176|OGA_PORTAL_APP_IRD|IRD_TO_NSW|Inland Revenue Department (IRD)|ird"
 CONFIG_cda="8084|5177|OGA_PORTAL_APP_CDA|CDA_TO_NSW|Coconut Development Authority (CDA)|cda"
 
+# Default primary blob source for every agency. Forms come from the shared
+# one-trade-templates repo (manifest at root). Task-configs come from the
+# shared one-trade-agency-configs repo with a per-agency manifest at
+# agency-configs/<agency>/manifest.json — the path is derived from the agency name in
+# apply_blobsource_defaults(), so adding a new agency requires zero changes
+# here.
+#
+# Requirement: each agency listed in CONFIG_* above must have a
+# manifest.json (even an empty `{"byId":{}}`) at agency-configs/<agency>/manifest.json in
+# one-trade-agency-configs. If that manifest is missing, the backend logs a
+# warning and falls back to the built-in defaults for task configs only. The
+# built-in defaults in backend/data still cover per-ID misses.
+#
+# Override any of these per-invocation by exporting the matching
+# FORMS_SOURCE_* / TASK_CONFIGS_SOURCE_* env vars before running this script.
+# To opt an agency out of GitHub entirely (e.g. when offline), export
+# FORMS_SOURCE_TYPE=none TASK_CONFIGS_SOURCE_TYPE=none.
+BLOBSOURCE_GITHUB_FORMS_REPO="OpenNSW/one-trade-templates"
+BLOBSOURCE_GITHUB_FORMS_REF="main"
+BLOBSOURCE_GITHUB_TASK_CONFIGS_REPO="OpenNSW/one-trade-agency-configs"
+BLOBSOURCE_GITHUB_TASK_CONFIGS_REF="main"
+
 # Agencies (every CONFIG_* ), alphabetised for predictable launch order in 'all' mode
 #  Derived from the config above so adding an agency only requires editing the CONFIG_* block.
 ALL_AGENCIES=()
@@ -159,6 +181,21 @@ resolve_agency() {
   fi
   IFS='|' read -r BE_PORT FE_PORT IDP_CLIENT_ID NSW_CLIENT_ID APP_NAME OU_HANDLE <<<"$config"
   APP_NAME="${APP_NAME:-$1}"
+}
+
+# Apply the default primary blob source to FORMS_SOURCE_*/TASK_CONFIGS_SOURCE_*
+# env vars that the backend reads. Parent-shell or .env values still win (we
+# use ${VAR:-default} guards). The task-configs manifest path is derived from
+# the agency name, so this function is agency-agnostic.
+apply_blobsource_defaults() {
+  local agency=$1
+  export FORMS_SOURCE_TYPE="${FORMS_SOURCE_TYPE:-github}"
+  export FORMS_SOURCE_GITHUB_REPO="${FORMS_SOURCE_GITHUB_REPO:-$BLOBSOURCE_GITHUB_FORMS_REPO}"
+  export FORMS_SOURCE_GITHUB_REF="${FORMS_SOURCE_GITHUB_REF:-$BLOBSOURCE_GITHUB_FORMS_REF}"
+  export TASK_CONFIGS_SOURCE_TYPE="${TASK_CONFIGS_SOURCE_TYPE:-github}"
+  export TASK_CONFIGS_SOURCE_GITHUB_REPO="${TASK_CONFIGS_SOURCE_GITHUB_REPO:-$BLOBSOURCE_GITHUB_TASK_CONFIGS_REPO}"
+  export TASK_CONFIGS_SOURCE_GITHUB_REF="${TASK_CONFIGS_SOURCE_GITHUB_REF:-$BLOBSOURCE_GITHUB_TASK_CONFIGS_REF}"
+  export TASK_CONFIGS_SOURCE_GITHUB_MANIFEST_PATH="${TASK_CONFIGS_SOURCE_GITHUB_MANIFEST_PATH:-agency-configs/${agency}/manifest.json}"
 }
 
 # Source a .env file without clobbering vars already set in the environment.
@@ -302,6 +339,7 @@ start_backend() {
     export DB_PATH="${DB_PATH:-./${agency}_applications.db}"
     export NSW_CLIENT_ID
     export ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-http://localhost:$FE_PORT}"
+    apply_blobsource_defaults "$agency"
     # The Go server does not autoload .env — source it (non-clobber) so
     # NSW_* vars (API base URL, OAuth client secret, token URL) reach
     # the process without overriding anything already set above.

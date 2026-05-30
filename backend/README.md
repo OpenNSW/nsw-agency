@@ -94,8 +94,20 @@ All configuration is via environment variables:
 | `DB_PASSWORD`                    | PostgreSQL password                                    | `changeme`                     |
 | `DB_NAME`                        | PostgreSQL database name                               | `agency_db`                       |
 | `DB_SSLMODE`                     | PostgreSQL SSL mode                                    | `disable`                      |
-| `CONFIG_DIR`                     | Root directory containing `task-configs/` and `forms/` | `./data`                       |
+| `CONFIG_DIR`                     | Built-in defaults root; always layered as fallback     | `./data`                       |
 | `DEFAULT_TASK_CONFIG_ID`         | Fallback task config ID when `taskCode` has no match   | `default`                      |
+| `FORMS_SOURCE_TYPE`              | Forms primary source: `none`, `local`, or `github`     | `none`                         |
+| `FORMS_SOURCE_LOCAL_DIR`         | Forms local dir (auto-detects manifest.json)           | empty                          |
+| `FORMS_SOURCE_GITHUB_REPO`       | `owner/repo` (e.g. `OpenNSW/one-trade-templates`)      | empty                          |
+| `FORMS_SOURCE_GITHUB_REF`        | Branch or commit SHA (required when type=github)       | empty                          |
+| `FORMS_SOURCE_GITHUB_BASE_URL`   | Optional raw-content host override                     | upstream                       |
+| `FORMS_SOURCE_GITHUB_REFRESH_INTERVAL` | Background manifest refresh (Go duration)        | `0`                            |
+| `TASK_CONFIGS_SOURCE_TYPE`       | Same shape as `FORMS_SOURCE_TYPE`                      | `none`                         |
+| `TASK_CONFIGS_SOURCE_LOCAL_DIR`  | Task-configs local dir                                 | empty                          |
+| `TASK_CONFIGS_SOURCE_GITHUB_REPO`| e.g. `OpenNSW/one-trade-agency-configs`                | empty                          |
+| `TASK_CONFIGS_SOURCE_GITHUB_REF` | Branch or commit SHA                                   | empty                          |
+| `TASK_CONFIGS_SOURCE_GITHUB_BASE_URL` | Optional raw-content host override                | upstream                       |
+| `TASK_CONFIGS_SOURCE_GITHUB_REFRESH_INTERVAL` | Background manifest refresh              | `0`                            |
 | `ALLOWED_ORIGINS`                | Comma-separated CORS origins (`*` to allow all)        | `*`                            |
 | `NSW_API_BASE_URL`               | NSW API base URL for calling NSW endpoints             | `http://localhost:8080/api/v1` |
 | `NSW_CLIENT_ID`                  | OAuth2 client ID for Agency -> NSW                        | required                       |
@@ -150,6 +162,7 @@ backend/
 │   ├── feedback/               # Trader feedback endpoint
 │   └── storage/                # Upload/download URL handling for file attachments
 ├── pkg/
+│   ├── blobsource/             # Vendored from OpenNSW/nsw; local + GitHub blob sources
 │   ├── httpclient/             # OAuth2-aware HTTP client used for outbound NSW calls
 │   └── httputil/               # Shared HTTP helpers
 ├── data/                       # Local config dir (gitignored; only defaults are tracked)
@@ -172,7 +185,7 @@ Please read the project-level [CONTRIBUTING.md](../docs/CONTRIBUTING.md) before 
 When working on the Agency module:
 
 1. All application code lives in `internal/` (unexported package)
-2. Task configs go in `data/task-configs/` and form definitions go in `data/forms/`. See [`docs/task-configs.md`](docs/task-configs.md) and [`docs/forms.md`](docs/forms.md).
+2. Built-in defaults go in `data/task-configs/` and `data/forms/`; deployment-specific configs/forms come from the `FORMS_SOURCE_*` / `TASK_CONFIGS_SOURCE_*` primary sources (typically the OpenNSW one-trade-* repos). See [`docs/task-configs.md`](docs/task-configs.md) and [`docs/forms.md`](docs/forms.md).
 3. The service uses Go's standard `net/http` with `http.ServeMux` -- no external routing frameworks
 4. Database migrations are handled automatically by GORM's `AutoMigrate`
 5. Run `go vet ./...` and `go build ./...` before submitting PRs

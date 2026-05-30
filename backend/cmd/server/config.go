@@ -5,8 +5,10 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/OpenNSW/nsw-agency/backend/internal/database"
+	"github.com/OpenNSW/nsw-agency/backend/pkg/blobsource"
 )
 
 type NSWConfig struct {
@@ -26,6 +28,11 @@ type Config struct {
 	AllowedOrigins      []string
 	NSW                 NSWConfig
 	MaxRequestBytes     int64
+	// FormsSource / TaskConfigsSource are the optional primary blob sources.
+	// nil means "no primary source" (disabled) — only the built-in defaults
+	// under ConfigDir are used.
+	FormsSource       *blobsource.Config
+	TaskConfigsSource *blobsource.Config
 }
 
 // LoadConfig loads configuration from environment variables
@@ -62,6 +69,15 @@ func LoadConfig() (Config, error) {
 		return Config{}, fmt.Errorf("unsupported database driver configured: %s", driver)
 	}
 
+	formsSource, err := loadBlobSourceConfig("FORMS_SOURCE")
+	if err != nil {
+		return Config{}, err
+	}
+	taskConfigsSource, err := loadBlobSourceConfig("TASK_CONFIGS_SOURCE")
+	if err != nil {
+		return Config{}, err
+	}
+
 	cfg := Config{
 		Port:                envOrDefault("PORT", "8081"),
 		DB:                  dbConfig,
@@ -75,6 +91,8 @@ func LoadConfig() (Config, error) {
 			TokenURL:     os.Getenv("NSW_TOKEN_URL"),
 			Scopes:       parseCommaSeparated(os.Getenv("NSW_SCOPES")),
 		},
+		FormsSource:       formsSource,
+		TaskConfigsSource: taskConfigsSource,
 	}
 	maxRequestBytes, err := parseInt64Env("MAX_REQUEST_BYTES", 32<<20)
 	if err != nil {
@@ -109,6 +127,34 @@ func (c Config) validateNSWOAuth2Config() error {
 		return fmt.Errorf("NSW_TOKEN_URL is required")
 	}
 	return nil
+}
+
+// loadBlobSourceConfig reads <PREFIX>_TYPE and friends from the environment
+// and returns the corresponding blobsource.Config, or nil when the source is
+// disabled (TYPE unset or "none"). A returned config is validated, so bad
+// values fail at startup rather than on first request.
+func loadBlobSourceConfig(prefix string) (*blobsource.Config, error) {
+	typ := strings.TrimSpace(os.Getenv(prefix + "_TYPE"))
+	if typ == "" || typ == "none" {
+		return nil, nil
+	}
+	refreshInterval, err := parseDurationEnv(prefix+"_GITHUB_REFRESH_INTERVAL", 0)
+	if err != nil {
+		return nil, err
+	}
+	cfg := blobsource.Config{
+		Type:                  typ,
+		LocalDir:              os.Getenv(prefix + "_LOCAL_DIR"),
+		GitHubRepo:            os.Getenv(prefix + "_GITHUB_REPO"),
+		GitHubRef:             os.Getenv(prefix + "_GITHUB_REF"),
+		GitHubManifestPath:    os.Getenv(prefix + "_GITHUB_MANIFEST_PATH"),
+		GitHubBaseURL:         os.Getenv(prefix + "_GITHUB_BASE_URL"),
+		GitHubRefreshInterval: refreshInterval,
+	}
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("%s: %w", prefix, err)
+	}
+	return &cfg, nil
 }
 
 func envOrDefault(key, defaultValue string) string {
@@ -155,5 +201,17 @@ func parseInt64Env(key string, defaultValue int64) (int64, error) {
 		return 0, fmt.Errorf("invalid value for %s: %q", key, raw)
 	}
 
+	return value, nil
+}
+
+func parseDurationEnv(key string, defaultValue time.Duration) (time.Duration, error) {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return defaultValue, nil
+	}
+	value, err := time.ParseDuration(raw)
+	if err != nil {
+		return 0, fmt.Errorf("invalid value for %s: %q", key, raw)
+	}
 	return value, nil
 }

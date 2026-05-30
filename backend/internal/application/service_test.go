@@ -8,11 +8,13 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
 	"github.com/OpenNSW/nsw-agency/backend/internal/form"
 	"github.com/OpenNSW/nsw-agency/backend/internal/taskconfig"
+	"github.com/OpenNSW/nsw-agency/backend/pkg/blobsource"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 )
 
@@ -32,6 +34,36 @@ func writeFormFile(t *testing.T, root, name, content string) {
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("failed to write %s: %v", path, err)
 	}
+}
+
+// sourceForDir returns a local blobsource for dir, or nil if dir has no .json
+// files. blobsource.NewLocal rejects empty dirs, but the service-test harness
+// wants to construct stores even when a given test writes neither forms nor
+// task-configs (e.g. error-path tests); a nil source layer is simply skipped.
+func sourceForDir(t *testing.T, dir string) blobsource.Source {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read %q: %v", dir, err)
+	}
+	hasJSON := false
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".json") {
+			hasJSON = true
+			break
+		}
+	}
+	if !hasJSON {
+		return nil
+	}
+	src, err := blobsource.NewFromConfig(context.Background(), blobsource.Config{
+		Type:     "local",
+		LocalDir: dir,
+	})
+	if err != nil {
+		t.Fatalf("NewFromConfig(local, %q): %v", dir, err)
+	}
+	return src
 }
 
 // ---------- service test harness ----------
@@ -106,12 +138,17 @@ func newServiceHarness(t *testing.T, writeFn func(root string), defaultConfigID 
 
 	store := newTestStore(t)
 
-	configStore, err := taskconfig.NewTaskConfigStore(root, defaultConfigID)
+	configStore, err := taskconfig.NewTaskConfigStore(context.Background(),
+		nil,
+		sourceForDir(t, filepath.Join(root, taskconfig.TaskConfigsSubdir)),
+		defaultConfigID)
 	if err != nil {
 		t.Fatalf("NewTaskConfigStore failed: %v", err)
 	}
 
-	formStore, err := form.NewFormStore(root)
+	formStore, err := form.NewFormStore(context.Background(),
+		nil,
+		sourceForDir(t, filepath.Join(root, form.FormsSubdir)))
 	if err != nil {
 		t.Fatalf("NewFormStore failed: %v", err)
 	}

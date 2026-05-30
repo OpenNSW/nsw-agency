@@ -1,8 +1,9 @@
 module github.com/OpenNSW/nsw-agency/backend
 
-go 1.25.0
+go 1.25.7
 
 require (
+	github.com/OpenNSW/nsw/backend v0.0.0-20260529120158-eea9fedcbce2
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/mattn/go-sqlite3 v1.14.44
 	golang.org/x/oauth2 v0.36.0
@@ -10,6 +11,8 @@ require (
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.1
 )
+
+replace github.com/OpenNSW/nsw/backend => github.com/sthanikan2000/nsw/backend v0.0.0-20260529120158-eea9fedcbce2
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
