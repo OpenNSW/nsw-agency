@@ -144,6 +144,14 @@ cleanup() {
         kill -TERM "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
       fi
     done
+    # Give processes a moment to shut down gracefully
+    sleep 1
+    # Force kill any remaining processes in the group
+    for pid in "${PIDS[@]}"; do
+      if kill -0 "$pid" 2>/dev/null; then
+        kill -KILL "-$pid" 2>/dev/null || kill -KILL "$pid" 2>/dev/null || true
+      fi
+    done
     wait 2>/dev/null || true
   fi
 }

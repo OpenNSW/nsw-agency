@@ -40,7 +40,7 @@ func TestFileLoader_LoadsValidTemplates(t *testing.T) {
 	writeTestFile(t, root, "forms", "nested/form2.json", `{"uiSchema":{"type":"VerticalLayout"}}`)
 	writeTestFile(t, root, "forms", "nested/workflow.json", `{"id":"workflow-id","task_type":"EXTERNAL_REVIEW"}`) // should be skipped (no schema/uiSchema)
 	writeTestFile(t, root, "forms", "ignored.txt", `some non-json text`)
-	
+
 	// Unreferenced form (should NOT be loaded/cached)
 	writeTestFile(t, root, "forms", "unreferenced_form.json", `{"id":"unreferenced-form-id","schema":{"type":"object"}}`)
 
@@ -110,9 +110,9 @@ func TestFileLoader_ValidationFailsOnMissingForm(t *testing.T) {
 		t.Fatalf("expected Load to fail due to missing form reference, but it succeeded")
 	}
 
-	expectedErr := `form "missing-form-id" referenced in task configs was not found`
+	expectedErr := `form "missing-form-id" referenced in task configs was not found in form templates`
 	if err.Error() != expectedErr {
-		t.Logf("got error: %v", err)
+		t.Errorf("expected error %q, got %q", expectedErr, err.Error())
 	}
 }
 

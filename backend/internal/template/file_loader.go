@@ -13,19 +13,19 @@ import (
 
 // FileLoader implements Provider and Loader interfaces, retrieving template data from the local filesystem.
 type FileLoader struct {
-	taskConfigsDir  string
-	formsDir        string
-	taskConfigs     map[string]*taskconfig.TaskConfig
-	forms           map[string]json.RawMessage
+	taskConfigsDir string
+	formsDir       string
+	taskConfigs    map[string]*taskconfig.TaskConfig
+	forms          map[string]json.RawMessage
 }
 
 // NewFileLoader creates a new FileLoader pointing to the task configs and forms directories.
 func NewFileLoader(taskConfigsDir string, formsDir string) *FileLoader {
 	return &FileLoader{
-		taskConfigsDir:  taskConfigsDir,
-		formsDir:        formsDir,
-		taskConfigs:     make(map[string]*taskconfig.TaskConfig),
-		forms:           make(map[string]json.RawMessage),
+		taskConfigsDir: taskConfigsDir,
+		formsDir:       formsDir,
+		taskConfigs:    make(map[string]*taskconfig.TaskConfig),
+		forms:          make(map[string]json.RawMessage),
 	}
 }
 
