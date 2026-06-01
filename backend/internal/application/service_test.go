@@ -11,7 +11,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/OpenNSW/nsw-agency/backend/internal/taskconfig"
 	"github.com/OpenNSW/nsw-agency/backend/internal/template"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 )
@@ -90,7 +89,7 @@ type serviceHarness struct {
 //
 // writeFn receives the config root path and is expected to populate
 // <root>/task-configs/ and <root>/forms/ as needed.
-func newServiceHarness(t *testing.T, writeFn func(root string), defaultConfigID string) *serviceHarness {
+func newServiceHarness(t *testing.T, writeFn func(root string)) *serviceHarness {
 	t.Helper()
 
 	root := t.TempDir()
@@ -105,7 +104,7 @@ func newServiceHarness(t *testing.T, writeFn func(root string), defaultConfigID 
 
 	store := newTestStore(t)
 
-	loader := template.NewFileLoader(root, defaultConfigID)
+	loader := template.NewFileLoader(filepath.Join(root, "task-configs"), filepath.Join(root, "forms"))
 	if err := loader.Load(); err != nil {
 		t.Fatalf("FileLoader.Load failed: %v", err)
 	}
@@ -170,7 +169,7 @@ func TestReviewApplication_StatusFromStatusMap(t *testing.T) {
 				}
 			}
 		}`)
-	}, "")
+	})
 	h.seed("t-approve", "alpha", nil)
 	h.seed("t-reject", "alpha", nil)
 	h.seed("t-feedback", "alpha", nil)
@@ -205,7 +204,7 @@ func TestReviewApplication_DefaultsToDONE_OutcomeNotInMap(t *testing.T) {
 			"meta": {"title": "Alpha"},
 			"behavior": {"statusMap": {"approve": "APPROVED"}}
 		}`)
-	}, "")
+	})
 	h.seed("t-unknown", "alpha", nil)
 
 	err := h.service.ReviewApplication(context.Background(), "t-unknown", map[string]any{
@@ -223,7 +222,7 @@ func TestReviewApplication_DefaultsToDONE_NoStatusMap(t *testing.T) {
 	h := newServiceHarness(t, func(root string) {
 		// Config exists but defines no behavior/statusMap.
 		writeTaskConfigFile(t, root, "alpha.json", `{"meta": {"title": "Alpha"}}`)
-	}, "")
+	})
 	h.seed("t-no-map", "alpha", nil)
 
 	err := h.service.ReviewApplication(context.Background(), "t-no-map", map[string]any{
@@ -238,7 +237,7 @@ func TestReviewApplication_DefaultsToDONE_NoStatusMap(t *testing.T) {
 }
 
 func TestReviewApplication_DefaultsToDONE_NoConfig(t *testing.T) {
-	h := newServiceHarness(t, nil, "")
+	h := newServiceHarness(t, nil)
 	h.seed("t-no-config", "no-such-task", nil)
 
 	err := h.service.ReviewApplication(context.Background(), "t-no-config", map[string]any{
@@ -263,7 +262,7 @@ func TestReviewApplication_OutcomeFieldOverride(t *testing.T) {
 				"statusMap": {"pass": "APPROVED", "fail": "REJECTED"}
 			}
 		}`)
-	}, "")
+	})
 
 	t.Run("custom field hit", func(t *testing.T) {
 		h.seed("t-pass", "labs", nil)
@@ -302,7 +301,7 @@ func TestReviewApplication_CallsServiceURL(t *testing.T) {
 			"meta": {"title": "Alpha"},
 			"behavior": {"statusMap": {"approve": "APPROVED"}}
 		}`)
-	}, "")
+	})
 	h.seed("t-callback", "alpha", nil)
 
 	err := h.service.ReviewApplication(context.Background(), "t-callback", map[string]any{
@@ -346,7 +345,7 @@ func TestGetApplication_ResolvesFormReferences(t *testing.T) {
 		}`)
 		writeFormFile(t, root, "alpha_view.json", `{"schema":{"type":"object","title":"View"},"uiSchema":{"type":"VerticalLayout"}}`)
 		writeFormFile(t, root, "alpha_review.json", `{"schema":{"type":"object","title":"Review"},"uiSchema":{"type":"VerticalLayout"}}`)
-	}, "")
+	})
 	h.seed("t-1", "alpha", JSONB{"submittedField": "submittedValue"})
 
 	app, err := h.service.GetApplication(context.Background(), "t-1")
@@ -403,14 +402,14 @@ func TestGetApplication_MissingFormRef_FailsLoader(t *testing.T) {
 		"forms": {"view": "missing_view", "review": "missing_review"}
 	}`)
 
-	loader := template.NewFileLoader(root, "")
+	loader := template.NewFileLoader(filepath.Join(root, "task-configs"), filepath.Join(root, "forms"))
 	if err := loader.Load(); err == nil {
 		t.Errorf("expected Loader.Load to fail due to missing form references, but got nil")
 	}
 }
 
 func TestGetApplication_NoConfig_OmitsMetadata(t *testing.T) {
-	h := newServiceHarness(t, nil, "")
+	h := newServiceHarness(t, nil)
 	h.seed("t-orphan", "no-config-for-this", nil)
 
 	app, err := h.service.GetApplication(context.Background(), "t-orphan")
@@ -427,7 +426,7 @@ func TestGetApplication_NoConfig_OmitsMetadata(t *testing.T) {
 }
 
 func TestGetApplication_NotFound(t *testing.T) {
-	h := newServiceHarness(t, nil, "")
+	h := newServiceHarness(t, nil)
 	_, err := h.service.GetApplication(context.Background(), "does-not-exist")
 	if err != ErrApplicationNotFound {
 		t.Errorf("expected ErrApplicationNotFound, got %v", err)

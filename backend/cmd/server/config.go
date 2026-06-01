@@ -19,14 +19,13 @@ type NSWConfig struct {
 }
 
 type Config struct {
-	Port                string
-	DB                  database.Config
-	TaskConfigsDir      string
-	FormTemplatesDir    string
-	DefaultTaskConfigID string
-	AllowedOrigins      []string
-	NSW                 NSWConfig
-	MaxRequestBytes     int64
+	Port             string
+	DB               database.Config
+	TaskConfigsDir   string
+	FormTemplatesDir string
+	AllowedOrigins   []string
+	NSW              NSWConfig
+	MaxRequestBytes  int64
 }
 
 // LoadConfig loads configuration from environment variables
@@ -67,12 +66,11 @@ func LoadConfig() (Config, error) {
 	formTemplatesDir := envOrDefault("FORM_TEMPLATES_DIR", "./data/forms")
 
 	cfg := Config{
-		Port:                envOrDefault("PORT", "8081"),
-		DB:                  dbConfig,
-		TaskConfigsDir:      taskConfigsDir,
-		FormTemplatesDir:    formTemplatesDir,
-		DefaultTaskConfigID: envOrDefault("DEFAULT_TASK_CONFIG_ID", "default"),
-		AllowedOrigins:      parseCommaSeparated(envOrDefault("ALLOWED_ORIGINS", "*")),
+		Port:             envOrDefault("PORT", "8081"),
+		DB:               dbConfig,
+		TaskConfigsDir:   taskConfigsDir,
+		FormTemplatesDir: formTemplatesDir,
+		AllowedOrigins:   parseCommaSeparated(envOrDefault("ALLOWED_ORIGINS", "*")),
 		NSW: NSWConfig{
 			BaseURL:      os.Getenv("NSW_API_BASE_URL"),
 			ClientID:     os.Getenv("NSW_CLIENT_ID"),

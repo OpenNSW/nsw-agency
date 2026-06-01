@@ -15,17 +15,15 @@ import (
 type FileLoader struct {
 	taskConfigsDir  string
 	formsDir        string
-	defaultConfigID string
 	taskConfigs     map[string]*taskconfig.TaskConfig
 	forms           map[string]json.RawMessage
 }
 
 // NewFileLoader creates a new FileLoader pointing to the task configs and forms directories.
-func NewFileLoader(taskConfigsDir string, formsDir string, defaultConfigID string) *FileLoader {
+func NewFileLoader(taskConfigsDir string, formsDir string) *FileLoader {
 	return &FileLoader{
 		taskConfigsDir:  taskConfigsDir,
 		formsDir:        formsDir,
-		defaultConfigID: defaultConfigID,
 		taskConfigs:     make(map[string]*taskconfig.TaskConfig),
 		forms:           make(map[string]json.RawMessage),
 	}
@@ -62,7 +60,7 @@ func (l *FileLoader) Load() error {
 		if config.TaskCode == "" {
 			config.TaskCode = id
 		}
-		l.taskConfigs[id] = &config
+		l.taskConfigs[config.TaskCode] = &config
 
 		// Collect referenced form IDs
 		if config.Forms.View != "" {
@@ -136,11 +134,6 @@ func (l *FileLoader) Load() error {
 func (l *FileLoader) GetTaskConfig(taskCode string) (*taskconfig.TaskConfig, error) {
 	if config, ok := l.taskConfigs[taskCode]; ok {
 		return config, nil
-	}
-	if l.defaultConfigID != "" {
-		if def, ok := l.taskConfigs[l.defaultConfigID]; ok {
-			return def, nil
-		}
 	}
 	return nil, fmt.Errorf("task config %q not found", taskCode)
 }

@@ -94,8 +94,8 @@ All configuration is via environment variables:
 | `DB_PASSWORD`                    | PostgreSQL password                                    | `changeme`                     |
 | `DB_NAME`                        | PostgreSQL database name                               | `agency_db`                       |
 | `DB_SSLMODE`                     | PostgreSQL SSL mode                                    | `disable`                      |
-| `CONFIG_DIR`                     | Root directory containing `task-configs/` and `forms/` | `./data`                       |
-| `DEFAULT_TASK_CONFIG_ID`         | Fallback task config ID when `taskCode` has no match   | `default`                      |
+| `TASK_CONFIGS_DIR`               | Directory containing task configurations               | `./data/task-configs`          |
+| `FORM_TEMPLATES_DIR`             | Directory containing form templates                    | `./data/forms`                 |
 | `ALLOWED_ORIGINS`                | Comma-separated CORS origins (`*` to allow all)        | `*`                            |
 | `NSW_API_BASE_URL`               | NSW API base URL for calling NSW endpoints             | `http://localhost:8080/api/v1` |
 | `NSW_CLIENT_ID`                  | OAuth2 client ID for Agency -> NSW                        | required                       |

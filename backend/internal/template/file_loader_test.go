@@ -51,7 +51,7 @@ func TestFileLoader_LoadsValidTemplates(t *testing.T) {
 		"forms": {"view": "custom-id-1", "review": "form2"}
 	}`)
 
-	loader := NewFileLoader(taskConfigsDir, formsDir, "")
+	loader := NewFileLoader(taskConfigsDir, formsDir)
 	if err := loader.Load(); err != nil {
 		t.Fatalf("Load failed unexpectedly: %v", err)
 	}
@@ -104,7 +104,7 @@ func TestFileLoader_ValidationFailsOnMissingForm(t *testing.T) {
 		"forms": {"view": "missing-form-id"}
 	}`)
 
-	loader := NewFileLoader(taskConfigsDir, formsDir, "")
+	loader := NewFileLoader(taskConfigsDir, formsDir)
 	err := loader.Load()
 	if err == nil {
 		t.Fatalf("expected Load to fail due to missing form reference, but it succeeded")
@@ -116,28 +116,20 @@ func TestFileLoader_ValidationFailsOnMissingForm(t *testing.T) {
 	}
 }
 
-func TestFileLoader_GetTaskConfigDefaultFallback(t *testing.T) {
+func TestFileLoader_GetTaskConfigNotFound(t *testing.T) {
 	root := setupTestConfigDir(t)
 	taskConfigsDir := filepath.Join(root, "task-configs")
 	formsDir := filepath.Join(root, "forms")
 
-	writeTestFile(t, root, "task-configs", "default.json", `{
-		"taskCode": "default",
-		"meta": {"title": "Default Task"}
-	}`)
-
-	loader := NewFileLoader(taskConfigsDir, formsDir, "default")
+	loader := NewFileLoader(taskConfigsDir, formsDir)
 	if err := loader.Load(); err != nil {
 		t.Fatalf("Load failed: %v", err)
 	}
 
-	// Requesting an unknown config should fall back to default
-	config, err := loader.GetTaskConfig("unknown_task")
-	if err != nil {
-		t.Fatalf("expected GetTaskConfig to fall back to default, got error: %v", err)
-	}
-	if config.Meta.Title != "Default Task" {
-		t.Errorf("expected 'Default Task', got %q", config.Meta.Title)
+	// Requesting an unknown config should return an error
+	_, err := loader.GetTaskConfig("unknown_task")
+	if err == nil {
+		t.Fatalf("expected GetTaskConfig to return error for unknown task, but it succeeded")
 	}
 }
 
@@ -147,7 +139,7 @@ func TestFileLoader_MissingDir(t *testing.T) {
 	formsDir := filepath.Join(root, "forms")
 	// forms and task-configs subdirs do not exist
 
-	loader := NewFileLoader(taskConfigsDir, formsDir, "")
+	loader := NewFileLoader(taskConfigsDir, formsDir)
 	if err := loader.Load(); err == nil {
 		t.Fatalf("expected Load to fail when directories are missing, got nil")
 	}
