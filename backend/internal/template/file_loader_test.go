@@ -45,7 +45,7 @@ func TestFileLoader_LoadsValidTemplates(t *testing.T) {
 	writeTestFile(t, root, "forms", "unreferenced_form.json", `{"id":"unreferenced-form-id","schema":{"type":"object"}}`)
 
 	// Task configs
-	writeTestFile(t, root, "task-configs", "task1.json", `{
+	writeTestFile(t, root, "task-configs/nested_configs", "task1.json", `{
 		"taskCode": "task_code_1",
 		"meta": {"title": "Task One"},
 		"forms": {"view": "custom-id-1", "review": "form2"}
