@@ -108,9 +108,9 @@ func TestFileLoader_ValidationFailsOnMissingForm(t *testing.T) {
 		t.Fatalf("expected Load to fail due to missing form reference, but it succeeded")
 	}
 
-	expectedErr := `form "missing-form-id" referenced in task configs was not found`
+	expectedErr := `form "missing-form-id" referenced in task configs was not found in form templates`
 	if err.Error() != expectedErr {
-		t.Logf("got error: %v", err)
+		t.Errorf("expected error %q, got %q", expectedErr, err.Error())
 	}
 }
 
