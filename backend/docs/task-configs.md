@@ -63,11 +63,10 @@ At startup the `TaskConfigStore` loads every `.json` file in the directory and i
 When `GET /api/v1/applications/{taskId}` is called:
 
 1. The application record is loaded from the database; it carries `taskCode`.
-2. `TaskConfigStore.GetConfig(taskCode)` is called:
+2. The template provider resolves the task configuration by `taskCode` using `template.Provider.GetTaskConfig(taskCode)`:
    - **Hit** → returns the config.
-   - **Miss** → falls back to the config registered as the default (`AGENCY_DEFAULT_TASK_CONFIG_ID`, defaults to `default`).
-   - **No default** → returns an error; the response omits all metadata and form fields, and the frontend renders a raw data view.
-3. Each non-empty form reference in the config is resolved against the `FormStore`:
+   - **Miss** → returns an error; the response omits all metadata and form fields, and a warning is logged.
+3. Each non-empty form reference in the config is resolved against the loaded form templates:
    - Hit → form JSON is attached to the response as `dataForm` (view) or `agencyForm` (review).
    - Miss → a warning is logged and the field is omitted.
 4. On review submission via `POST /api/v1/applications/{taskId}/review`, if `behavior.statusMap` is set and the request body contains a matching `review_outcome` value, the application's status is set accordingly. Otherwise it defaults to `DONE`.
@@ -121,13 +120,11 @@ Common statuses used by the frontend:
 | `FEEDBACK_REQUESTED` | Officer sent the task back to the trader for changes. |
 | `DONE`               | Generic completion when no `statusMap` matches.       |
 
-## Per-Deployment Configs
-
-Only `default.json` ships in the repo. Agency-specific task configs live outside version control and are provided per deployment by pointing `AGENCY_CONFIG_DIR` at a directory containing your `task-configs/` (and `forms/`) subdirs.
+Only standard task configurations ship in the repo. Agency-specific task configs live outside version control and are provided per deployment by setting `TASK_CONFIGS_DIR` and `FORM_TEMPLATES_DIR`.
 
 ## Configuration
 
-| Variable                       | Description                                                       | Default      |
-|--------------------------------|-------------------------------------------------------------------|--------------|
-| `CONFIG_DIR`               | Root directory containing `task-configs/` and `forms/` subdirs    | `./data`     |
-| `DEFAULT_TASK_CONFIG_ID`   | Task config ID used when a `taskCode` has no registered config    | `default`    |
+| Variable             | Description                                                       | Default                |
+|----------------------|-------------------------------------------------------------------|------------------------|
+| `TASK_CONFIGS_DIR`   | Directory containing task configurations                          | `./data/task-configs`  |
+| `FORM_TEMPLATES_DIR` | Directory containing form templates                               | `./data/forms`         |

@@ -66,7 +66,6 @@ func main() {
 	templateLoader := template.NewFileLoader(
 		cfg.TaskConfigsDir,
 		cfg.FormTemplatesDir,
-		cfg.DefaultTaskConfigID,
 	)
 	if err := templateLoader.Load(); err != nil {
 		log.Fatalf("failed to load templates: %v", err)
