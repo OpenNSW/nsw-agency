@@ -5,7 +5,7 @@
     "description": "Officer confirms receipt of the physical consignment sample."
   },
   "forms": {
-    "view": "fcau_sample_wait_v1_view",
-    "review": "fcau_sample_wait_v1_review"
+    "view": "fcau-apply-health-cert--user-form",
+    "review": "fcau-sample-collection--reviewer-form"
   }
 }

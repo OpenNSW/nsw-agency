@@ -11,15 +11,15 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/OpenNSW/nsw-agency/backend/internal/form"
 	"github.com/OpenNSW/nsw-agency/backend/internal/taskconfig"
+	"github.com/OpenNSW/nsw-agency/backend/internal/template"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 )
 
 // writeTaskConfigFile writes content to <root>/task-configs/<name>.
 func writeTaskConfigFile(t *testing.T, root, name, content string) {
 	t.Helper()
-	path := filepath.Join(root, taskconfig.TaskConfigsSubdir, name)
+	path := filepath.Join(root, "task-configs", name)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("failed to write %s: %v", path, err)
 	}
@@ -28,7 +28,7 @@ func writeTaskConfigFile(t *testing.T, root, name, content string) {
 // writeFormFile writes content to <root>/forms/<name>.
 func writeFormFile(t *testing.T, root, name, content string) {
 	t.Helper()
-	path := filepath.Join(root, form.FormsSubdir, name)
+	path := filepath.Join(root, "forms", name)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("failed to write %s: %v", path, err)
 	}
@@ -76,14 +76,13 @@ func newCallbackServer(t *testing.T) (*httptest.Server, *callbackCapture) {
 // serviceHarness wires the in-memory dependencies required to exercise
 // Service end-to-end against a stub callback server.
 type serviceHarness struct {
-	t           *testing.T
-	store       *ApplicationStore
-	configStore *taskconfig.TaskConfigStore
-	formStore   *form.FormStore
-	httpClient  *httpclient.Client
-	callbackURL string
-	capture     *callbackCapture
-	service     Service
+	t                *testing.T
+	store            *ApplicationStore
+	templateProvider template.Provider
+	httpClient       *httpclient.Client
+	callbackURL      string
+	capture          *callbackCapture
+	service          Service
 }
 
 // newServiceHarness constructs the harness with config and form files placed
@@ -95,7 +94,7 @@ func newServiceHarness(t *testing.T, writeFn func(root string), defaultConfigID 
 	t.Helper()
 
 	root := t.TempDir()
-	for _, sub := range []string{taskconfig.TaskConfigsSubdir, form.FormsSubdir} {
+	for _, sub := range []string{"task-configs", "forms"} {
 		if err := os.MkdirAll(filepath.Join(root, sub), 0o755); err != nil {
 			t.Fatalf("failed to create %s dir: %v", sub, err)
 		}
@@ -106,31 +105,25 @@ func newServiceHarness(t *testing.T, writeFn func(root string), defaultConfigID 
 
 	store := newTestStore(t)
 
-	configStore, err := taskconfig.NewTaskConfigStore(root, defaultConfigID)
-	if err != nil {
-		t.Fatalf("NewTaskConfigStore failed: %v", err)
-	}
-
-	formStore, err := form.NewFormStore(root)
-	if err != nil {
-		t.Fatalf("NewFormStore failed: %v", err)
+	loader := template.NewFileLoader(root, defaultConfigID)
+	if err := loader.Load(); err != nil {
+		t.Fatalf("FileLoader.Load failed: %v", err)
 	}
 
 	srv, capture := newCallbackServer(t)
 	hc := httpclient.NewClientBuilder().Build()
 
-	svc := NewService(store, configStore, formStore, hc)
+	svc := NewService(store, loader, hc)
 	t.Cleanup(func() { _ = svc.Close() })
 
 	return &serviceHarness{
-		t:           t,
-		store:       store,
-		configStore: configStore,
-		formStore:   formStore,
-		httpClient:  hc,
-		callbackURL: srv.URL,
-		capture:     capture,
-		service:     svc,
+		t:                t,
+		store:            store,
+		templateProvider: loader,
+		httpClient:       hc,
+		callbackURL:      srv.URL,
+		capture:          capture,
+		service:          svc,
 	}
 }
 
@@ -398,31 +391,21 @@ func TestGetApplication_ResolvesFormReferences(t *testing.T) {
 	}
 }
 
-func TestGetApplication_MissingFormRef_LogsAndOmits(t *testing.T) {
-	h := newServiceHarness(t, func(root string) {
-		writeTaskConfigFile(t, root, "alpha.json", `{
-			"meta": {"title": "Alpha"},
-			"forms": {"view": "missing_view", "review": "missing_review"}
-		}`)
-		// Note: neither form file exists in <root>/forms/.
-	}, "")
-	h.seed("t-no-forms", "alpha", nil)
+func TestGetApplication_MissingFormRef_FailsLoader(t *testing.T) {
+	root := t.TempDir()
+	for _, sub := range []string{"task-configs", "forms"} {
+		if err := os.MkdirAll(filepath.Join(root, sub), 0o755); err != nil {
+			t.Fatalf("failed to create %s dir: %v", sub, err)
+		}
+	}
+	writeTaskConfigFile(t, root, "alpha.json", `{
+		"meta": {"title": "Alpha"},
+		"forms": {"view": "missing_view", "review": "missing_review"}
+	}`)
 
-	app, err := h.service.GetApplication(context.Background(), "t-no-forms")
-	if err != nil {
-		t.Fatalf("GetApplication failed: %v", err)
-	}
-
-	// Metadata still attached.
-	if app.Title != "Alpha" {
-		t.Errorf("Title: got %q, want Alpha", app.Title)
-	}
-	// Form payloads must be nil since the form IDs don't resolve.
-	if app.DataForm != nil {
-		t.Errorf("expected DataForm to be nil when form ID is missing, got %s", app.DataForm)
-	}
-	if app.AgencyForm != nil {
-		t.Errorf("expected AgencyForm to be nil when form ID is missing, got %s", app.AgencyForm)
+	loader := template.NewFileLoader(root, "")
+	if err := loader.Load(); err == nil {
+		t.Errorf("expected Loader.Load to fail due to missing form references, but got nil")
 	}
 }
 

@@ -1,4 +1,6 @@
 {
+    "id": "default_review",
+    "title": "Default Review",
     "schema": {
         "type": "object",
         "required": [

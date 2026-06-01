@@ -5,7 +5,7 @@
     "description": "Submit microbiology and pesticide results for the post-warehouse lab test."
   },
   "forms": {
-    "view": "fcau_post_wh_lab_test_v1_view",
-    "review": "fcau_post_wh_lab_test_v1"
+    "view": "fcau-apply-health-cert--user-form",
+    "review": "fcau-post-wh-lab-testing--officer-form"
   }
 }

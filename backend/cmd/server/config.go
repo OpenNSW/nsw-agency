@@ -22,7 +22,8 @@ type NSWConfig struct {
 type Config struct {
 	Port                string
 	DB                  database.Config
-	ConfigDir           string
+	TaskConfigsDir      string
+	FormTemplatesDir    string
 	DefaultTaskConfigID string
 	AllowedOrigins      []string
 	NSW                 NSWConfig
@@ -62,10 +63,14 @@ func LoadConfig() (Config, error) {
 		return Config{}, fmt.Errorf("unsupported database driver configured: %s", driver)
 	}
 
+	taskConfigsDir := envOrDefault("TASK_CONFIGS_DIR", "./data/task-configs")
+	formTemplatesDir := envOrDefault("FORM_TEMPLATES_DIR", "./data/forms")
+
 	cfg := Config{
 		Port:                envOrDefault("PORT", "8081"),
 		DB:                  dbConfig,
-		ConfigDir:           envOrDefault("CONFIG_DIR", "./data"),
+		TaskConfigsDir:      taskConfigsDir,
+		FormTemplatesDir:    formTemplatesDir,
 		DefaultTaskConfigID: envOrDefault("DEFAULT_TASK_CONFIG_ID", "default"),
 		AllowedOrigins:      parseCommaSeparated(envOrDefault("ALLOWED_ORIGINS", "*")),
 		NSW: NSWConfig{

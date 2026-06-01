@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/OpenNSW/nsw-agency/backend/internal/feedback"
-	"github.com/OpenNSW/nsw-agency/backend/internal/form"
 	"github.com/OpenNSW/nsw-agency/backend/internal/taskconfig"
+	"github.com/OpenNSW/nsw-agency/backend/internal/template"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 	"gorm.io/gorm"
 )
@@ -94,22 +94,20 @@ type TaskResponse struct {
 }
 
 type service struct {
-	store       *ApplicationStore
-	configStore *taskconfig.TaskConfigStore
-	formStore   *form.FormStore
-	httpClient  *httpclient.Client
+	store            *ApplicationStore
+	templateProvider template.Provider
+	httpClient       *httpclient.Client
 }
 
 // NewService creates a new Agency service instance with database storage
-func NewService(store *ApplicationStore, configStore *taskconfig.TaskConfigStore, formStore *form.FormStore, httpClient *httpclient.Client) Service {
-	if store == nil || configStore == nil || formStore == nil || httpClient == nil {
+func NewService(store *ApplicationStore, templateProvider template.Provider, httpClient *httpclient.Client) Service {
+	if store == nil || templateProvider == nil || httpClient == nil {
 		panic("NewService: all dependencies must be non-nil")
 	}
 	return &service{
-		store:       store,
-		configStore: configStore,
-		formStore:   formStore,
-		httpClient:  httpClient,
+		store:            store,
+		templateProvider: templateProvider,
+		httpClient:       httpClient,
 	}
 }
 
@@ -172,7 +170,7 @@ func (s *service) GetApplications(ctx context.Context, status string, consignmen
 		}
 
 		// Attach basic metadata for the list view
-		if config, err := s.configStore.GetConfig(record.TaskCode); err == nil {
+		if config, err := s.templateProvider.GetTaskConfig(record.TaskCode); err == nil {
 			app.Title = config.Meta.Title
 			app.Category = config.Meta.Category
 			app.Icon = config.Meta.Icon
@@ -237,7 +235,7 @@ func (s *service) GetApplication(ctx context.Context, taskID string) (*Applicati
 	}
 
 	// Attach task configuration
-	config, err := s.configStore.GetConfig(record.TaskCode)
+	config, err := s.templateProvider.GetTaskConfig(record.TaskCode)
 	if err != nil {
 		slog.WarnContext(ctx, "task config not found for application", "taskID", taskID, "taskCode", record.TaskCode)
 	} else {
@@ -247,14 +245,14 @@ func (s *service) GetApplication(ctx context.Context, taskID string) (*Applicati
 		app.Category = config.Meta.Category
 
 		if config.Forms.View != "" {
-			if form, ok := s.formStore.GetForm(config.Forms.View); ok {
+			if form, ok := s.templateProvider.GetForm(config.Forms.View); ok {
 				app.DataForm = form
 			} else {
 				slog.WarnContext(ctx, "view form not found", "taskCode", record.TaskCode, "formID", config.Forms.View)
 			}
 		}
 		if config.Forms.Review != "" {
-			if form, ok := s.formStore.GetForm(config.Forms.Review); ok {
+			if form, ok := s.templateProvider.GetForm(config.Forms.Review); ok {
 				app.AgencyForm = form
 			} else {
 				slog.WarnContext(ctx, "review form not found", "taskCode", record.TaskCode, "formID", config.Forms.Review)
@@ -286,7 +284,7 @@ func (s *service) ReviewApplication(ctx context.Context, taskID string, reviewer
 	}
 
 	status := "DONE"
-	if config, err := s.configStore.GetConfig(app.TaskCode); err == nil && config.Behavior != nil && config.Behavior.StatusMap != nil {
+	if config, err := s.templateProvider.GetTaskConfig(app.TaskCode); err == nil && config.Behavior != nil && config.Behavior.StatusMap != nil {
 		outcomeField := config.Behavior.OutcomeField
 		if outcomeField == "" {
 			outcomeField = taskconfig.DefaultOutcomeField
