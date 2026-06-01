@@ -1,0 +1,11 @@
+{
+  "taskCode": "fcau_lab_test_v1",
+  "meta": {
+    "title": "FCAU Lab Testing",
+    "description": "Officer records and reviews laboratory test results for the consignment."
+  },
+  "forms": {
+    "view": "fcau_lab_test_v1_view",
+    "review": "fcau_lab_test_v1_review"
+  }
+}

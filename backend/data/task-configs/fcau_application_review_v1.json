@@ -1,0 +1,11 @@
+{
+  "taskCode": "fcau_application_review_v1",
+  "meta": {
+    "title": "FCAU Application Review",
+    "description": "Officer review of an FCAU Health Certificate application."
+  },
+  "forms": {
+    "view": "fcau_application_review_v1_view",
+    "review": "fcau_application_review_v1"
+  }
+}
