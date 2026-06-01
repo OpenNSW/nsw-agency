@@ -5,7 +5,7 @@
     "description": "Officer review of an FCAU Health Certificate application."
   },
   "forms": {
-    "view": "fcau_application_review_v1_view",
-    "review": "fcau_application_review_v1"
+    "view": "fcau-apply-health-cert--user-form",
+    "review": "fcau-apply-health-cert--reviewer-form"
   }
 }

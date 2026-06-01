@@ -5,7 +5,7 @@
     "description": "Officer records manual sample assessment results and lab follow-up decision."
   },
   "forms": {
-    "view": "fcau_sample_assessment_v1_view",
-    "review": "fcau_sample_assessment_v1"
+    "view": "fcau-apply-health-cert--user-form",
+    "review": "fcau-visual-assessment--reviewer-form"
   }
 }

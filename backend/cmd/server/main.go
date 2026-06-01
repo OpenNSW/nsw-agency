@@ -13,9 +13,8 @@ import (
 
 	"github.com/OpenNSW/nsw-agency/backend/internal/application"
 	"github.com/OpenNSW/nsw-agency/backend/internal/feedback"
-	"github.com/OpenNSW/nsw-agency/backend/internal/form"
 	"github.com/OpenNSW/nsw-agency/backend/internal/storage"
-	"github.com/OpenNSW/nsw-agency/backend/internal/taskconfig"
+	"github.com/OpenNSW/nsw-agency/backend/internal/template"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 )
 
@@ -29,7 +28,8 @@ func main() {
 		"db_driver", cfg.DB.Driver,
 		"db_path", cfg.DB.Path,
 		"port", cfg.Port,
-		"config_dir", cfg.ConfigDir,
+		"task_configs_dir", cfg.TaskConfigsDir,
+		"form_templates_dir", cfg.FormTemplatesDir,
 	)
 
 	// Initialize database store
@@ -37,15 +37,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to create application store: %v", err)
 	}
-	// Initialize task config store
-	configStore, err := taskconfig.NewTaskConfigStore(cfg.ConfigDir, cfg.DefaultTaskConfigID)
-	if err != nil {
-		log.Fatalf("failed to create task config store: %v", err)
-	}
-	// Initialize form store
-	formStore, err := form.NewFormStore(cfg.ConfigDir)
-	if err != nil {
-		log.Fatalf("failed to create form store: %v", err)
+	// Initialize templates loader
+	templateLoader := template.NewFileLoader(
+		cfg.TaskConfigsDir,
+		cfg.FormTemplatesDir,
+		cfg.DefaultTaskConfigID,
+	)
+	if err := templateLoader.Load(); err != nil {
+		log.Fatalf("failed to load templates: %v", err)
 	}
 
 	// Create OAuth2 Authenticator for NSW API
@@ -65,7 +64,7 @@ func main() {
 		Build()
 
 	// Initialize Agency service
-	service := application.NewService(store, configStore, formStore, nswHttpClient)
+	service := application.NewService(store, templateLoader, nswHttpClient)
 	defer func() {
 		if err := service.Close(); err != nil {
 			slog.Error("failed to close service", "error", err)

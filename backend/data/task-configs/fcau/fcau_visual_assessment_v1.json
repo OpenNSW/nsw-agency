@@ -5,7 +5,7 @@
     "description": "Officer physical sample inspection outcome recording."
   },
   "forms": {
-    "view": "fcau_visual_assessment_v1_view",
-    "review": "fcau_visual_assessment_v1"
+    "view": "fcau-apply-health-cert--user-form",
+    "review": "fcau-visual-assessment--reviewer-form"
   }
 }

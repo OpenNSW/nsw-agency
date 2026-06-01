@@ -5,7 +5,7 @@
     "description": "Officer decides whether a sample is required for the consignment."
   },
   "forms": {
-    "view": "fcau_sample_decision_v1_view",
-    "review": "fcau_sample_decision_v1"
+    "view": "fcau-apply-health-cert--user-form",
+    "review": "fcau-sample-collection--reviewer-form"
   }
 }
