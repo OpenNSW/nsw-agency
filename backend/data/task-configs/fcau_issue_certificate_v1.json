@@ -1,0 +1,11 @@
+{
+  "taskCode": "fcau_issue_certificate_v1",
+  "meta": {
+    "title": "FCAU Health Certificate Issuance",
+    "description": "Officer issues the final Health Certificate and uploads the digital document."
+  },
+  "forms": {
+    "view": "fcau_issue_certificate_v1_view",
+    "review": "fcau_issue_certificate_v1_review"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "schema": {
+    "type": "object",
+    "required": ["assessment_outcome"],
+    "properties": {
+      "sample_number": {
+        "type": "string",
+        "title": "Sample Number"
+      },
+      "manual_assessment_outcome": {
+        "type": "string",
+        "title": "Manual Assessment Outcome",
+        "oneOf": [
+          { "const": "pass", "title": "Pass" },
+          { "const": "fail", "title": "Fail" }
+        ]
+      },
+      "lab_test_required": {
+        "type": "string",
+        "title": "Lab Test Required",
+        "oneOf": [
+          { "const": "yes", "title": "Yes" },
+          { "const": "no", "title": "No" }
+        ]
+      },
+      "assessment_outcome": {
+        "type": "string",
+        "title": "Assessment Outcome",
+        "oneOf": [
+          { "const": "approve", "title": "Approve" },
+          { "const": "reject", "title": "Reject" }
+        ]
+      }
+    }
+  },
+  "uiSchema": {
+    "type": "VerticalLayout",
+    "elements": [
+      { "type": "Control", "scope": "#/properties/sample_number" },
+      { "type": "Control", "scope": "#/properties/manual_assessment_outcome" },
+      { "type": "Control", "scope": "#/properties/lab_test_required" },
+      { "type": "Control", "scope": "#/properties/assessment_outcome" }
+    ]
+  }
+}

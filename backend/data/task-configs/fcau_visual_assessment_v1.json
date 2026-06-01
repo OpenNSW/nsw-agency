@@ -1,0 +1,11 @@
+{
+  "taskCode": "fcau_visual_assessment_v1",
+  "meta": {
+    "title": "FCAU Visual Sample Assessment",
+    "description": "Officer physical sample inspection outcome recording."
+  },
+  "forms": {
+    "view": "fcau_visual_assessment_v1_view",
+    "review": "fcau_visual_assessment_v1"
+  }
+}

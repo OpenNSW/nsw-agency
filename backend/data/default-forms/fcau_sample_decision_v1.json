@@ -1,0 +1,31 @@
+{
+  "schema": {
+    "type": "object",
+    "required": ["sample_required"],
+    "properties": {
+      "sample_required": {
+        "type": "string",
+        "title": "Sample Required",
+        "oneOf": [
+          { "const": "yes", "title": "Yes" },
+          { "const": "no", "title": "No" }
+        ]
+      },
+      "reviewer_comments": {
+        "type": "string",
+        "title": "Reviewer Comments"
+      }
+    }
+  },
+  "uiSchema": {
+    "type": "VerticalLayout",
+    "elements": [
+      { "type": "Control", "scope": "#/properties/sample_required" },
+      {
+        "type": "Control",
+        "scope": "#/properties/reviewer_comments",
+        "options": { "multi": true }
+      }
+    ]
+  }
+}
