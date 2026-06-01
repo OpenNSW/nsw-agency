@@ -33,30 +33,27 @@ func NewFileLoader(taskConfigsDir string, formsDir string) *FileLoader {
 // recursively scans formsDir, matches form JSON IDs against the collected set,
 // and fails fast with an error if any referenced form IDs were not found.
 func (l *FileLoader) Load() error {
-	// 1. Load Task Configs from taskConfigsDir
-	entries, err := os.ReadDir(l.taskConfigsDir)
-	if err != nil {
-		return fmt.Errorf("failed to read task configs directory %q: %w", l.taskConfigsDir, err)
-	}
-
+	// 1. Load Task Configs recursively from taskConfigsDir
 	referencedFormIDs := make(map[string]bool)
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
-			continue
+	err := filepath.WalkDir(l.taskConfigsDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || !strings.HasSuffix(d.Name(), ".json") {
+			return nil
 		}
 
-		path := filepath.Join(l.taskConfigsDir, entry.Name())
 		data, err := os.ReadFile(path)
 		if err != nil {
-			return fmt.Errorf("failed to read task config file %q: %w", entry.Name(), err)
+			return fmt.Errorf("failed to read task config file %q: %w", path, err)
 		}
 
 		var config taskconfig.TaskConfig
 		if err := json.Unmarshal(data, &config); err != nil {
-			return fmt.Errorf("task config file %q is invalid: %w", entry.Name(), err)
+			return fmt.Errorf("task config file %q is invalid: %w", path, err)
 		}
 
-		id := strings.TrimSuffix(entry.Name(), ".json")
+		id := strings.TrimSuffix(d.Name(), ".json")
 		if config.TaskCode == "" {
 			config.TaskCode = id
 		}
@@ -71,6 +68,10 @@ func (l *FileLoader) Load() error {
 		}
 
 		slog.Info("loaded task config", "id", id, "taskCode", config.TaskCode)
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to load task configs recursively: %w", err)
 	}
 
 	// 2. Scan formsDir recursively for matching jsonforms templates
