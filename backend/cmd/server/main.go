@@ -16,7 +16,10 @@ import (
 	"github.com/OpenNSW/nsw-agency/backend/internal/feedback"
 	"github.com/OpenNSW/nsw-agency/backend/internal/storage"
 	"github.com/OpenNSW/nsw-agency/backend/internal/template"
+<<<<<<< HEAD
 	"github.com/OpenNSW/nsw-agency/backend/internal/user"
+=======
+>>>>>>> 578c96b (update configs to lookup jsonforms by id, and add ability to point to nsw-srilanka or one-trade-tempalte repos to get the jsonforms template, to avoid duplication)
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 )
 
