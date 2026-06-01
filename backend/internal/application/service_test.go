@@ -11,10 +11,6 @@ import (
 	"sync"
 	"testing"
 
-<<<<<<< HEAD
-=======
-	"github.com/OpenNSW/nsw-agency/backend/internal/taskconfig"
->>>>>>> 578c96b (update configs to lookup jsonforms by id, and add ability to point to nsw-srilanka or one-trade-tempalte repos to get the jsonforms template, to avoid duplication)
 	"github.com/OpenNSW/nsw-agency/backend/internal/template"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 )
@@ -108,11 +104,7 @@ func newServiceHarness(t *testing.T, writeFn func(root string)) *serviceHarness 
 
 	store := newTestStore(t)
 
-<<<<<<< HEAD
 	loader := template.NewFileLoader(filepath.Join(root, "task-configs"), filepath.Join(root, "forms"))
-=======
-	loader := template.NewFileLoader(root, defaultConfigID)
->>>>>>> 578c96b (update configs to lookup jsonforms by id, and add ability to point to nsw-srilanka or one-trade-tempalte repos to get the jsonforms template, to avoid duplication)
 	if err := loader.Load(); err != nil {
 		t.Fatalf("FileLoader.Load failed: %v", err)
 	}
@@ -410,7 +402,7 @@ func TestGetApplication_MissingFormRef_FailsLoader(t *testing.T) {
 		"forms": {"view": "missing_view", "review": "missing_review"}
 	}`)
 
-	loader := template.NewFileLoader(root, "")
+	loader := template.NewFileLoader(filepath.Join(root, "task-configs"), filepath.Join(root, "forms"))
 	if err := loader.Load(); err == nil {
 		t.Errorf("expected Loader.Load to fail due to missing form references, but got nil")
 	}
