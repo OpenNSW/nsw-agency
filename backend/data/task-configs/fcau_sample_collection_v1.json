@@ -1,0 +1,11 @@
+{
+  "taskCode": "fcau_sample_collection_v1",
+  "meta": {
+    "title": "FCAU Sample Handover & Receipt Registry",
+    "description": "Officer confirms receipt of physical sample and issues an initial sample tag/number."
+  },
+  "forms": {
+    "view": "fcau_sample_collection_v1_view",
+    "review": "fcau_sample_collection_v1"
+  }
+}

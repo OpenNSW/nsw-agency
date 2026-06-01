@@ -1,0 +1,11 @@
+{
+  "taskCode": "fcau_warehouse_inspection_v1",
+  "meta": {
+    "title": "FCAU Warehouse Visual Inspection",
+    "description": "Officer records the outcome of the visual inspection conducted at the warehouse."
+  },
+  "forms": {
+    "view": "fcau_warehouse_inspection_v1_view",
+    "review": "fcau_warehouse_inspection_v1"
+  }
+}

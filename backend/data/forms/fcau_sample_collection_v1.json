@@ -1,0 +1,40 @@
+{
+  "schema": {
+    "type": "object",
+    "required": ["initial_sample", "received_at", "receipt_outcome"],
+    "properties": {
+      "initial_sample": {
+        "type": "string",
+        "title": "Issued Lab Sample Tag/Number",
+        "example": "SMP-FCAU-2026-948"
+      },
+      "received_at": {
+        "type": "string",
+        "format": "date",
+        "title": "Date of Receipt"
+      },
+      "receipt_outcome": {
+        "type": "string",
+        "title": "Receipt Status",
+        "oneOf": [
+          { "const": "confirmed", "title": "Confirmed" },
+          { "const": "rejected", "title": "Rejected" }
+        ],
+        "default": "confirmed"
+      },
+      "notes": {
+        "type": "string",
+        "title": "Handover Notes"
+      }
+    }
+  },
+  "uiSchema": {
+    "type": "VerticalLayout",
+    "elements": [
+      { "type": "Control", "scope": "#/properties/initial_sample" },
+      { "type": "Control", "scope": "#/properties/received_at" },
+      { "type": "Control", "scope": "#/properties/receipt_outcome" },
+      { "type": "Control", "scope": "#/properties/notes", "options": { "multi": true } }
+    ]
+  }
+}
