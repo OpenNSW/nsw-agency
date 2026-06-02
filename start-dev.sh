@@ -172,7 +172,7 @@ resolve_agency() {
 # Source a .env file without clobbering vars already set in the environment.
 # This preserves parent-shell overrides (e.g. PORT=9000 ./start.sh npqs).
 source_env_nonclobber() {
-  local file=$1 line key
+  local file=$1 line key value
   [[ -f "$file" ]] || return 0
   while IFS= read -r line || [[ -n "$line" ]]; do
     case "$line" in ''|\#*) continue ;; esac
@@ -182,9 +182,14 @@ source_env_nonclobber() {
     [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
     # Already set in env (even to empty string) -> skip.
     [[ -n "${!key+x}" ]] && continue
-    set -a
-    eval "$line"
-    set +a
+    value="${line#*=}"
+    # Strip surrounding double or single quotes.
+    if [[ "$value" =~ ^\"(.*)\"$ ]]; then
+      value="${BASH_REMATCH[1]}"
+    elif [[ "$value" =~ ^\'(.*)\'$ ]]; then
+      value="${BASH_REMATCH[1]}"
+    fi
+    export "$key=$value"
   done <"$file"
 }
 
@@ -308,9 +313,13 @@ start_backend() {
     export PORT="${PORT:-$BE_PORT}"
     export DB_DRIVER="${DB_DRIVER:-sqlite}"
     export DB_PATH="${DB_PATH:-./${agency}_applications.db}"
-    export NSW_CLIENT_ID
     export AUTH_EXPECTED_OU="${AUTH_EXPECTED_OU:-$OU_HANDLE}"
     export ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-http://localhost:$FE_PORT}"
+    export NSW_CLIENT_ID
+    export NSW_CLIENT_SECRET
+    export AUTH_JWKS_URL="${AUTH_JWKS_URL:-$IDP_BASE_URL/oauth2/jwks}"
+    export AUTH_EXPECTED_OU="${AUTH_EXPECTED_OU:-$OU_HANDLE}"
+    export AUTH_CLIENT_IDS="${AUTH_CLIENT_IDS:-$IDP_CLIENT_ID}"
     # The Go server does not autoload .env — source it (non-clobber) so
     # NSW_* vars (API base URL, OAuth client secret, token URL) reach
     # the process without overriding anything already set above.
