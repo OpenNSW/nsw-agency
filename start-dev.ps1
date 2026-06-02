@@ -43,10 +43,10 @@ $IDP_BASE_URL = 'https://localhost:8090'
 # Single source of truth for per-agency config: BE_PORT, FE_PORT, IDP_CLIENT_ID, NSW_CLIENT_ID, APP_NAME, OU_HANDLE.
 # Adding an agency means one entry here - nothing else.
 $AGENCY_CONFIGS = [ordered]@{
-    npqs = @{ BE_PORT = 8081; FE_PORT = 5174; IDP_CLIENT_ID = 'NSW_AGENCY_PORTAL_APP_NPQS'; NSW_CLIENT_ID = 'NPQS_TO_NSW'; APP_NAME = 'National Plant Quarantine Service (NPQS)'; OU_HANDLE = 'npqs' }
-    fcau = @{ BE_PORT = 8082; FE_PORT = 5175; IDP_CLIENT_ID = 'NSW_AGENCY_PORTAL_APP_FCAU'; NSW_CLIENT_ID = 'FCAU_TO_NSW'; APP_NAME = 'Food Control Administration Unit (FCAU)';  OU_HANDLE = 'fcau' }
-    ird  = @{ BE_PORT = 8083; FE_PORT = 5176; IDP_CLIENT_ID = 'NSW_AGENCY_PORTAL_APP_IRD';  NSW_CLIENT_ID = 'IRD_TO_NSW';  APP_NAME = 'Inland Revenue Department (IRD)';          OU_HANDLE = 'ird'  }
-    cda  = @{ BE_PORT = 8084; FE_PORT = 5177; IDP_CLIENT_ID = 'NSW_AGENCY_PORTAL_APP_CDA';  NSW_CLIENT_ID = 'CDA_TO_NSW';  APP_NAME = 'Coconut Development Authority (CDA)';       OU_HANDLE = 'cda'  }
+    npqs = @{ BE_PORT = 8081; FE_PORT = 5174; IDP_CLIENT_ID = 'OGA_PORTAL_APP_NPQS'; NSW_CLIENT_ID = 'NPQS_TO_NSW'; APP_NAME = 'National Plant Quarantine Service (NPQS)'; OU_HANDLE = 'npqs' }
+    fcau = @{ BE_PORT = 8082; FE_PORT = 5175; IDP_CLIENT_ID = 'OGA_PORTAL_APP_FCAU'; NSW_CLIENT_ID = 'FCAU_TO_NSW'; APP_NAME = 'Food Control Administration Unit (FCAU)';  OU_HANDLE = 'fcau' }
+    ird  = @{ BE_PORT = 8083; FE_PORT = 5176; IDP_CLIENT_ID = 'OGA_PORTAL_APP_IRD';  NSW_CLIENT_ID = 'IRD_TO_NSW';  APP_NAME = 'Inland Revenue Department (IRD)';          OU_HANDLE = 'ird'  }
+    cda  = @{ BE_PORT = 8084; FE_PORT = 5177; IDP_CLIENT_ID = 'OGA_PORTAL_APP_CDA';  NSW_CLIENT_ID = 'CDA_TO_NSW';  APP_NAME = 'Coconut Development Authority (CDA)';       OU_HANDLE = 'cda'  }
 }
 
 $ALL_AGENCIES = $AGENCY_CONFIGS.Keys | Sort-Object
@@ -217,7 +217,6 @@ function Ensure-BrandingFile {
     param([string]$AgencyName, [string]$AppName)
     $ConfigDir = Join-Path $FRONTEND_DIR 'public/configs'
     $FilePath  = Join-Path $ConfigDir "${AgencyName}.branding.json"
-    if (Test-Path $FilePath) { return }
     New-Item -ItemType Directory -Path $ConfigDir -Force | Out-Null
     $Content = @"
 {
@@ -239,20 +238,39 @@ function Ensure-BrandingFile {
     Write-Host "[start-dev] Wrote branding file: $FilePath"
 }
 
-function Ensure-NodeModules {
-    $ModulesMeta = Join-Path $FRONTEND_DIR 'node_modules/.modules.yaml'
-    if (Test-Path $ModulesMeta) { return }
-    Write-Host "[start-dev] node_modules not found - running pnpm install..."
-    $psi = [System.Diagnostics.ProcessStartInfo]::new('cmd.exe', '/c pnpm install')
-    $psi.WorkingDirectory = $FRONTEND_DIR
-    $psi.UseShellExecute  = $false
-    $proc = [System.Diagnostics.Process]::Start($psi)
-    $proc.WaitForExit()
-    if ($proc.ExitCode -ne 0) {
-        Write-Host "[start-dev] pnpm install failed with exit code $($proc.ExitCode)." -ForegroundColor Red
-        exit $proc.ExitCode
+function Run-Migrations {
+    param([string[]]$Agencies)
+    # Build env: parent shell > --env-file > backend/.env (highest to lowest).
+    $migrEnv = [System.Environment]::GetEnvironmentVariables('Process').Clone()
+    if ($ENV_FILE -ne '') { Merge-EnvFile -Path $ENV_FILE -Block $migrEnv }
+    $explicitDbName = if ($migrEnv.Contains('DB_NAME')) { $migrEnv['DB_NAME'] } else { $null }
+    Merge-EnvFile -Path (Join-Path $BACKEND_DIR '.env') -Block $migrEnv
+
+    $dbDriver = if ($migrEnv.Contains('DB_DRIVER')) { $migrEnv['DB_DRIVER'] } else { 'sqlite' }
+    Write-Host "[start-dev] Running migrations (driver: $dbDriver)..."
+
+    foreach ($agency in $Agencies) {
+        $agencyEnv = $migrEnv.Clone()
+        if ($dbDriver -eq 'sqlite') {
+            Write-Host "[start-dev]   migrate up -> ${agency}_applications.db"
+            $agencyEnv['DB_DRIVER'] = 'sqlite'
+            $agencyEnv['DB_PATH']   = "./${agency}_applications.db"
+        } else {
+            $dbName = if ($explicitDbName) { $explicitDbName } else { "${agency}_nsw_agency_db" }
+            Write-Host "[start-dev]   migrate up -> $dbName"
+            $agencyEnv['DB_NAME'] = $dbName
+        }
+        $psi = [System.Diagnostics.ProcessStartInfo]::new('cmd.exe', '/c go run ./cmd/migrate up')
+        $psi.WorkingDirectory = $BACKEND_DIR
+        $psi.UseShellExecute  = $false
+        foreach ($k in $agencyEnv.Keys) { $psi.Environment[$k] = [string]$agencyEnv[$k] }
+        $proc = [System.Diagnostics.Process]::Start($psi)
+        $proc.WaitForExit()
+        if ($proc.ExitCode -ne 0) {
+            Write-Host "[start-dev] Error: Migration failed for $agency (exit code $($proc.ExitCode))." -ForegroundColor Red
+            exit $proc.ExitCode
+        }
     }
-    Write-Host "[start-dev] pnpm install completed."
 }
 
 function Start-Backend {
@@ -268,10 +286,12 @@ function Start-Backend {
 
     # Per-agency values set before .env so .env cannot override them.
     # Final precedence: parent env > --env-file > per-agency defaults > .env > script fallback.
-    if (-not $envBlock.Contains('PORT'))          { $envBlock['PORT']          = "$bePort"                         }
-    if (-not $envBlock.Contains('DB_PATH'))       { $envBlock['DB_PATH']       = "./${AgencyName}_applications.db" }
-    if (-not $envBlock.Contains('DB_NAME'))       { $envBlock['DB_NAME']       = "${AgencyName}_nsw_agency_db"     }
-    if (-not $envBlock.Contains('NSW_CLIENT_ID')) { $envBlock['NSW_CLIENT_ID'] = $nswClientId                      }
+    if (-not $envBlock.Contains('PORT'))            { $envBlock['PORT']            = "$bePort"                         }
+    if (-not $envBlock.Contains('DB_PATH'))         { $envBlock['DB_PATH']         = "./${AgencyName}_applications.db" }
+    if (-not $envBlock.Contains('DB_NAME'))         { $envBlock['DB_NAME']         = "${AgencyName}_nsw_agency_db"     }
+    if (-not $envBlock.Contains('NSW_CLIENT_ID'))   { $envBlock['NSW_CLIENT_ID']   = $nswClientId                      }
+    if (-not $envBlock.Contains('AUTH_EXPECTED_OU')) { $envBlock['AUTH_EXPECTED_OU'] = $cfg.OU_HANDLE                  }
+    if (-not $envBlock.Contains('ALLOWED_ORIGINS')) { $envBlock['ALLOWED_ORIGINS'] = "http://localhost:$($cfg.FE_PORT)" }
 
     $dotEnv = Join-Path $BACKEND_DIR '.env'
     if (Test-Path $dotEnv) {
@@ -339,11 +359,10 @@ if ($Agency -eq 'all') {
 
 if ($CLEAN_RUN) {
     Clean-Databases -Agencies $agencyList
+    Run-Migrations  -Agencies $agencyList
 }
 
 try {
-    if ($Target -eq 'all' -or $Target -eq 'frontend') { Ensure-NodeModules }
-
     foreach ($a in $agencyList) {
         if ($Target -eq 'all' -or $Target -eq 'backend')  { Start-Backend  $a }
         if ($Target -eq 'all' -or $Target -eq 'frontend') { Start-Frontend $a }
