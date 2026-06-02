@@ -83,6 +83,8 @@ paths:
     get:
       operationId: listApplications
       summary: List applications
+      security:
+        - BearerAuth: []
       description: |
         Returns a paginated list of applications. Can be filtered by status,
         consignment ID, or a free-text search query that matches task ID or
@@ -130,6 +132,10 @@ paths:
                 $ref: "#/components/schemas/ApplicationListResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
@@ -137,6 +143,8 @@ paths:
     get:
       operationId: getApplication
       summary: Get application
+      security:
+        - BearerAuth: []
       description: |
         Returns a specific application by task ID. The response includes task
         metadata from config (title, description, icon, category) and JSON Forms
@@ -155,6 +163,10 @@ paths:
                 $ref: "#/components/schemas/Application"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
@@ -164,6 +176,8 @@ paths:
     post:
       operationId: reviewApplication
       summary: Review application
+      security:
+        - BearerAuth: []
       description: |
         Submit a review decision for an application. The reviewer response is
         forwarded as a callback POST to the originating service's `serviceUrl`,
@@ -191,6 +205,10 @@ paths:
                 $ref: "#/components/schemas/SuccessResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "413":
@@ -202,6 +220,8 @@ paths:
     post:
       operationId: feedbackApplication
       summary: Send feedback to trader
+      security:
+        - BearerAuth: []
       description: |
         Send a change-request feedback message to the trader. The application
         status is set to `FEEDBACK_REQUESTED` and the feedback is forwarded as
@@ -228,6 +248,10 @@ paths:
                 $ref: "#/components/schemas/SuccessResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
@@ -235,6 +259,8 @@ paths:
     get:
       operationId: listConsignments
       summary: List consignments
+      security:
+        - BearerAuth: []
       description: |
         Returns a paginated list of unique consignments with their task count
         and latest status. Results can be filtered by a free-text search that
@@ -271,6 +297,10 @@ paths:
                 $ref: "#/components/schemas/ConsignmentListResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
@@ -278,6 +308,8 @@ paths:
     post:
       operationId: createUpload
       summary: Create upload URL
+      security:
+        - BearerAuth: []
       description: |
         Requests a pre-signed upload URL from the main backend. The returned
         `upload_url` should be used to PUT the file directly to object storage.
@@ -303,6 +335,10 @@ paths:
                 $ref: "#/components/schemas/FileMetadata"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
@@ -310,6 +346,8 @@ paths:
     get:
       operationId: getDownloadURL
       summary: Get download URL
+      security:
+        - BearerAuth: []
       description: |
         Returns a pre-signed download URL for a file stored in the main backend.
         The URL is time-limited; check `expires_at` before caching.
@@ -331,12 +369,22 @@ paths:
                 $ref: "#/components/schemas/DownloadMetadata"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
 components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   parameters:
     TaskId:
       name: taskId
@@ -348,6 +396,22 @@ components:
       example: 927adaaa-b959-4648-880a-16508acafc12
 
   responses:
+    Unauthorized:
+      description: Missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: invalid authentication token
+    Forbidden:
+      description: Authenticated but not authorised for this agency
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: access denied
     BadRequest:
       description: Invalid request parameters or body
       content:
