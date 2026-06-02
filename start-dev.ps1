@@ -22,7 +22,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$IDP_BASE_URL = 'https://127.0.0.1:8090'
+$IDP_BASE_URL = 'https://localhost:8090'
 
 # Single source of truth for per-agency config: BE_PORT, FE_PORT, IDP_CLIENT_ID, NSW_CLIENT_ID, APP_NAME, OU_HANDLE.
 $AGENCY_CONFIGS = [ordered]@{
