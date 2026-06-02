@@ -2,9 +2,8 @@ package auth
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
-
-	"github.com/OpenNSW/nsw-agency/backend/internal/validation"
 )
 
 type Config struct {
@@ -20,13 +19,13 @@ func (c Config) Validate() error {
 	if c.JWKSURL == "" {
 		return fmt.Errorf("AUTH_JWKS_URL is required")
 	}
-	if err := validation.HTTPURL("AUTH_JWKS_URL", c.JWKSURL); err != nil {
+	if err := validateHTTPURL("AUTH_JWKS_URL", c.JWKSURL); err != nil {
 		return err
 	}
 	if c.Issuer == "" {
 		return fmt.Errorf("AUTH_ISSUER is required")
 	}
-	if err := validation.HTTPURL("AUTH_ISSUER", c.Issuer); err != nil {
+	if err := validateHTTPURL("AUTH_ISSUER", c.Issuer); err != nil {
 		return err
 	}
 	if c.Audience == "" {
@@ -37,6 +36,17 @@ func (c Config) Validate() error {
 	}
 	if strings.TrimSpace(c.ExpectedOU) == "" {
 		return fmt.Errorf("ExpectedOU is required")
+	}
+	return nil
+}
+
+func validateHTTPURL(name, value string) error {
+	parsed, err := url.ParseRequestURI(strings.TrimSpace(value))
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return fmt.Errorf("%s must be a valid absolute URL", name)
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("%s must use http or https", name)
 	}
 	return nil
 }
