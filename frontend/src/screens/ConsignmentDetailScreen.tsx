@@ -11,7 +11,7 @@ import {
 import { fetchApplicationDetail, submitReview, type AgencyApplication } from '../api'
 import { JsonForms } from '@jsonforms/react'
 import { radixRenderers } from '@opennsw/jsonforms-renderers'
-import type { JsonSchema, UISchemaElement } from '@jsonforms/core'
+import {createAjv, type JsonSchema, type UISchemaElement} from '@jsonforms/core'
 import { useApi } from '../services/useApi'
 interface SchemaOption {
   const: unknown
@@ -184,6 +184,8 @@ export function ConsignmentDetailScreen() {
           ? 'amber'
           : 'blue'
 
+  const ajvInstance = createAjv({useDefaults: true})
+
   return (
     <div className="animate-fade-in max-w-6xl mx-auto">
       <Flex justify="between" align="center" mb="6">
@@ -276,6 +278,7 @@ export function ConsignmentDetailScreen() {
                     setAgencyFormData(data)
                     setFormErrors(errors || [])
                   }}
+                  ajv={ajvInstance}
                 />
                 <Flex justify="end" gap="3" mt="6">
                   <Button
@@ -306,6 +309,7 @@ export function ConsignmentDetailScreen() {
                   setAgencyFormData(data)
                   setFormErrors(errors || [])
                 }}
+                ajv={ajvInstance}
               />
             ) : null}
           </Box>
