@@ -19,16 +19,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # STAGE 1: Detect which build contexts were actually changed in this PR.
-  # This prevents all images from rebuilding when only one context changed.
-  # Outputs are boolean strings ('true'/'false') consumed by docker-validate.
+  # STAGE 1: Detect which build contexts changed and build the validation
+  # matrix dynamically. Only changed contexts are included, so no runner is
+  # provisioned for an unchanged image. A change to this workflow file is
+  # treated as touching all contexts, so every image is validated.
   detect-changes:
     name: Detect Changed Build Contexts
     runs-on: ubuntu-latest
     outputs:
-      backend: ${{ steps.filter.outputs.backend }}
-      frontend: ${{ steps.filter.outputs.frontend }}
-      workflow: ${{ steps.filter.outputs.workflow }}
+      # JSON matrix consumed by docker-validate's `strategy.matrix`.
+      matrix: ${{ steps.build-matrix.outputs.matrix }}
+      # 'true' when at least one context needs validating.
+      any: ${{ steps.build-matrix.outputs.any }}
     steps:
       - uses: actions/checkout@v4
 
@@ -41,10 +43,32 @@ jobs:
               - 'backend/**'
             frontend:
               - 'frontend/**'
-            # Treat a change to this workflow file as touching all contexts
-            # so every image is validated when CI config itself changes.
             workflow:
               - '.github/workflows/docker-validation.yml'
+
+      # Assemble the matrix include[] from only the contexts that changed.
+      # matrix context is NOT available in a job-level `if`, so gating per
+      # image must happen here rather than via `if` on the matrix job.
+      - name: Build validation matrix
+        id: build-matrix
+        run: |
+          backend='{"name":"backend","context":"./backend","dockerfile":"./backend/Dockerfile","tag":"nsw-agency-backend:validate"}'
+          frontend='{"name":"agency-portal","context":"./frontend","dockerfile":"./frontend/Dockerfile","tag":"nsw-agency-app:validate"}'
+          workflow='${{ steps.filter.outputs.workflow }}'
+          include=()
+          if [[ "${{ steps.filter.outputs.backend }}" == "true" || "$workflow" == "true" ]]; then
+            include+=("$backend")
+          fi
+          if [[ "${{ steps.filter.outputs.frontend }}" == "true" || "$workflow" == "true" ]]; then
+            include+=("$frontend")
+          fi
+          matrix=$(printf '%s\n' "${include[@]}" | paste -sd, - | sed 's/^/{"include":[/; s/$/]}/')
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          if [[ ${#include[@]} -gt 0 ]]; then
+            echo "any=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "any=false" >> "$GITHUB_OUTPUT"
+          fi
 
   # STAGE 2: Build all relevant Docker images in parallel.
   # fail-fast: false ensures one failing build does not cancel the others,
@@ -53,25 +77,11 @@ jobs:
     name: Validate ${{ matrix.name }} image
     needs: detect-changes
     runs-on: ubuntu-latest
-    # Skip this matrix entry (and avoid provisioning a runner) when neither
-    # its specific build context nor the workflow file itself changed.
-    if: |
-      needs.detect-changes.outputs.workflow == 'true' ||
-      needs.detect-changes.outputs[matrix.trigger] == 'true'
+    # Skip the whole job (and provisioning a runner) when nothing changed.
+    if: needs.detect-changes.outputs.any == 'true'
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - name: backend
-            context: ./backend
-            dockerfile: ./backend/Dockerfile
-            tag: nsw-agency-backend:validate
-            trigger: backend
-          - name: agency-portal
-            context: ./frontend
-            dockerfile: ./frontend/Dockerfile
-            tag: nsw-agency-app:validate
-            trigger: frontend
+      matrix: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
 

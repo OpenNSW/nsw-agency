@@ -29,7 +29,6 @@ WORKDIR /app
 COPY --from=builder /out/agency /app/agency
 COPY --from=builder /out/migrate /app/migrate
 COPY --from=builder /app/migrations /app/migrations
-COPY --from=builder /app/data/forms /app/data/forms
 COPY --from=builder /app/data/task-configs /app/data/task-configs
 
 # Runtime settings — UID 1001 matches appuser, OpenShift-compatible
