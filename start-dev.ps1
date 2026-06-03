@@ -119,6 +119,11 @@ $ROOT_DIR     = $PSScriptRoot
 $BACKEND_DIR  = Join-Path $ROOT_DIR 'backend'
 $FRONTEND_DIR = Join-Path $ROOT_DIR 'frontend'
 
+# Cross-platform process execution helpers (Windows cmd.exe vs POSIX sh).
+$isWindows = ($env:OS -like '*Windows*') -or ($PSVersionTable.Platform -eq 'Win32NT') -or ($IsWindows)
+$shellCmd  = if ($isWindows) { 'cmd.exe' } else { '/bin/sh' }
+$shellArg  = if ($isWindows) { '/c' }      else { '-c' }
+
 $jobs = [System.Collections.Generic.List[System.Diagnostics.Process]]::new()
 
 function Stop-AllJobs {
@@ -127,7 +132,17 @@ function Stop-AllJobs {
     Write-Host "[start-dev] Stopping $($jobs.Count) process(es)..."
     foreach ($p in $jobs) {
         if (-not $p.HasExited) {
-            try { taskkill.exe /F /T /PID $p.Id | Out-Null } catch { }
+            try {
+                if ($isWindows) {
+                    Start-Process taskkill.exe -ArgumentList '/F', '/T', '/PID', $p.Id -NoNewWindow -Wait | Out-Null
+                } elseif ($PSVersionTable.PSVersion.Major -ge 7) {
+                    $p.Kill($true)
+                } else {
+                    Start-Process kill -ArgumentList '-TERM', "-$($p.Id)" -NoNewWindow -Wait | Out-Null
+                }
+            } catch {
+                try { $p.Kill() } catch { }
+            }
         }
     }
     foreach ($p in $jobs) {
@@ -146,8 +161,14 @@ function Merge-EnvFile {
         $line = $line -replace '^export\s+', ''
         $idx  = $line.IndexOf('=')
         $key  = $line.Substring(0, $idx).Trim()
-        $val  = $line.Substring($idx + 1).Trim() -replace '^"(.*)"$', '$1' -replace "^'(.*)'$", '$1'
-        $val  = ($val -split '\s+#')[0].Trim()
+        $val  = $line.Substring($idx + 1).Trim()
+        if ($val -match '^"(.*)"\s*(#.*)?$') {
+            $val = $Matches[1]
+        } elseif ($val -match "^'(.*)'\s*(#.*)?$") {
+            $val = $Matches[1]
+        } else {
+            $val = ($val -split '\s+#')[0].Trim()
+        }
         if ($key -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') { continue }
         if (-not $Block.Contains($key)) { $Block[$key] = $val }
     }
@@ -177,7 +198,8 @@ function Clean-Databases {
             }
         }
     } elseif ($dbDriver -eq 'postgres') {
-        if (-not (Get-Command 'psql' -ErrorAction SilentlyContinue)) {
+        $psqlCmd = if ($isWindows) { 'psql.exe' } else { 'psql' }
+        if (-not (Get-Command $psqlCmd -ErrorAction SilentlyContinue)) {
             Write-Host "[start-dev] Error: psql required for Postgres DB cleaning but not found in PATH." -ForegroundColor Red
             exit 1
         }
@@ -191,17 +213,17 @@ function Clean-Databases {
         foreach ($agency in $Agencies) {
             $dbName = if ($explicitDbName) { $explicitDbName } else { "${agency}_nsw_agency_db" }
             Write-Host "[start-dev]   Dropping and recreating Postgres database: $dbName"
-            psql -h $dbHost -p $dbPort -U $dbUser -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$dbName' AND pid <> pg_backend_pid();" | Out-Null
+            & $psqlCmd -h $dbHost -p $dbPort -U $dbUser -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$dbName' AND pid <> pg_backend_pid();" | Out-Null
             if ($LASTEXITCODE -ne 0) {
                 Write-Host "[start-dev] Error: Failed to terminate connections to $dbName" -ForegroundColor Red
                 Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue; exit $LASTEXITCODE
             }
-            psql -h $dbHost -p $dbPort -U $dbUser -d postgres -c "DROP DATABASE IF EXISTS `"$dbName`";"
+            & $psqlCmd -h $dbHost -p $dbPort -U $dbUser -d postgres -c "DROP DATABASE IF EXISTS `"$dbName`";"
             if ($LASTEXITCODE -ne 0) {
                 Write-Host "[start-dev] Error: Failed to drop Postgres database $dbName" -ForegroundColor Red
                 Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue; exit $LASTEXITCODE
             }
-            psql -h $dbHost -p $dbPort -U $dbUser -d postgres -c "CREATE DATABASE `"$dbName`";"
+            & $psqlCmd -h $dbHost -p $dbPort -U $dbUser -d postgres -c "CREATE DATABASE `"$dbName`";"
             if ($LASTEXITCODE -ne 0) {
                 Write-Host "[start-dev] Error: Failed to create Postgres database $dbName" -ForegroundColor Red
                 Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue; exit $LASTEXITCODE
@@ -260,7 +282,7 @@ function Run-Migrations {
             Write-Host "[start-dev]   migrate up -> $dbName"
             $agencyEnv['DB_NAME'] = $dbName
         }
-        $psi = [System.Diagnostics.ProcessStartInfo]::new('cmd.exe', '/c go run ./cmd/migrate up')
+        $psi = [System.Diagnostics.ProcessStartInfo]::new($shellCmd, "$shellArg `"go run ./cmd/migrate up`"")
         $psi.WorkingDirectory = $BACKEND_DIR
         $psi.UseShellExecute  = $false
         foreach ($k in $agencyEnv.Keys) { $psi.Environment[$k] = [string]$agencyEnv[$k] }
@@ -303,7 +325,7 @@ function Start-Backend {
     # DB_DRIVER falls back to sqlite only if not set by parent env, --env-file, or .env.
     if (-not $envBlock.Contains('DB_DRIVER')) { $envBlock['DB_DRIVER'] = 'sqlite' }
 
-    $psi = [System.Diagnostics.ProcessStartInfo]::new('cmd.exe', '/c go run ./cmd/server')
+    $psi = [System.Diagnostics.ProcessStartInfo]::new($shellCmd, "$shellArg `"go run ./cmd/server`"")
     $psi.WorkingDirectory = $BACKEND_DIR
     $psi.UseShellExecute  = $false
     foreach ($k in $envBlock.Keys) { $psi.Environment[$k] = [string]$envBlock[$k] }
@@ -335,7 +357,7 @@ function Start-Frontend {
     if (-not $envBlock.Contains('VITE_IDP_EXPECTED_OU_HANDLE')) { $envBlock['VITE_IDP_EXPECTED_OU_HANDLE'] = $ouHandle                 }
     if (-not $envBlock.Contains('VITE_APP_URL'))                { $envBlock['VITE_APP_URL']                = "http://localhost:$fePort" }
 
-    $psi = [System.Diagnostics.ProcessStartInfo]::new('cmd.exe', '/c pnpm run dev')
+    $psi = [System.Diagnostics.ProcessStartInfo]::new($shellCmd, "$shellArg `"pnpm run dev`"")
     $psi.WorkingDirectory = $FRONTEND_DIR
     $psi.UseShellExecute  = $false
     foreach ($k in $envBlock.Keys) { $psi.Environment[$k] = [string]$envBlock[$k] }
