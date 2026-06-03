@@ -11,7 +11,7 @@ import (
 
 func TestService_CreateUploadURL(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/uploads", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/storage", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
@@ -52,7 +52,7 @@ func TestService_CreateUploadURL(t *testing.T) {
 
 func TestService_GetDownloadURL(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/uploads/550e8400-e29b-41d4-a716-446655440000.pdf", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/storage/550e8400-e29b-41d4-a716-446655440000.pdf", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
