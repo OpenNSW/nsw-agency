@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, Badge, Spinner, Text, Card, Flex, Box, Callout } from '@radix-ui/themes'
 import {
@@ -11,9 +11,8 @@ import {
 import { type AgencyApplication } from '../services/types'
 import { JsonForms } from '@jsonforms/react'
 import { radixRenderers } from '@opennsw/jsonforms-renderers'
-import type { JsonSchema, UISchemaElement } from '@jsonforms/core'
+import { createAjv, type JsonSchema, type UISchemaElement } from '@jsonforms/core'
 import { fetchApplicationDetail, submitReview } from '../services/applications'
-
 interface SchemaOption {
   const: unknown
   title?: string
@@ -41,6 +40,8 @@ export function ConsignmentDetailScreen() {
   )
   const [agencyFormData, setAgencyFormData] = useState<Record<string, unknown>>({})
   const [formErrors, setFormErrors] = useState<unknown[]>([])
+
+  const ajvInstance = useMemo(() => createAjv({ useDefaults: true }), [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -276,6 +277,7 @@ export function ConsignmentDetailScreen() {
                     setAgencyFormData(data)
                     setFormErrors(errors || [])
                   }}
+                  ajv={ajvInstance}
                 />
                 <Flex justify="end" gap="3" mt="6">
                   <Button
@@ -306,6 +308,7 @@ export function ConsignmentDetailScreen() {
                   setAgencyFormData(data)
                   setFormErrors(errors || [])
                 }}
+                ajv={ajvInstance}
               />
             ) : null}
           </Box>
