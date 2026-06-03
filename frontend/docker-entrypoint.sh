@@ -30,7 +30,7 @@ window.__APP_CONFIG__ = {
   "VITE_IDP_CLIENT_ID": "$(escape_js "${VITE_IDP_CLIENT_ID:-OGA_PORTAL_APP_NPQS}")",
   "VITE_IDP_EXPECTED_OU_HANDLE": "$(escape_js "${VITE_IDP_EXPECTED_OU_HANDLE:-}")",
   "VITE_APP_URL": "$(escape_js "${VITE_APP_URL:-http://localhost:5174}")",
-  "VITE_IDP_SCOPES": "$(escape_js "${VITE_IDP_SCOPES:-openid,profile,email}")"
+  "VITE_IDP_SCOPES": "$(escape_js "${VITE_IDP_SCOPES:-openid,profile,email,ou}")"
 };
 EOF
 
