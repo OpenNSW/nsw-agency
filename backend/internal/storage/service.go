@@ -37,6 +37,8 @@ type DownloadMetadata struct {
 	ExpiresAt   int64  `json:"expires_at"`
 }
 
+const storageBasePath = "storage"
+
 // Service handles storage operations (upload/download URLs)
 type Service interface {
 	// GetDownloadURL fetches a download URL for a key from the main backend.
@@ -60,7 +62,7 @@ func NewService(httpClient *httpclient.Client) Service {
 // GetDownloadURL returns a download URL for a file stored in the main backend.
 // It calls the backend's metadata endpoint to retrieve a (possibly presigned) download URL.
 func (s *service) GetDownloadURL(ctx context.Context, key string) (*DownloadMetadata, error) {
-	apiURL := fmt.Sprintf("uploads/%s", url.PathEscape(key))
+	apiURL := fmt.Sprintf("%s/%s", storageBasePath, url.PathEscape(key))
 	resp, err := s.httpClient.Get(apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch upload metadata: %w", err)
@@ -97,7 +99,7 @@ func (s *service) CreateUploadURL(ctx context.Context, req UploadRequest) (*File
 		return nil, fmt.Errorf("failed to marshal upload request: %w", err)
 	}
 
-	resp, err := s.httpClient.Post("uploads", "application/json", payload)
+	resp, err := s.httpClient.Post(storageBasePath, "application/json", payload)
 	if err != nil {
 		return nil, fmt.Errorf("failed to POST upload metadata: %w", err)
 	}
