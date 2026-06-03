@@ -78,7 +78,7 @@ Examples:
 # (PowerShell param() does not allow hyphens in parameter names).
 $CLEAN_RUN  = $false
 $ENV_FILE   = ''
-$POSITIONAL = @()
+$POSITIONAL = [System.Collections.Generic.List[string]]::new()
 
 $i = 0
 while ($i -lt $args.Count) {
@@ -95,7 +95,7 @@ while ($i -lt $args.Count) {
         }
         $ENV_FILE = $args[$i]
     } else {
-        $POSITIONAL += $arg
+        $POSITIONAL.Add($arg)
     }
     $i++
 }
