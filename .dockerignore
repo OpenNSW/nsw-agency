@@ -1,0 +1,27 @@
+.git
+.gitignore
+.env
+.env.local
+
+# Backend build artefacts
+backend/bin/
+backend/*.db
+backend/*.sqlite
+backend/*.sqlite3
+backend/*.log
+
+# Frontend build artefacts and dependencies
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.DS_Store
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+
+# IDE and OS files
+.DS_Store
+.vscode/
+.idea/

@@ -127,6 +127,17 @@ func main() {
 	mux.Handle("POST /api/v1/storage", protect(http.HandlerFunc(storageHandler.HandleCreateUpload)))
 	mux.Handle("GET /api/v1/storage/{key}", protect(http.HandlerFunc(storageHandler.HandleGetUploadURL)))
 
+	// Serve frontend static files when UI_DIR exists.
+	// /runtime-env.js is registered first so it takes precedence over the catch-all SPA handler.
+	if _, statErr := os.Stat(cfg.UIDir); statErr == nil {
+		if err := cfg.validateFrontendConfig(); err != nil {
+			log.Fatalf("FATAL: %v", err)
+		}
+		mux.HandleFunc("GET /runtime-env.js", makeRuntimeEnvHandler(cfg.Frontend))
+		mux.Handle("/", makeSPAHandler(cfg.UIDir))
+		slog.Info("serving frontend", "ui_dir", cfg.UIDir)
+	}
+
 	// Set up graceful shutdown
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)
 

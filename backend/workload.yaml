@@ -64,3 +64,19 @@ configurations:
     - name: AUTH_ISSUER
     - name: AUTH_AUDIENCE
     - name: AUTH_CLIENT_IDS
+    # Frontend config forwarded to the browser via /runtime-env.js
+    - name: UI_DIR
+      value: ./ui
+    - name: VITE_INSTANCE_CONFIG
+      value: npqs
+    - name: VITE_BRANDING_NAME
+      value: default
+    - name: VITE_API_BASE_URL
+      value: ''
+    - name: VITE_IDP_BASE_URL
+    - name: VITE_IDP_CLIENT_ID
+    - name: VITE_APP_URL
+    - name: VITE_IDP_SCOPES
+      value: openid,profile,email
+    - name: VITE_IDP_PLATFORM
+      value: AsgardeoV2

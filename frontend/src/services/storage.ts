@@ -62,10 +62,11 @@ export async function getDownloadUrl(key: string): Promise<{ url: string; expire
   })
   const response = res.data as DownloadMetadataResponse
 
-  // Normalize the URL if it's a relative path (common in local dev)
-  const url = response.download_url.startsWith('/')
-    ? new URL(API_BASE_URL).origin + response.download_url
-    : response.download_url
+  // Normalize relative download URLs to absolute. When API_BASE_URL is empty or
+  // a relative path (same-origin integrated deployment) use window.location.origin.
+  const isAbsolute = API_BASE_URL?.startsWith('http://') || API_BASE_URL?.startsWith('https://')
+  const origin = isAbsolute ? new URL(API_BASE_URL!).origin : window.location.origin
+  const url = response.download_url.startsWith('/') ? origin + response.download_url : response.download_url
 
   return { url, expiresAt: response.expires_at }
 }
