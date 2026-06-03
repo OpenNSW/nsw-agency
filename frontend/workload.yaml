@@ -26,4 +26,4 @@ configurations:
     - name: VITE_APP_URL
       value: http://localhost:5174
     - name: VITE_IDP_SCOPES
-      value: openid,profile,email
+      value: openid,profile,email,ou

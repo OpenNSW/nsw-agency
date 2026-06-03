@@ -12,7 +12,7 @@ Required environment variables:
 - `VITE_IDP_CLIENT_ID`: NSW Agency-specific IdP application client id
 - `VITE_IDP_EXPECTED_OU_HANDLE`: Required organization/OU handle for access restriction (e.g., `npqs`, `fcau`, `ird`, `cda`)
 - `VITE_APP_URL`: public URL of this Agency deployment
-- `VITE_IDP_SCOPES` (optional): comma-separated scopes (defaults to `openid,profile,email`)
+- `VITE_IDP_SCOPES` (optional): comma-separated scopes (defaults to `openid,profile,email,ou`)
 
 ## Per-NSW Agency deployment model
 
