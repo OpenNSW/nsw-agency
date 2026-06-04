@@ -34,7 +34,7 @@ func newTestStores(t *testing.T) (*RoleStore, *UserRoleStore) {
 func TestRoleStore_Create(t *testing.T) {
 	rs, _ := newTestStores(t)
 
-	role, err := rs.Create("lab_officer", "Handles lab testing tasks")
+	role, err := rs.Create("lab_officer")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -49,10 +49,10 @@ func TestRoleStore_Create(t *testing.T) {
 func TestRoleStore_Create_DuplicateName(t *testing.T) {
 	rs, _ := newTestStores(t)
 
-	if _, err := rs.Create("lab_officer", "First"); err != nil {
+	if _, err := rs.Create("lab_officer"); err != nil {
 		t.Fatalf("unexpected error on first create: %v", err)
 	}
-	if _, err := rs.Create("lab_officer", "Second"); err == nil {
+	if _, err := rs.Create("lab_officer"); err == nil {
 		t.Error("expected error on duplicate role name, got nil")
 	}
 }
@@ -60,7 +60,7 @@ func TestRoleStore_Create_DuplicateName(t *testing.T) {
 func TestRoleStore_FindByName_Found(t *testing.T) {
 	rs, _ := newTestStores(t)
 
-	created, err := rs.Create("lab_officer", "")
+	created, err := rs.Create("lab_officer")
 	if err != nil {
 		t.Fatalf("unexpected error creating role: %v", err)
 	}
@@ -86,10 +86,10 @@ func TestRoleStore_FindByName_NotFound(t *testing.T) {
 func TestRoleStore_List(t *testing.T) {
 	rs, _ := newTestStores(t)
 
-	if _, err := rs.Create("lab_officer", ""); err != nil {
+	if _, err := rs.Create("lab_officer"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if _, err := rs.Create("lab_manager", ""); err != nil {
+	if _, err := rs.Create("lab_manager"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -107,7 +107,7 @@ func TestRoleStore_List(t *testing.T) {
 func TestUserRoleStore_Assign(t *testing.T) {
 	rs, urs := newTestStores(t)
 
-	role, err := rs.Create("lab_officer", "")
+	role, err := rs.Create("lab_officer")
 	if err != nil {
 		t.Fatalf("unexpected error creating role: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestUserRoleStore_Assign(t *testing.T) {
 func TestUserRoleStore_Assign_Duplicate(t *testing.T) {
 	rs, urs := newTestStores(t)
 
-	role, err := rs.Create("lab_officer", "")
+	role, err := rs.Create("lab_officer")
 	if err != nil {
 		t.Fatalf("unexpected error creating role: %v", err)
 	}
@@ -136,8 +136,8 @@ func TestUserRoleStore_Assign_Duplicate(t *testing.T) {
 func TestUserRoleStore_GetRolesForUser(t *testing.T) {
 	rs, urs := newTestStores(t)
 
-	r1, _ := rs.Create("lab_officer", "")
-	r2, _ := rs.Create("lab_manager", "")
+	r1, _ := rs.Create("lab_officer")
+	r2, _ := rs.Create("lab_manager")
 
 	_ = urs.Assign("user-1", r1.ID)
 	_ = urs.Assign("user-1", r2.ID)

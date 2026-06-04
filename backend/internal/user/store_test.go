@@ -10,7 +10,6 @@ import (
 )
 
 // newTestStore creates an in-memory SQLite UserStore for testing.
-// AutoMigrate is called here only — production uses SQL migration files.
 func newTestStore(t *testing.T, agency string) *UserStore {
 	t.Helper()
 	store, err := NewUserStore(database.Config{Driver: "sqlite", Path: ":memory:"}, agency)
@@ -22,6 +21,17 @@ func newTestStore(t *testing.T, agency string) *UserStore {
 	}
 	t.Cleanup(func() { _ = store.Close() })
 	return store
+}
+
+// insertUser seeds a user directly into the test DB without SSOID (simulating
+// a pre-seeded user before first login).
+func insertUser(t *testing.T, store *UserStore, email, name string) *UserRecord {
+	t.Helper()
+	u := &UserRecord{Email: email, Name: name}
+	if err := store.db.Create(u).Error; err != nil {
+		t.Fatalf("failed to insert test user: %v", err)
+	}
+	return u
 }
 
 // ---------- 1. Integration Testing: SQLite Connectivity ----------
@@ -40,136 +50,91 @@ func TestUserStore_SQLite_FileCreated(t *testing.T) {
 	}
 }
 
-// ---------- 2. Functional Testing: FindOrProvision ----------
+// ---------- 2. Functional Testing: FindAndSync ----------
 
-func TestFindOrProvision_NewUser(t *testing.T) {
+func TestFindAndSync_UserFound_NoSSID_UpdatesSSID(t *testing.T) {
 	store := newTestStore(t, "fcau")
+	insertUser(t, store, "user@fcau.gov", "User")
 
-	u, err := store.FindOrProvision("sub-001", "admin@fcau.gov", "Admin", "fcau")
+	u, err := store.FindAndSync("sub-001", "user@fcau.gov", "User", "fcau")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if u.UserID == "" {
-		t.Error("expected UserID to be generated")
-	}
-	if u.SSOID != "sub-001" {
-		t.Errorf("expected SSOID %q, got %q", "sub-001", u.SSOID)
-	}
-	if u.Email != "admin@fcau.gov" {
-		t.Errorf("expected Email %q, got %q", "admin@fcau.gov", u.Email)
-	}
-	if u.Name != "Admin" {
-		t.Errorf("expected Name %q, got %q", "Admin", u.Name)
+	if u.SSOID == nil || *u.SSOID != "sub-001" {
+		t.Errorf("expected SSOID to be synced to %q, got %v", "sub-001", u.SSOID)
 	}
 }
 
-func TestFindOrProvision_WrongAgency(t *testing.T) {
+func TestFindAndSync_UserFound_SSIDAlreadySet_NoUpdate(t *testing.T) {
+	store := newTestStore(t, "fcau")
+	existing := ssoidPtr("existing-sub")
+	u := &UserRecord{Email: "user@fcau.gov", Name: "User", SSOID: existing}
+	if err := store.db.Create(u).Error; err != nil {
+		t.Fatalf("failed to insert test user: %v", err)
+	}
+
+	result, err := store.FindAndSync("new-sub", "user@fcau.gov", "User", "fcau")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.SSOID == nil || *result.SSOID != "existing-sub" {
+		t.Errorf("expected SSOID to remain %q, got %v", "existing-sub", result.SSOID)
+	}
+}
+
+func TestFindAndSync_UserNotFound_ReturnsError(t *testing.T) {
 	store := newTestStore(t, "fcau")
 
-	_, err := store.FindOrProvision("sub-002", "officer@npqs.gov", "Officer", "npqs")
+	_, err := store.FindAndSync("sub-001", "unknown@fcau.gov", "Unknown", "fcau")
+	if !errors.Is(err, ErrUserNotFound) {
+		t.Errorf("expected ErrUserNotFound, got %v", err)
+	}
+}
+
+func TestFindAndSync_WrongAgency_ReturnsError(t *testing.T) {
+	store := newTestStore(t, "fcau")
+	insertUser(t, store, "user@npqs.gov", "User")
+
+	_, err := store.FindAndSync("sub-001", "user@npqs.gov", "User", "npqs")
 	if !errors.Is(err, ErrUnauthorizedAgency) {
 		t.Errorf("expected ErrUnauthorizedAgency, got %v", err)
 	}
 }
 
-func TestFindOrProvision_ExistingUser_NoChange(t *testing.T) {
+func TestFindAndSync_SyncsName(t *testing.T) {
 	store := newTestStore(t, "fcau")
+	insertUser(t, store, "user@fcau.gov", "OldName")
 
-	first, err := store.FindOrProvision("sub-003", "user@fcau.gov", "User", "fcau")
+	result, err := store.FindAndSync("sub-001", "user@fcau.gov", "NewName", "fcau")
 	if err != nil {
-		t.Fatalf("unexpected error on first provision: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
-
-	second, err := store.FindOrProvision("sub-003", "user@fcau.gov", "User", "fcau")
-	if err != nil {
-		t.Fatalf("unexpected error on second call: %v", err)
-	}
-	if first.UserID != second.UserID {
-		t.Errorf("expected same UserID, got %q and %q", first.UserID, second.UserID)
-	}
-}
-
-func TestFindOrProvision_ExistingUser_SyncsAttributes(t *testing.T) {
-	store := newTestStore(t, "fcau")
-
-	_, err := store.FindOrProvision("sub-004", "old@fcau.gov", "OldName", "fcau")
-	if err != nil {
-		t.Fatalf("unexpected error on initial provision: %v", err)
-	}
-
-	updated, err := store.FindOrProvision("sub-004", "new@fcau.gov", "NewName", "fcau")
-	if err != nil {
-		t.Fatalf("unexpected error on attribute sync: %v", err)
-	}
-	if updated.Email != "new@fcau.gov" {
-		t.Errorf("expected Email %q, got %q", "new@fcau.gov", updated.Email)
-	}
-	if updated.Name != "NewName" {
-		t.Errorf("expected Name %q, got %q", "NewName", updated.Name)
-	}
-}
-
-func TestFindOrProvision_ExistingUser_WrongAgency_Returns403(t *testing.T) {
-	// Agency check is enforced on every call, including returning users.
-	store := newTestStore(t, "fcau")
-
-	_, err := store.FindOrProvision("sub-005", "officer@fcau.gov", "Officer", "fcau")
-	if err != nil {
-		t.Fatalf("unexpected error on initial provision: %v", err)
-	}
-
-	_, err = store.FindOrProvision("sub-005", "officer@fcau.gov", "Officer", "wrong-agency")
-	if !errors.Is(err, ErrUnauthorizedAgency) {
-		t.Errorf("expected ErrUnauthorizedAgency for wrong agency on existing user, got: %v", err)
-	}
-}
-
-func TestFindOrProvision_EmptyName_PreservesExisting(t *testing.T) {
-	store := newTestStore(t, "fcau")
-
-	_, err := store.FindOrProvision("sub-009", "user@fcau.gov", "OriginalName", "fcau")
-	if err != nil {
-		t.Fatalf("unexpected error on initial provision: %v", err)
-	}
-
-	// Calling via auth middleware path passes empty name — existing name must not be wiped.
-	updated, err := store.FindOrProvision("sub-009", "user@fcau.gov", "", "fcau")
-	if err != nil {
-		t.Fatalf("unexpected error on empty-name call: %v", err)
-	}
-	if updated.Name != "OriginalName" {
-		t.Errorf("expected Name %q to be preserved, got %q", "OriginalName", updated.Name)
+	if result.Name != "NewName" {
+		t.Errorf("expected Name %q, got %q", "NewName", result.Name)
 	}
 }
 
 // ---------- 3. Functional Testing: GetOrCreateUser (UserProfileService) ----------
 
-func TestGetOrCreateUser_NewUser_ReturnsUserID(t *testing.T) {
+func TestGetOrCreateUser_SeededUser_ReturnsUserID(t *testing.T) {
 	store := newTestStore(t, "fcau")
+	inserted := insertUser(t, store, "a@fcau.gov", "Alice")
 
 	id, err := store.GetOrCreateUser("sub-010", "a@fcau.gov", "Alice", "", "ou-id", "fcau")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if id == nil || *id == "" {
-		t.Error("expected a non-empty UserID to be returned")
+	if id == nil || *id != inserted.UserID {
+		t.Errorf("expected UserID %q, got %v", inserted.UserID, id)
 	}
 }
 
-func TestGetOrCreateUser_ExistingUser_ReturnsSameID(t *testing.T) {
+func TestGetOrCreateUser_UnseededUser_ReturnsError(t *testing.T) {
 	store := newTestStore(t, "fcau")
 
-	id1, err := store.GetOrCreateUser("sub-011", "b@fcau.gov", "Bob", "", "ou-id", "fcau")
-	if err != nil {
-		t.Fatalf("unexpected error on first call: %v", err)
-	}
-
-	id2, err := store.GetOrCreateUser("sub-011", "b@fcau.gov", "Bob", "", "ou-id", "fcau")
-	if err != nil {
-		t.Fatalf("unexpected error on second call: %v", err)
-	}
-	if *id1 != *id2 {
-		t.Errorf("expected same UserID, got %q and %q", *id1, *id2)
+	_, err := store.GetOrCreateUser("sub-011", "notseeded@fcau.gov", "Bob", "", "ou-id", "fcau")
+	if !errors.Is(err, ErrUserNotFound) {
+		t.Errorf("expected ErrUserNotFound, got %v", err)
 	}
 }
 
@@ -186,15 +151,11 @@ func TestGetOrCreateUser_WrongAgency_ReturnsError(t *testing.T) {
 
 func TestBeforeCreate_GeneratesUUID(t *testing.T) {
 	store := newTestStore(t, "fcau")
+	u := insertUser(t, store, "uuid@fcau.gov", "UUID")
 
-	u, err := store.FindOrProvision("sub-006", "uuid@fcau.gov", "UUID", "fcau")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
 	if u.UserID == "" {
 		t.Error("expected UserID to be auto-generated")
 	}
-	// UUID v4: 8-4-4-4-12 hex chars with dashes = 36 characters
 	if len(u.UserID) != 36 {
 		t.Errorf("expected UUID length 36, got %d (%s)", len(u.UserID), u.UserID)
 	}
@@ -203,10 +164,14 @@ func TestBeforeCreate_GeneratesUUID(t *testing.T) {
 func TestBeforeCreate_UniqueUUIDs(t *testing.T) {
 	store := newTestStore(t, "fcau")
 
-	u1, _ := store.FindOrProvision("sub-007", "a@fcau.gov", "A", "fcau")
-	u2, _ := store.FindOrProvision("sub-008", "b@fcau.gov", "B", "fcau")
+	u1 := insertUser(t, store, "a@fcau.gov", "A")
+	u2 := insertUser(t, store, "b@fcau.gov", "B")
 
 	if u1.UserID == u2.UserID {
 		t.Error("expected distinct UUIDs for different users")
 	}
 }
+
+// ---------- helpers ----------
+
+func ssoidPtr(s string) *string { return &s }

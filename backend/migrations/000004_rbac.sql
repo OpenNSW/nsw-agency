@@ -2,10 +2,9 @@
 
 -- @UP
 CREATE TABLE IF NOT EXISTS roles (
-    id          TEXT      PRIMARY KEY,
-    name        TEXT      NOT NULL UNIQUE,
-    description TEXT,
-    created_at  TIMESTAMP NOT NULL
+    id         TEXT      PRIMARY KEY,
+    name       TEXT      NOT NULL UNIQUE,
+    created_at TIMESTAMP NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS user_roles (
