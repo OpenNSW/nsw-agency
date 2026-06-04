@@ -81,7 +81,13 @@ func runAddUser() {
 	sc := bufio.NewScanner(os.Stdin)
 
 	name := prompt(sc, "Name: ")
+	if name == "" {
+		fatalf("name is required")
+	}
 	email := prompt(sc, "Email: ")
+	if email == "" {
+		fatalf("email is required")
+	}
 	ssoid := prompt(sc, "SSOID: ")
 	rolesInput := prompt(sc, "Roles (comma-separated): ")
 
@@ -125,8 +131,14 @@ func (u *userRecord) BeforeCreate(_ *gorm.DB) error {
 }
 
 func seedUsers(db *gorm.DB, users []seedUser) error {
-	roleStore := rbac.NewRoleStore(db)
-	userRoleStore := rbac.NewUserRoleStore(db)
+	return db.Transaction(func(tx *gorm.DB) error {
+		return seedUsersInTx(tx, users)
+	})
+}
+
+func seedUsersInTx(tx *gorm.DB, users []seedUser) error {
+	roleStore := rbac.NewRoleStore(tx)
+	userRoleStore := rbac.NewUserRoleStore(tx)
 
 	// Collect unique role names across all users.
 	roleNames := make(map[string]struct{})
@@ -152,10 +164,10 @@ func seedUsers(db *gorm.DB, users []seedUser) error {
 	// Upsert users and assign roles.
 	for _, u := range users {
 		var existing userRecord
-		err := db.First(&existing, "email = ?", u.Email).Error
+		err := tx.First(&existing, "email = ?", u.Email).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			newUser := userRecord{Name: u.Name, Email: u.Email, SSOID: nullableSSID(u.SSOID)}
-			if err := db.Create(&newUser).Error; err != nil {
+			if err := tx.Create(&newUser).Error; err != nil {
 				return fmt.Errorf("create user %q: %w", u.Email, err)
 			}
 			existing = newUser

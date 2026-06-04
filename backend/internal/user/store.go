@@ -100,11 +100,11 @@ func (s *UserStore) FindAndSync(ssoid, email, name, ouHandle string) (*UserRecor
 		if err := s.db.Model(&user).Updates(updates).Error; err != nil {
 			return nil, fmt.Errorf("failed to sync user attributes: %w", err)
 		}
-		if v, ok := updates["ssoid"].(string); ok {
-			user.SSOID = &v
+		if _, ok := updates["ssoid"]; ok {
+			user.SSOID = &ssoid
 		}
-		if v, ok := updates["name"].(string); ok {
-			user.Name = v
+		if _, ok := updates["name"]; ok {
+			user.Name = name
 		}
 	}
 
