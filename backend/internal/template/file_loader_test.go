@@ -40,6 +40,7 @@ func TestFileLoader_LoadsValidTemplates(t *testing.T) {
 	writeTestFile(t, root, "forms", "nested/form2.json", `{"uiSchema":{"type":"VerticalLayout"}}`)
 	writeTestFile(t, root, "forms", "nested/workflow.json", `{"id":"workflow-id","task_type":"EXTERNAL_REVIEW"}`) // should be skipped (no schema/uiSchema)
 	writeTestFile(t, root, "forms", "ignored.txt", `some non-json text`)
+
 	// Unreferenced form (should NOT be loaded/cached)
 	writeTestFile(t, root, "forms", "unreferenced_form.json", `{"id":"unreferenced-form-id","schema":{"type":"object"}}`)
 
@@ -49,6 +50,7 @@ func TestFileLoader_LoadsValidTemplates(t *testing.T) {
 		"meta": {"title": "Task One"},
 		"forms": {"view": "custom-id-1", "review": "form2"}
 	}`)
+
 	loader := NewFileLoader(taskConfigsDir, formsDir)
 	if err := loader.Load(); err != nil {
 		t.Fatalf("Load failed unexpectedly: %v", err)
