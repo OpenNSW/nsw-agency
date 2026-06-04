@@ -128,8 +128,9 @@ func TestUserRoleStore_Assign_Duplicate(t *testing.T) {
 	if err := urs.Assign("user-1", role.ID); err != nil {
 		t.Fatalf("unexpected error on first assign: %v", err)
 	}
-	if err := urs.Assign("user-1", role.ID); err == nil {
-		t.Error("expected error on duplicate assignment, got nil")
+	// Second assign of the same role is silently ignored (ON CONFLICT DO NOTHING).
+	if err := urs.Assign("user-1", role.ID); err != nil {
+		t.Errorf("expected no error on duplicate assignment, got: %v", err)
 	}
 }
 

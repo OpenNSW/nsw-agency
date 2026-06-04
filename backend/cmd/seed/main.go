@@ -27,6 +27,8 @@ func main() {
 		runAddUsers(os.Args[2:])
 	case "add-user":
 		runAddUser()
+	case "drop-user":
+		runDropUser()
 	default:
 		fmt.Fprintf(os.Stderr, "seed: unknown command %q\n\n", os.Args[1])
 		usage()
@@ -69,10 +71,11 @@ func runAddUsers(args []string) {
 	}
 
 	db := openGormDB()
-	if err := seedUsers(db, sf.Users); err != nil {
+	inserted, err := seedUsers(db, sf.Users)
+	if err != nil {
 		fatalf("%v", err)
 	}
-	fmt.Printf("seed: successfully seeded %d user(s)\n", len(sf.Users))
+	fmt.Printf("seed: successfully seeded %d user(s)\n", inserted)
 }
 
 // ---------- add-user (interactive) ----------
@@ -88,7 +91,6 @@ func runAddUser() {
 	if email == "" {
 		fatalf("email is required")
 	}
-	ssoid := prompt(sc, "SSOID: ")
 	rolesInput := prompt(sc, "Roles (comma-separated): ")
 
 	var roles []string
@@ -102,10 +104,43 @@ func runAddUser() {
 	}
 
 	db := openGormDB()
-	if err := seedUsers(db, []seedUser{{SSOID: ssoid, Name: name, Email: email, Roles: roles}}); err != nil {
+	inserted, err := seedUsers(db, []seedUser{{Name: name, Email: email, Roles: roles}})
+	if err != nil {
 		fatalf("%v", err)
 	}
-	fmt.Printf("seed: user %q seeded successfully\n", email)
+	if inserted == 0 {
+		fmt.Printf("seed: user %q already existed — roles updated\n", email)
+	} else {
+		fmt.Printf("seed: user %q seeded successfully\n", email)
+	}
+}
+
+// ---------- drop-user (interactive) ----------
+
+func runDropUser() {
+	sc := bufio.NewScanner(os.Stdin)
+
+	email := prompt(sc, "Email of user to drop: ")
+	if email == "" {
+		fatalf("email is required")
+	}
+
+	db := openGormDB()
+
+	var u userRecord
+	if err := db.First(&u, "email = ?", email).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			fatalf("no user found with email %q", email)
+		}
+		fatalf("failed to find user: %v", err)
+	}
+
+	// ON DELETE CASCADE on user_roles.user_id removes role assignments automatically.
+	if err := db.Delete(&u).Error; err != nil {
+		fatalf("failed to drop user %q: %v", email, err)
+	}
+
+	fmt.Printf("seed: user %q dropped successfully\n", email)
 }
 
 // ---------- seeding logic ----------
@@ -130,15 +165,30 @@ func (u *userRecord) BeforeCreate(_ *gorm.DB) error {
 	return nil
 }
 
-func seedUsers(db *gorm.DB, users []seedUser) error {
-	return db.Transaction(func(tx *gorm.DB) error {
-		return seedUsersInTx(tx, users)
+func seedUsers(db *gorm.DB, users []seedUser) (int, error) {
+	var inserted int
+	err := db.Transaction(func(tx *gorm.DB) error {
+		var err error
+		inserted, err = seedUsersInTx(tx, users)
+		return err
 	})
+	return inserted, err
 }
 
-func seedUsersInTx(tx *gorm.DB, users []seedUser) error {
+func seedUsersInTx(tx *gorm.DB, users []seedUser) (int, error) {
 	roleStore := rbac.NewRoleStore(tx)
 	userRoleStore := rbac.NewUserRoleStore(tx)
+
+	// Deduplicate users by email — keep the first occurrence.
+	seen := make(map[string]struct{})
+	deduped := users[:0]
+	for _, u := range users {
+		if _, exists := seen[u.Email]; !exists {
+			seen[u.Email] = struct{}{}
+			deduped = append(deduped, u)
+		}
+	}
+	users = deduped
 
 	// Collect unique role names across all users.
 	roleNames := make(map[string]struct{})
@@ -156,37 +206,37 @@ func seedUsersInTx(tx *gorm.DB, users []seedUser) error {
 			role, err = roleStore.Create(name)
 		}
 		if err != nil {
-			return fmt.Errorf("upsert role %q: %w", name, err)
+			return 0, fmt.Errorf("upsert role %q: %w", name, err)
 		}
 		roleIndex[name] = role
 	}
 
 	// Upsert users and assign roles.
+	inserted := 0
 	for _, u := range users {
 		var existing userRecord
 		err := tx.First(&existing, "email = ?", u.Email).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			newUser := userRecord{Name: u.Name, Email: u.Email, SSOID: nullableSSID(u.SSOID)}
 			if err := tx.Create(&newUser).Error; err != nil {
-				return fmt.Errorf("create user %q: %w", u.Email, err)
+				return inserted, fmt.Errorf("create user %q: %w", u.Email, err)
 			}
 			existing = newUser
+			inserted++
 		} else if err != nil {
-			return fmt.Errorf("fetch user %q: %w", u.Email, err)
+			return inserted, fmt.Errorf("fetch user %q: %w", u.Email, err)
+		} else {
+			fmt.Printf("seed: user %q already exists — skipping creation, assigning roles\n", u.Email)
 		}
 
 		for _, roleName := range u.Roles {
 			role := roleIndex[roleName]
 			if err := userRoleStore.Assign(existing.UserID, role.ID); err != nil {
-				// Ignore duplicate assignments.
-				if !strings.Contains(err.Error(), "UNIQUE constraint failed") &&
-					!strings.Contains(err.Error(), "duplicate key") {
-					return fmt.Errorf("assign role %q to user %q: %w", roleName, u.Email, err)
-				}
+				return inserted, fmt.Errorf("assign role %q to user %q: %w", roleName, u.Email, err)
 			}
 		}
 	}
-	return nil
+	return inserted, nil
 }
 
 // ---------- helpers ----------
@@ -222,7 +272,8 @@ func usage() {
 
 Commands:
   add-users   Seed users and roles from a JSON file
-  add-user    Interactively add a single user and assign roles
+  add-user    Interactively add a single user and assign roles (ssoid synced on first login)
+  drop-user   Interactively remove a user by email (also removes their role assignments)
 
 Flags for add-users:
   --file <path>   Path to users JSON seed file (default: data/seed/users.json)

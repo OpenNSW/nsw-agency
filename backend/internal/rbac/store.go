@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var ErrRoleNotFound = errors.New("role not found")
@@ -91,7 +92,7 @@ func NewUserRoleStore(db *gorm.DB) *UserRoleStore {
 
 func (s *UserRoleStore) Assign(userID, roleID string) error {
 	ur := UserRoleRecord{UserID: userID, RoleID: roleID}
-	if err := s.db.Create(&ur).Error; err != nil {
+	if err := s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&ur).Error; err != nil {
 		return fmt.Errorf("failed to assign role to user: %w", err)
 	}
 	return nil
