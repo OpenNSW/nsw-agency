@@ -125,7 +125,7 @@ func newMiddlewareTestDB(t *testing.T) *UserRoleStore {
 		sqlDB, _ := db.DB()
 		_ = sqlDB.Close()
 	})
-	return &UserRoleStore{db: db}
+	return NewUserRoleStore(db)
 }
 
 // ---------- Integration tests: RequireAction ----------

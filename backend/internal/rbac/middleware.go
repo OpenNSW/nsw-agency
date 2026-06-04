@@ -64,10 +64,15 @@ func (m *Middleware) RequireAction(action string) func(http.Handler) http.Handle
 				return
 			}
 
-			userID := auth.GetAuthContext(ctx).User.ID
-			roles, err := m.userRoleStore.GetRolesForUser(userID)
+			authCtx := auth.GetAuthContext(ctx)
+			if authCtx == nil || authCtx.User == nil {
+				httputil.WriteJSONError(w, http.StatusUnauthorized, "unauthorized")
+				return
+			}
+
+			roles, err := m.userRoleStore.GetRolesForUser(authCtx.User.ID)
 			if err != nil {
-				slog.ErrorContext(ctx, "rbac: failed to get roles for user", "userID", userID, "error", err)
+				slog.ErrorContext(ctx, "rbac: failed to get roles for user", "userID", authCtx.User.ID, "error", err)
 				httputil.WriteJSONError(w, http.StatusInternalServerError, "failed to resolve user roles")
 				return
 			}

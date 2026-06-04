@@ -26,7 +26,7 @@ func newTestStores(t *testing.T) (*RoleStore, *UserRoleStore) {
 		sqlDB, _ := db.DB()
 		_ = sqlDB.Close()
 	})
-	return &RoleStore{db: db}, &UserRoleStore{db: db}
+	return NewRoleStore(db), NewUserRoleStore(db)
 }
 
 // ---------- RoleStore ----------

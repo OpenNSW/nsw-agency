@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/OpenNSW/nsw-agency/backend/internal/database"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -32,8 +31,8 @@ func (r *RoleRecord) BeforeCreate(_ *gorm.DB) error {
 // UserRoleRecord represents a user-to-role assignment in the database.
 type UserRoleRecord struct {
 	ID         string    `gorm:"type:text;primaryKey"`
-	UserID     string    `gorm:"type:text;not null;index"`
-	RoleID     string    `gorm:"type:text;not null"`
+	UserID     string    `gorm:"type:text;not null;uniqueIndex:idx_user_role"`
+	RoleID     string    `gorm:"type:text;not null;uniqueIndex:idx_user_role"`
 	AssignedAt time.Time `gorm:"autoCreateTime"`
 }
 
@@ -51,16 +50,8 @@ type RoleStore struct {
 	db *gorm.DB
 }
 
-func NewRoleStore(dbCfg database.Config) (*RoleStore, error) {
-	connector, err := database.NewConnector(dbCfg)
-	if err != nil {
-		return nil, err
-	}
-	db, err := connector.Open()
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
-	}
-	return &RoleStore{db: db}, nil
+func NewRoleStore(db *gorm.DB) *RoleStore {
+	return &RoleStore{db: db}
 }
 
 func (s *RoleStore) Create(name, description string) (*RoleRecord, error) {
@@ -90,29 +81,13 @@ func (s *RoleStore) List() ([]RoleRecord, error) {
 	return roles, nil
 }
 
-func (s *RoleStore) Close() error {
-	sqlDB, err := s.db.DB()
-	if err != nil {
-		return err
-	}
-	return sqlDB.Close()
-}
-
 // UserRoleStore handles user-to-role assignment operations.
 type UserRoleStore struct {
 	db *gorm.DB
 }
 
-func NewUserRoleStore(dbCfg database.Config) (*UserRoleStore, error) {
-	connector, err := database.NewConnector(dbCfg)
-	if err != nil {
-		return nil, err
-	}
-	db, err := connector.Open()
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
-	}
-	return &UserRoleStore{db: db}, nil
+func NewUserRoleStore(db *gorm.DB) *UserRoleStore {
+	return &UserRoleStore{db: db}
 }
 
 func (s *UserRoleStore) Assign(userID, roleID string) error {
@@ -127,6 +102,7 @@ func (s *UserRoleStore) Assign(userID, roleID string) error {
 func (s *UserRoleStore) GetRolesForUser(userID string) ([]RoleRecord, error) {
 	var roles []RoleRecord
 	err := s.db.
+		Select("roles.*").
 		Joins("INNER JOIN user_roles ON user_roles.role_id = roles.id").
 		Where("user_roles.user_id = ?", userID).
 		Find(&roles).Error
@@ -134,12 +110,4 @@ func (s *UserRoleStore) GetRolesForUser(userID string) ([]RoleRecord, error) {
 		return nil, fmt.Errorf("failed to get roles for user: %w", err)
 	}
 	return roles, nil
-}
-
-func (s *UserRoleStore) Close() error {
-	sqlDB, err := s.db.DB()
-	if err != nil {
-		return err
-	}
-	return sqlDB.Close()
 }
