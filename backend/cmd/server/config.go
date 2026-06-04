@@ -19,6 +19,20 @@ type NSWConfig struct {
 	TokenInsecureSkipVerify bool
 }
 
+// FrontendConfig holds VITE_* values forwarded to the browser via /runtime-env.js.
+// JSON field names must match exactly what window.__APP_CONFIG__ keys the frontend reads.
+type FrontendConfig struct {
+	InstanceConfig string `json:"VITE_INSTANCE_CONFIG"`
+	BrandingName   string `json:"VITE_BRANDING_NAME"`
+	APIBaseURL     string `json:"VITE_API_BASE_URL"`
+	IDPBaseURL     string `json:"VITE_IDP_BASE_URL"`
+	IDPClientID    string `json:"VITE_IDP_CLIENT_ID"`
+	AppURL         string `json:"VITE_APP_URL"`
+	IDPScopes      string `json:"VITE_IDP_SCOPES"`
+	IDPPlatform    string `json:"VITE_IDP_PLATFORM"`
+	IDPExpectedOU  string `json:"VITE_IDP_EXPECTED_OU_HANDLE"`
+}
+
 type Config struct {
 	Port             string
 	DB               database.Config
@@ -28,6 +42,8 @@ type Config struct {
 	NSW              NSWConfig
 	Auth             auth.Config
 	MaxRequestBytes  int64
+	Frontend         FrontendConfig
+	UIDir            string
 }
 
 // LoadConfig loads configuration from environment variables
@@ -85,6 +101,18 @@ func LoadConfig() (Config, error) {
 			ClientIDs:  parseCommaSeparated(os.Getenv("AUTH_CLIENT_IDS")),
 			ExpectedOU: os.Getenv("AUTH_EXPECTED_OU"),
 		},
+		Frontend: FrontendConfig{
+			InstanceConfig: envOrDefault("VITE_INSTANCE_CONFIG", "npqs"),
+			BrandingName:   envOrDefault("VITE_BRANDING_NAME", "default"),
+			APIBaseURL:     os.Getenv("VITE_API_BASE_URL"), // empty = same-origin relative URLs
+			IDPBaseURL:     os.Getenv("VITE_IDP_BASE_URL"),
+			IDPClientID:    os.Getenv("VITE_IDP_CLIENT_ID"),
+			AppURL:         os.Getenv("VITE_APP_URL"),
+			IDPScopes:      envOrDefault("VITE_IDP_SCOPES", "openid,profile,email"),
+			IDPPlatform:    envOrDefault("VITE_IDP_PLATFORM", "AsgardeoV2"),
+			IDPExpectedOU:  os.Getenv("VITE_IDP_EXPECTED_OU_HANDLE"),
+		},
+		UIDir: envOrDefault("UI_DIR", "./ui"),
 	}
 	maxRequestBytes, err := parseInt64Env("MAX_REQUEST_BYTES", 32<<20)
 	if err != nil {
@@ -112,6 +140,22 @@ func LoadConfig() (Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// validateFrontendConfig checks that the browser-required IDP variables are set
+// when the server will serve the embedded frontend. Call this only after confirming
+// UIDir exists on disk — there is no point failing when running in headless/API mode.
+func (c Config) validateFrontendConfig() error {
+	if strings.TrimSpace(c.Frontend.IDPBaseURL) == "" {
+		return fmt.Errorf("VITE_IDP_BASE_URL is required when serving the frontend (UI_DIR=%s)", c.UIDir)
+	}
+	if strings.TrimSpace(c.Frontend.IDPClientID) == "" {
+		return fmt.Errorf("VITE_IDP_CLIENT_ID is required when serving the frontend (UI_DIR=%s)", c.UIDir)
+	}
+	if strings.TrimSpace(c.Frontend.IDPExpectedOU) == "" {
+		return fmt.Errorf("VITE_IDP_EXPECTED_OU_HANDLE is required when serving the frontend (UI_DIR=%s)", c.UIDir)
+	}
+	return nil
 }
 
 func (c Config) validateNSWOAuth2Config() error {

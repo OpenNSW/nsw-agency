@@ -41,6 +41,11 @@ jobs:
               - 'backend/**'
             frontend:
               - 'frontend/**'
+            # backend-image covers both backend and frontend because the unified
+            # image (backend/Dockerfile) builds the frontend in stage 1.
+            backend-image:
+              - 'backend/**'
+              - 'frontend/**'
             # Treat a change to this workflow file as touching all contexts
             # so every image is validated when CI config itself changes.
             workflow:
@@ -63,10 +68,10 @@ jobs:
       matrix:
         include:
           - name: backend
-            context: ./backend
+            context: .
             dockerfile: ./backend/Dockerfile
             tag: nsw-agency-backend:validate
-            trigger: backend
+            trigger: backend-image
           - name: agency-portal
             context: ./frontend
             dockerfile: ./frontend/Dockerfile

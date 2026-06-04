@@ -1,5 +1,6 @@
 # Go binaries
-server
+# Ignore built server binary at backend/server (don't ignore cmd/server source dir)
+/server
 *.exe
 *.dll
 *.so

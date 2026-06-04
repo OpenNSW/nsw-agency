@@ -27,7 +27,7 @@ jobs:
         include:
           - service_name: Agency Backend
             image_name: nsw-agency-backend
-            context: ./backend
+            context: .
             dockerfile: ./backend/Dockerfile
             description: Agency Backend Service
 
@@ -277,7 +277,7 @@ jobs:
           REGISTRY="${{ env.REGISTRY }}"
           
           SERVICES='[
-            {"service_name": "Agency Backend", "image_name": "nsw-agency-backend", "dockerfile": "./backend/Dockerfile", "context": "./backend"},
+            {"service_name": "Agency Backend", "image_name": "nsw-agency-backend", "dockerfile": "./backend/Dockerfile", "context": "."},
             {"service_name": "Agency Portal", "image_name": "nsw-agency-app", "dockerfile": "./frontend/Dockerfile", "context": "./frontend"}
           ]'
           
