@@ -3,11 +3,11 @@ package taskconfig
 // TaskConfig is the per-taskCode configuration: UI metadata, references to
 // forms, and outcome-to-status behavior.
 type TaskConfig struct {
-	TaskCode    string       `json:"taskCode"`
-	Meta        TaskMeta     `json:"meta"`
-	Forms       TaskForms    `json:"forms"`
+	TaskCode    string        `json:"taskCode"`
+	Meta        TaskMeta      `json:"meta"`
+	Forms       TaskForms     `json:"forms"`
 	Behavior    *TaskBehavior `json:"behavior,omitempty"`
-	Permissions []Permission `json:"permissions,omitempty"`
+	Permissions []Permission  `json:"permissions,omitempty"`
 }
 
 // Permission defines which actions a role is allowed to perform on a task.
