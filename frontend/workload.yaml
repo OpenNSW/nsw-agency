@@ -13,17 +13,17 @@ endpoints:
 
 configurations:
   env:
-    - name: VITE_INSTANCE_CONFIG
-      value: npqs
+    - name: VITE_BRANDING_NAME
+      value: default
     - name: VITE_API_BASE_URL
       value: http://localhost:8081
     - name: VITE_IDP_BASE_URL
       value: https://localhost:8090
     - name: VITE_IDP_CLIENT_ID
       value: ''
+    - name: VITE_IDP_EXPECTED_OU_HANDLE
+      value: ''
     - name: VITE_APP_URL
       value: http://localhost:5174
     - name: VITE_IDP_SCOPES
-      value: openid,profile,email
-    - name: VITE_IDP_PLATFORM
-      value: AsgardeoV2
+      value: openid,profile,email,ou

@@ -6,13 +6,13 @@ This app uses Asgardeo/Thunder OIDC for sign-in.
 
 Required environment variables:
 
-- `VITE_BRANDING_PATH`: Path to Agency branding YAML config (e.g. `./src/configs/npqs.yaml`)
+- `VITE_BRANDING_NAME`: Name of Agency branding configuration (e.g. `npqs`, `fcau`, `cda`, or `default`)
 - `VITE_API_BASE_URL`: Agency backend API base URL (for example `http://localhost:8081`)
 - `VITE_IDP_BASE_URL`: IdP base URL (for example `https://localhost:8090`)
 - `VITE_IDP_CLIENT_ID`: NSW Agency-specific IdP application client id
+- `VITE_IDP_EXPECTED_OU_HANDLE`: Required organization/OU handle for access restriction (e.g., `npqs`, `fcau`, `ird`, `cda`)
 - `VITE_APP_URL`: public URL of this Agency deployment
-- `VITE_IDP_SCOPES` (optional): comma-separated scopes (defaults to `openid,profile,email`)
-- `VITE_IDP_PLATFORM` (optional): SDK platform (defaults to `AsgardeoV2`)
+- `VITE_IDP_SCOPES` (optional): comma-separated scopes (defaults to `openid,profile,email,ou`)
 
 ## Per-NSW Agency deployment model
 
@@ -21,41 +21,52 @@ Each Agency deployment should use its own IdP application configuration.
 Example:
 
 - NPQS deployment
-  - `VITE_BRANDING_PATH=./src/configs/npqs.yaml`
+  - `VITE_BRANDING_NAME=npqs`
   - `VITE_IDP_CLIENT_ID=AGENCY_PORTAL_APP_NPQS`
+  - `VITE_IDP_EXPECTED_OU_HANDLE=npqs`
 - FCAU deployment
-  - `VITE_BRANDING_PATH=./src/configs/fcau.yaml`
+  - `VITE_BRANDING_NAME=fcau`
   - `VITE_IDP_CLIENT_ID=AGENCY_PORTAL_APP_FCAU`
+  - `VITE_IDP_EXPECTED_OU_HANDLE=fcau`
 - CDA deployment
-  - `VITE_BRANDING_PATH=./src/configs/cda.yaml`
+  - `VITE_BRANDING_NAME=cda`
   - `VITE_IDP_CLIENT_ID=AGENCY_PORTAL_APP_CDA`
+  - `VITE_IDP_EXPECTED_OU_HANDLE=cda`
 
 This allows IdP-level user access restriction per Agency app registration.
 
 ## Configuration
 
-NSW Agency instance branding and feature configuration is defined via YAML files.
+NSW Agency instance branding is defined via JSON configuration files loaded dynamically at runtime.
 
 ### How it works
 
-1. `src/configs/default.yaml` provides base fallback values for all instances.
-2. A custom YAML file (specified via `VITE_BRANDING_PATH`) overrides specific values for each NSW Agency.
-3. At build time, Vite reads the YAML files from the filesystem (at any path), merges them, and injects the result into the application.
-4. The merged config is validated before the app renders.
+1. The frontend fetches the branding configuration file matching the name specified in `VITE_BRANDING_NAME` from `/configs/${VITE_BRANDING_NAME}.branding.json` (e.g., `/configs/npqs.branding.json`).
+2. If `VITE_BRANDING_NAME` is not set, it defaults to `default`, requesting `/configs/default.branding.json`.
+3. If the configured branding file fails to load, the app automatically falls back to fetching the default configuration `/configs/default.branding.json`.
+4. If all fetches fail, a hardcoded emergency fallback config is loaded to keep the portal functional.
+5. The retrieved configuration is validated against a Zod schema before the application renders.
 
 ### Adding a new Agency instance
 
-1. Create a new YAML file anywhere on your system (e.g., `./src/brand.yaml`, `../shared/npqs.yaml`, or `/etc/NSW Agency/config.yaml`).
-2. Edit the `branding.appName` field (required).
-3. Set `VITE_BRANDING_PATH` to the path of your YAML file in your environment.
+1. Create a new JSON file under `public/configs/<name>.branding.json` (e.g., `public/configs/custom.branding.json`).
+2. Edit the `branding.systemName` and `branding.appName` fields (required).
+3. Update your environment configuration (or `start-dev.sh`) to set `VITE_BRANDING_NAME` to your custom name (e.g., `VITE_BRANDING_NAME=custom`).
 
 ### Config schema
 
-```yaml
-branding:
-  appName: 'My Agency Name' # Required
-  logoUrl: '' # Optional
-  favicon: '' # Optional
+```json
+{
+  "branding": {
+    "systemName": "NSW",
+    "appName": "NSW Agency Officer Portal",
+    "logoUrl": "",
+    "systemLogoUrl": "",
+    "favicon": "",
+    "portalName": "NSW Agency Portal",
+    "description": "A unified digital platform..."
+  }
+}
 ```
 
 ## Local development
