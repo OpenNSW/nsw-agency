@@ -3,16 +3,13 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/OpenNSW/nsw-agency/backend/internal/database"
-	"github.com/OpenNSW/nsw-agency/backend/internal/rbac"
-	"github.com/google/uuid"
+	"github.com/OpenNSW/nsw-agency/backend/internal/user"
 	"gorm.io/gorm"
 )
 
@@ -79,8 +76,8 @@ func runUserAddFromFile(filePath string) {
 		return
 	}
 
-	db := openGormDB()
-	inserted, err := seedUsers(db, sf.Users)
+	svc := newUserService()
+	inserted, err := svc.SeedUsers(toSeedInputs(sf.Users))
 	if err != nil {
 		fatalf("%v", err)
 	}
@@ -110,8 +107,8 @@ func runUserAddInteractive() {
 		fatalf("at least one role is required")
 	}
 
-	db := openGormDB()
-	inserted, err := seedUsers(db, []seedUser{{Name: name, Email: email, Roles: roles}})
+	svc := newUserService()
+	inserted, err := svc.SeedUsers([]user.SeedInput{{Name: name, Email: email, Roles: roles}})
 	if err != nil {
 		fatalf("%v", err)
 	}
@@ -132,121 +129,16 @@ func runUserDrop() {
 		fatalf("email is required")
 	}
 
-	db := openGormDB()
-
-	var u userRecord
-	if err := db.First(&u, "email = ?", email).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			fatalf("no user found with email %q", email)
-		}
-		fatalf("failed to find user: %v", err)
+	svc := newUserService()
+	if err := svc.DropUser(email); err != nil {
+		fatalf("%v", err)
 	}
-
-	// ON DELETE CASCADE on user_roles.user_id removes role assignments automatically.
-	if err := db.Delete(&u).Error; err != nil {
-		fatalf("failed to drop user %q: %v", email, err)
-	}
-
 	fmt.Printf("seed: user %q dropped successfully\n", email)
-}
-
-// ---------- seeding logic ----------
-
-// userRecord mirrors the users table. Defined here to avoid importing the
-// user store's agency-validation logic which is not appropriate for seeding.
-type userRecord struct {
-	UserID    string    `gorm:"type:text;primaryKey;column:user_id"`
-	SSOID     *string   `gorm:"column:ssoid;type:text;uniqueIndex"`
-	Email     string    `gorm:"type:text"`
-	Name      string    `gorm:"type:text"`
-	CreatedAt time.Time `gorm:"autoCreateTime"`
-	UpdatedAt time.Time `gorm:"autoUpdateTime"`
-}
-
-func (userRecord) TableName() string { return "users" }
-
-func (u *userRecord) BeforeCreate(_ *gorm.DB) error {
-	if u.UserID == "" {
-		u.UserID = uuid.New().String()
-	}
-	return nil
-}
-
-func seedUsers(db *gorm.DB, users []seedUser) (int, error) {
-	var inserted int
-	err := db.Transaction(func(tx *gorm.DB) error {
-		var err error
-		inserted, err = seedUsersInTx(tx, users)
-		return err
-	})
-	return inserted, err
-}
-
-func seedUsersInTx(tx *gorm.DB, users []seedUser) (int, error) {
-	roleStore := rbac.NewRoleStore(tx)
-	userRoleStore := rbac.NewUserRoleStore(tx)
-
-	// Deduplicate users by email — keep the first occurrence.
-	seen := make(map[string]struct{})
-	deduped := users[:0]
-	for _, u := range users {
-		if _, exists := seen[u.Email]; !exists {
-			seen[u.Email] = struct{}{}
-			deduped = append(deduped, u)
-		}
-	}
-	users = deduped
-
-	// Collect unique role names across all users.
-	roleNames := make(map[string]struct{})
-	for _, u := range users {
-		for _, r := range u.Roles {
-			roleNames[r] = struct{}{}
-		}
-	}
-
-	// Upsert roles — create if not exists, reuse existing.
-	roleIndex := make(map[string]*rbac.RoleRecord)
-	for name := range roleNames {
-		role, err := roleStore.FindByName(name)
-		if errors.Is(err, rbac.ErrRoleNotFound) {
-			role, err = roleStore.Create(name)
-		}
-		if err != nil {
-			return 0, fmt.Errorf("upsert role %q: %w", name, err)
-		}
-		roleIndex[name] = role
-	}
-
-	// Upsert users and assign roles.
-	inserted := 0
-	for _, u := range users {
-		var existing userRecord
-		err := tx.First(&existing, "email = ?", u.Email).Error
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			newUser := userRecord{Name: u.Name, Email: u.Email, SSOID: nullableSSID(u.SSOID)}
-			if err := tx.Create(&newUser).Error; err != nil {
-				return inserted, fmt.Errorf("create user %q: %w", u.Email, err)
-			}
-			existing = newUser
-			inserted++
-		} else if err != nil {
-			return inserted, fmt.Errorf("fetch user %q: %w", u.Email, err)
-		}
-
-		for _, roleName := range u.Roles {
-			role := roleIndex[roleName]
-			if err := userRoleStore.Assign(existing.UserID, role.ID); err != nil {
-				return inserted, fmt.Errorf("assign role %q to user %q: %w", roleName, u.Email, err)
-			}
-		}
-	}
-	return inserted, nil
 }
 
 // ---------- helpers ----------
 
-func openGormDB() *gorm.DB {
+func newUserService() *user.UserService {
 	cfg, err := LoadConfig()
 	if err != nil {
 		fatalf("config: %v", err)
@@ -255,7 +147,7 @@ func openGormDB() *gorm.DB {
 	if err != nil {
 		fatalf("open database: %v", err)
 	}
-	return db
+	return user.NewUserService(db)
 }
 
 func openDB(cfg database.Config) (*gorm.DB, error) {
@@ -264,6 +156,19 @@ func openDB(cfg database.Config) (*gorm.DB, error) {
 		return nil, err
 	}
 	return connector.Open()
+}
+
+func toSeedInputs(users []seedUser) []user.SeedInput {
+	inputs := make([]user.SeedInput, len(users))
+	for i, u := range users {
+		inputs[i] = user.SeedInput{
+			SSOID: u.SSOID,
+			Name:  u.Name,
+			Email: u.Email,
+			Roles: u.Roles,
+		}
+	}
+	return inputs
 }
 
 func prompt(sc *bufio.Scanner, label string) string {
@@ -309,13 +214,4 @@ Environment variables:
 func fatalf(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "seed: "+format+"\n", args...)
 	os.Exit(1)
-}
-
-// nullableSSID returns nil when ssoid is empty so it is stored as NULL in the
-// database, allowing multiple unseeded users without violating the UNIQUE constraint.
-func nullableSSID(s string) *string {
-	if s == "" {
-		return nil
-	}
-	return &s
 }

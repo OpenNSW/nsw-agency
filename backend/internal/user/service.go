@@ -1,0 +1,127 @@
+package user
+
+import (
+	"errors"
+	"fmt"
+
+	"github.com/OpenNSW/nsw-agency/backend/internal/rbac"
+	"gorm.io/gorm"
+)
+
+// SeedInput represents user data used for seeding.
+type SeedInput struct {
+	SSOID string
+	Name  string
+	Email string
+	Roles []string
+}
+
+// UserService handles user seeding and management operations.
+type UserService struct {
+	db *gorm.DB
+}
+
+func NewUserService(db *gorm.DB) *UserService {
+	return &UserService{db: db}
+}
+
+// SeedUsers seeds users and their role assignments in a single transaction.
+// Returns the number of newly created users.
+func (s *UserService) SeedUsers(users []SeedInput) (int, error) {
+	var inserted int
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var err error
+		inserted, err = seedUsersInTx(tx, users)
+		return err
+	})
+	return inserted, err
+}
+
+// DropUser removes a user and their role assignments by email.
+func (s *UserService) DropUser(email string) error {
+	var u UserRecord
+	if err := s.db.First(&u, "email = ?", email).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("no user found with email %q", email)
+		}
+		return fmt.Errorf("failed to find user: %w", err)
+	}
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("user_id = ?", u.UserID).Delete(&rbac.UserRoleRecord{}).Error; err != nil {
+			return fmt.Errorf("failed to remove role assignments for %q: %w", email, err)
+		}
+		if err := tx.Delete(&u).Error; err != nil {
+			return fmt.Errorf("failed to drop user %q: %w", email, err)
+		}
+		return nil
+	})
+}
+
+func seedUsersInTx(tx *gorm.DB, users []SeedInput) (int, error) {
+	roleStore := rbac.NewRoleStore(tx)
+	userRoleStore := rbac.NewUserRoleStore(tx)
+
+	// Deduplicate users by email — keep the first occurrence.
+	seen := make(map[string]struct{})
+	deduped := users[:0]
+	for _, u := range users {
+		if _, exists := seen[u.Email]; !exists {
+			seen[u.Email] = struct{}{}
+			deduped = append(deduped, u)
+		}
+	}
+	users = deduped
+
+	// Collect unique role names across all users.
+	roleNames := make(map[string]struct{})
+	for _, u := range users {
+		for _, r := range u.Roles {
+			roleNames[r] = struct{}{}
+		}
+	}
+
+	// Upsert roles — create if not exists, reuse existing.
+	roleIndex := make(map[string]*rbac.RoleRecord)
+	for name := range roleNames {
+		role, err := roleStore.FindByName(name)
+		if errors.Is(err, rbac.ErrRoleNotFound) {
+			role, err = roleStore.Create(name)
+		}
+		if err != nil {
+			return 0, fmt.Errorf("upsert role %q: %w", name, err)
+		}
+		roleIndex[name] = role
+	}
+
+	// Upsert users and assign roles.
+	inserted := 0
+	for _, u := range users {
+		var existing UserRecord
+		err := tx.First(&existing, "email = ?", u.Email).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			newUser := UserRecord{Email: u.Email, Name: u.Name, SSOID: nullableSSID(u.SSOID)}
+			if err := tx.Create(&newUser).Error; err != nil {
+				return inserted, fmt.Errorf("create user %q: %w", u.Email, err)
+			}
+			existing = newUser
+			inserted++
+		} else if err != nil {
+			return inserted, fmt.Errorf("fetch user %q: %w", u.Email, err)
+		}
+
+		for _, roleName := range u.Roles {
+			role := roleIndex[roleName]
+			if err := userRoleStore.Assign(existing.UserID, role.ID); err != nil {
+				return inserted, fmt.Errorf("assign role %q to user %q: %w", roleName, u.Email, err)
+			}
+		}
+	}
+	return inserted, nil
+}
+
+func nullableSSID(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
