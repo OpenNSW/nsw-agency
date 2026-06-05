@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { Badge, Text, TextField, Spinner, IconButton } from '@radix-ui/themes'
 import { MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, ArchiveIcon } from '@radix-ui/react-icons'
@@ -8,6 +9,7 @@ import { fetchConsignments } from '../services/consignments'
 const PAGE_SIZE = 20
 
 export function ConsignmentListScreen() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [consignments, setConsignments] = useState<ConsignmentSummary[]>([])
   const [loading, setLoading] = useState(true)
@@ -60,7 +62,7 @@ export function ConsignmentListScreen() {
       <div className="flex items-center justify-center py-12">
         <Spinner size="3" />
         <Text size="3" color="gray" className="ml-3">
-          Loading consignments...
+          {t('consignments.list.loading')}
         </Text>
       </div>
     )
@@ -70,12 +72,12 @@ export function ConsignmentListScreen() {
     <div className="animate-fade-in max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Consignments</h1>
-          <p className="text-gray-500 text-sm mt-1">Manage and review trader application groups</p>
+          <h1 className="text-2xl font-semibold text-gray-900">{t('consignments.list.title')}</h1>
+          <p className="text-gray-500 text-sm mt-1">{t('consignments.list.subtitle')}</p>
         </div>
         <div className="flex items-center gap-4">
           <Badge color="blue" variant="soft" size="2">
-            {total} Total Consignments
+            {t('consignments.list.badge', { total })}
           </Badge>
         </div>
       </div>
@@ -86,7 +88,7 @@ export function ConsignmentListScreen() {
           <div className="flex-1">
             <TextField.Root
               size="2"
-              placeholder="Search by Consignment ID..."
+              placeholder={t('consignments.list.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value)
@@ -107,7 +109,7 @@ export function ConsignmentListScreen() {
                 <ArchiveIcon className="w-8 h-8 text-gray-300" />
               </div>
               <Text size="3" color="gray" weight="medium">
-                No active consignments found.
+                {t('consignments.list.empty')}
               </Text>
             </div>
           ) : (
@@ -116,16 +118,16 @@ export function ConsignmentListScreen() {
                 <thead>
                   <tr className="bg-gray-50/50 border-b border-gray-200 text-left">
                     <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Consignment ID
+                      {t('consignments.list.table.id')}
                     </th>
                     <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">
-                      Tasks
+                      {t('consignments.list.table.tasks')}
                     </th>
                     <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Latest Status
+                      {t('consignments.list.table.latestStatus')}
                     </th>
                     <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Last Activity
+                      {t('consignments.list.table.lastActivity')}
                     </th>
                   </tr>
                 </thead>
@@ -176,7 +178,7 @@ export function ConsignmentListScreen() {
         {totalPages > 1 && (
           <div className="flex items-center justify-between pt-2">
             <Text size="2" color="gray">
-              Page {page} of {totalPages} ({total} results)
+              {t('common.pagination.info', { page, totalPages, total })}
             </Text>
             <div className="flex items-center gap-2">
               <IconButton size="1" variant="soft" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>

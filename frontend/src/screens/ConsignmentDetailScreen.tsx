@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, Badge, Spinner, Text, Card, Flex, Box, Callout } from '@radix-ui/themes'
 import {
@@ -24,6 +25,7 @@ interface SchemaProperty {
 }
 
 export function ConsignmentDetailScreen() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
 
   const [searchParams] = useSearchParams()
@@ -46,11 +48,11 @@ export function ConsignmentDetailScreen() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!taskId || !application) {
-      setError('Application data not available')
+      setError(t('errors.dataUnavailable'))
       return
     }
     if (formErrors.length > 0) {
-      setError('Please fix validation errors before submitting.')
+      setError(t('errors.validationErrors'))
       return
     }
     setIsSubmitting(true)
@@ -60,7 +62,7 @@ export function ConsignmentDetailScreen() {
       setSuccess(true)
       setTimeout(() => navigate('/consignments'), 500)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to submit review')
+      setError(err instanceof Error ? err.message : t('errors.submitFailed'))
     } finally {
       setIsSubmitting(false)
     }
@@ -69,7 +71,7 @@ export function ConsignmentDetailScreen() {
   useEffect(() => {
     async function fetchData() {
       if (!taskId) {
-        setError('No task ID provided')
+        setError(t('errors.noTaskId'))
         setLoading(false)
         return
       }
@@ -110,7 +112,7 @@ export function ConsignmentDetailScreen() {
         }
         setAgencyFormData(data.agencyActionData || {})
       } catch (err) {
-        setError('Failed to load application details')
+        setError(t('errors.loadFailed'))
         console.error(err)
       } finally {
         setLoading(false)
@@ -124,7 +126,7 @@ export function ConsignmentDetailScreen() {
       <Flex align="center" justify="center" py="9">
         <Spinner size="3" />
         <Text size="3" color="gray" ml="3">
-          Loading application details...
+          {t('consignments.detail.loading')}
         </Text>
       </Flex>
     )
@@ -146,7 +148,7 @@ export function ConsignmentDetailScreen() {
             void navigate('/consignments')
           }}
         >
-          <ArrowLeftIcon /> Back to List
+          <ArrowLeftIcon /> {t('consignments.detail.backToList')}
         </Button>
       </Box>
     )
@@ -159,7 +161,7 @@ export function ConsignmentDetailScreen() {
           <Callout.Icon>
             <ExclamationTriangleIcon />
           </Callout.Icon>
-          <Callout.Text>Application not found</Callout.Text>
+          <Callout.Text>{t('consignments.detail.notFound')}</Callout.Text>
         </Callout.Root>
         <Button
           variant="soft"
@@ -168,7 +170,7 @@ export function ConsignmentDetailScreen() {
             void navigate('/consignments')
           }}
         >
-          <ArrowLeftIcon /> Back to List
+          <ArrowLeftIcon /> {t('consignments.detail.backToList')}
         </Button>
       </Box>
     )
@@ -195,7 +197,7 @@ export function ConsignmentDetailScreen() {
             void navigate(`/consignments/${application.consignmentId}/tasks`)
           }}
         >
-          <ArrowLeftIcon /> Back to Tasks
+          <ArrowLeftIcon /> {t('consignments.detail.backButton')}
         </Button>
         <Badge size="2" color={statusColor} highContrast>
           {application.status}
@@ -209,7 +211,9 @@ export function ConsignmentDetailScreen() {
               {application.icon.slice('emoji:'.length)}
             </span>
           )}
-          <h1 className="text-2xl font-bold text-gray-900">{application.title || 'Task Review'}</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {application.title || t('consignments.detail.defaultTitle')}
+          </h1>
         </Flex>
         {application.description && (
           <Text size="2" color="gray">
@@ -232,7 +236,7 @@ export function ConsignmentDetailScreen() {
           <Callout.Icon>
             <CheckCircledIcon />
           </Callout.Icon>
-          <Callout.Text>Review submitted successfully! Redirecting...</Callout.Text>
+          <Callout.Text>{t('consignments.detail.success')}</Callout.Text>
         </Callout.Root>
       )}
 
@@ -241,7 +245,13 @@ export function ConsignmentDetailScreen() {
           <Callout.Icon>
             {application.status === 'APPROVED' ? <CheckCircledIcon /> : <ExclamationTriangleIcon />}
           </Callout.Icon>
-          <Callout.Text>This application has been {application.status.toLowerCase()}.</Callout.Text>
+          <Callout.Text>
+            {t('consignments.detail.statusCallout', {
+              status: t(`common.status.${application.status.toLowerCase()}`, {
+                defaultValue: application.status.toLowerCase().replace(/_/g, ' '),
+              }),
+            })}
+          </Callout.Text>
         </Callout.Root>
       )}
 
@@ -259,7 +269,7 @@ export function ConsignmentDetailScreen() {
               className="uppercase tracking-wider flex items-center gap-2"
             >
               <InfoCircledIcon />
-              Review
+              {t('consignments.detail.section.review')}
             </Text>
             {agencyFormConfig && isActionable ? (
               <form
@@ -289,11 +299,11 @@ export function ConsignmentDetailScreen() {
                     disabled={isSubmitting}
                     type="button"
                   >
-                    Cancel
+                    {t('consignments.detail.button.cancel')}
                   </Button>
                   <Button type="submit" disabled={isSubmitting}>
                     {isSubmitting ? <Spinner size="1" /> : null}
-                    Submit Review
+                    {t('consignments.detail.button.submitReview')}
                   </Button>
                 </Flex>
               </form>
@@ -315,12 +325,12 @@ export function ConsignmentDetailScreen() {
 
           <Card size="2">
             <Text size="2" weight="bold" color="gray" mb="3" as="div" className="uppercase tracking-wider">
-              Application Details
+              {t('consignments.detail.section.applicationDetails')}
             </Text>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
               <Box>
                 <Text size="1" color="gray" as="div" mb="1">
-                  Consignment ID
+                  {t('consignments.detail.field.consignmentId')}
                 </Text>
                 <Text size="2" weight="medium" className="break-all font-mono">
                   {application.consignmentId}
@@ -328,7 +338,7 @@ export function ConsignmentDetailScreen() {
               </Box>
               <Box>
                 <Text size="1" color="gray" as="div" mb="1">
-                  Status
+                  {t('consignments.detail.field.status')}
                 </Text>
                 <Badge size="2" color={statusColor}>
                   {application.status}
@@ -336,7 +346,7 @@ export function ConsignmentDetailScreen() {
               </Box>
               <Box>
                 <Text size="1" color="gray" as="div" mb="1">
-                  Submitted On
+                  {t('consignments.detail.field.submittedOn')}
                 </Text>
                 <Text size="2" weight="medium">
                   {(() => {
@@ -366,7 +376,7 @@ export function ConsignmentDetailScreen() {
               className="uppercase tracking-wider flex items-center gap-2"
             >
               <InfoCircledIcon />
-              Submitted Information
+              {t('consignments.detail.section.submittedInformation')}
             </Text>
             {(() => {
               if (application.dataForm) {
@@ -400,7 +410,7 @@ export function ConsignmentDetailScreen() {
 
               return (
                 <Text size="2" color="gray" className="italic">
-                  No submission data available
+                  {t('consignments.detail.empty.noSubmissionData')}
                 </Text>
               )
             })()}
@@ -412,12 +422,12 @@ export function ConsignmentDetailScreen() {
           {application.reviewedAt && (
             <Card size="2">
               <Text size="2" weight="bold" color="gray" mb="3" as="div" className="uppercase tracking-wider">
-                Review Metadata
+                {t('consignments.detail.section.reviewMetadata')}
               </Text>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
                 <Box>
                   <Text size="1" color="gray" as="div" mb="1">
-                    Reviewed On
+                    {t('consignments.detail.field.reviewedOn')}
                   </Text>
                   <Text size="2" weight="medium">
                     {new Date(application.reviewedAt).toLocaleString()}
@@ -430,7 +440,7 @@ export function ConsignmentDetailScreen() {
           {application.reviewerNotes && application.status !== 'PENDING' && (
             <Card size="2">
               <Text size="2" weight="bold" color="gray" mb="3" as="div" className="uppercase tracking-wider">
-                Reviewer Notes
+                {t('consignments.detail.section.reviewerNotes')}
               </Text>
               <Text size="2" className="whitespace-pre-wrap">
                 {application.reviewerNotes}
@@ -449,14 +459,14 @@ export function ConsignmentDetailScreen() {
                 className="uppercase tracking-wider flex items-center gap-2"
               >
                 <ChatBubbleIcon />
-                Feedback History
+                {t('consignments.detail.section.feedbackHistory')}
               </Text>
               <div className="divide-y divide-gray-100">
                 {application.feedbackHistory.map((entry) => (
                   <div key={entry.round} className="py-3 first:pt-0 last:pb-0">
                     <Flex justify="between" mb="1">
                       <Text size="1" weight="bold" color="amber">
-                        Round {entry.round}
+                        {t('consignments.detail.feedback.round', { round: entry.round })}
                       </Text>
                       <Text size="1" color="gray">
                         {new Date(entry.timestamp).toLocaleString()}
