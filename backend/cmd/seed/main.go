@@ -17,26 +17,24 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 2 {
+	if len(os.Args) < 3 || os.Args[1] != "user" {
 		usage()
 		os.Exit(1)
 	}
 
-	switch os.Args[1] {
-	case "add-users":
-		runAddUsers(os.Args[2:])
-	case "add-user":
-		runAddUser()
-	case "drop-user":
-		runDropUser()
+	switch os.Args[2] {
+	case "add":
+		runUserAdd(os.Args[3:])
+	case "drop":
+		runUserDrop()
 	default:
-		fmt.Fprintf(os.Stderr, "seed: unknown command %q\n\n", os.Args[1])
+		fmt.Fprintf(os.Stderr, "seed: unknown command %q\n\n", os.Args[2])
 		usage()
 		os.Exit(1)
 	}
 }
 
-// ---------- add-users (file-based) ----------
+// ---------- user add ----------
 
 type seedUser struct {
 	SSOID string   `json:"ssoid"`
@@ -49,14 +47,25 @@ type seedFile struct {
 	Users []seedUser `json:"users"`
 }
 
-func runAddUsers(args []string) {
-	fs := flag.NewFlagSet("add-users", flag.ExitOnError)
-	filePath := fs.String("file", "data/seed/users.json", "path to users JSON seed file")
+// runUserAdd handles both file-based and interactive user seeding.
+// If --file is provided, it reads from the JSON file; otherwise it prompts interactively.
+func runUserAdd(args []string) {
+	fs := flag.NewFlagSet("user add", flag.ExitOnError)
+	fs.Usage = usage
+	filePath := fs.String("file", "", "path to users JSON seed file")
 	if err := fs.Parse(args); err != nil {
 		fatalf("%v", err)
 	}
 
-	data, err := os.ReadFile(*filePath)
+	if *filePath != "" {
+		runUserAddFromFile(*filePath)
+	} else {
+		runUserAddInteractive()
+	}
+}
+
+func runUserAddFromFile(filePath string) {
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		fatalf("read file: %v", err)
 	}
@@ -78,9 +87,7 @@ func runAddUsers(args []string) {
 	fmt.Printf("seed: successfully seeded %d user(s)\n", inserted)
 }
 
-// ---------- add-user (interactive) ----------
-
-func runAddUser() {
+func runUserAddInteractive() {
 	sc := bufio.NewScanner(os.Stdin)
 
 	name := prompt(sc, "Name: ")
@@ -109,15 +116,15 @@ func runAddUser() {
 		fatalf("%v", err)
 	}
 	if inserted == 0 {
-		fmt.Printf("seed: user %q already existed — roles updated\n", email)
+		fmt.Printf("seed: user %q already exists — skipped\n", email)
 	} else {
 		fmt.Printf("seed: user %q seeded successfully\n", email)
 	}
 }
 
-// ---------- drop-user (interactive) ----------
+// ---------- user drop ----------
 
-func runDropUser() {
+func runUserDrop() {
 	sc := bufio.NewScanner(os.Stdin)
 
 	email := prompt(sc, "Email of user to drop: ")
@@ -225,8 +232,6 @@ func seedUsersInTx(tx *gorm.DB, users []seedUser) (int, error) {
 			inserted++
 		} else if err != nil {
 			return inserted, fmt.Errorf("fetch user %q: %w", u.Email, err)
-		} else {
-			fmt.Printf("seed: user %q already exists — skipping creation, assigning roles\n", u.Email)
 		}
 
 		for _, roleName := range u.Roles {
@@ -268,21 +273,20 @@ func prompt(sc *bufio.Scanner, label string) string {
 }
 
 func usage() {
-	fmt.Fprint(os.Stderr, `Usage: seed <command> [flags]
+	fmt.Fprint(os.Stderr, `Usage: seed user <command> [flags]
 
 Commands:
-  add-users   Seed users and roles from a JSON file
-  add-user    Interactively add a single user and assign roles (ssoid synced on first login)
-  drop-user   Interactively remove a user by email (also removes their role assignments)
+  user add              Interactively add a single user and assign roles
+  user add --file PATH  Seed users and roles from a JSON file
+  user drop             Interactively remove a user by email (also removes their role assignments)
 
-Flags for add-users:
-  --file <path>   Path to users JSON seed file (default: data/seed/users.json)
+Flags for user add:
+  --file <path>   Path to users JSON seed file (required for file-based seeding)
 
 JSON file format:
   {
     "users": [
       {
-        "ssoid": "abc-123",
         "name": "Jane Doe",
         "email": "jane@agency.gov.au",
         "roles": ["lab_officer", "lab_manager"]
