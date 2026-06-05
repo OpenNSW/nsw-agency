@@ -82,6 +82,7 @@ func mwSign(t *testing.T, key *rsa.PrivateKey, claims jwt.MapClaims) string {
 func mwUserClaims(ouHandle string) jwt.MapClaims {
 	return jwt.MapClaims{
 		"iss":        mwIssuer,
+		"aud":        mwAudience,
 		"sub":        "sub-mw-001",
 		"exp":        time.Now().Add(time.Hour).Unix(),
 		"client_id":  mwClientID,
@@ -96,6 +97,7 @@ func mwUserClaims(ouHandle string) jwt.MapClaims {
 func mwClientClaims() jwt.MapClaims {
 	return jwt.MapClaims{
 		"iss":        mwIssuer,
+		"aud":        mwAudience,
 		"exp":        time.Now().Add(time.Hour).Unix(),
 		"client_id":  mwClientID,
 		"grant_type": string(ClientCredentialsGrant),

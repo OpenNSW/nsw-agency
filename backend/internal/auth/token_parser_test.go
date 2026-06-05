@@ -79,6 +79,7 @@ func tpSign(t *testing.T, key *rsa.PrivateKey, claims jwt.MapClaims) string {
 func tpUserClaims(sub, email, ouID, ouHandle string) jwt.MapClaims {
 	return jwt.MapClaims{
 		"iss":        tpIssuer,
+		"aud":        tpAudience,
 		"sub":        sub,
 		"exp":        time.Now().Add(time.Hour).Unix(),
 		"client_id":  tpClientID,
@@ -93,6 +94,7 @@ func tpUserClaims(sub, email, ouID, ouHandle string) jwt.MapClaims {
 func tpClientClaims() jwt.MapClaims {
 	return jwt.MapClaims{
 		"iss":        tpIssuer,
+		"aud":        tpAudience,
 		"exp":        time.Now().Add(time.Hour).Unix(),
 		"client_id":  tpClientID,
 		"grant_type": string(ClientCredentialsGrant),
