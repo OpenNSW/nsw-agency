@@ -24,8 +24,13 @@ export function ConsignmentListScreen() {
   // Debounce search term
   useEffect(() => {
     const handler = setTimeout(() => {
-      setSearchQuery(searchTerm)
-      setPage(1)
+      setSearchQuery((prev) => {
+        if (prev !== searchTerm) {
+          setPage(1)
+          return searchTerm
+        }
+        return prev
+      })
     }, 400)
 
     return () => {
@@ -98,11 +103,7 @@ export function ConsignmentListScreen() {
               }}
             >
               <TextField.Slot>
-                {loading && searchTerm !== '' ? (
-                  <Spinner size="1" />
-                ) : (
-                  <MagnifyingGlassIcon height="16" width="16" />
-                )}
+                {loading && searchTerm !== '' ? <Spinner size="1" /> : <MagnifyingGlassIcon height="16" width="16" />}
               </TextField.Slot>
             </TextField.Root>
           </div>
