@@ -7,16 +7,16 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var ErrRoleNotFound = errors.New("role not found")
 
 // RoleRecord represents a role in the database.
 type RoleRecord struct {
-	ID          string    `gorm:"type:text;primaryKey"`
-	Name        string    `gorm:"type:text;not null;uniqueIndex"`
-	Description string    `gorm:"type:text"`
-	CreatedAt   time.Time `gorm:"autoCreateTime"`
+	ID        string    `gorm:"type:text;primaryKey"`
+	Name      string    `gorm:"type:text;not null;uniqueIndex"`
+	CreatedAt time.Time `gorm:"autoCreateTime"`
 }
 
 func (RoleRecord) TableName() string { return "roles" }
@@ -54,8 +54,8 @@ func NewRoleStore(db *gorm.DB) *RoleStore {
 	return &RoleStore{db: db}
 }
 
-func (s *RoleStore) Create(name, description string) (*RoleRecord, error) {
-	role := RoleRecord{Name: name, Description: description}
+func (s *RoleStore) Create(name string) (*RoleRecord, error) {
+	role := RoleRecord{Name: name}
 	if err := s.db.Create(&role).Error; err != nil {
 		return nil, fmt.Errorf("failed to create role: %w", err)
 	}
@@ -92,7 +92,7 @@ func NewUserRoleStore(db *gorm.DB) *UserRoleStore {
 
 func (s *UserRoleStore) Assign(userID, roleID string) error {
 	ur := UserRoleRecord{UserID: userID, RoleID: roleID}
-	if err := s.db.Create(&ur).Error; err != nil {
+	if err := s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&ur).Error; err != nil {
 		return fmt.Errorf("failed to assign role to user: %w", err)
 	}
 	return nil

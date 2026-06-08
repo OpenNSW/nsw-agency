@@ -8,16 +8,19 @@ import (
 	"github.com/OpenNSW/nsw-agency/backend/internal/database"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // ErrUnauthorizedAgency is returned when the user's JWT agency does not match
 // the agency this service instance is configured for.
 var ErrUnauthorizedAgency = errors.New("user does not belong to this agency")
 
+// ErrUserNotFound is returned when no user with the given email exists in the
+// database. Users must be pre-seeded via the seed CLI before they can log in.
+var ErrUserNotFound = errors.New("user not found — ensure the user has been seeded")
+
 type UserRecord struct {
 	UserID    string    `gorm:"type:text;primaryKey"`
-	SSOID     string    `gorm:"column:ssoid;type:text;uniqueIndex;not null"`
+	SSOID     *string   `gorm:"column:ssoid;type:text;uniqueIndex"`
 	Email     string    `gorm:"type:text"`
 	Name      string    `gorm:"type:text"`
 	CreatedAt time.Time `gorm:"autoCreateTime"`
@@ -29,7 +32,7 @@ func (UserRecord) TableName() string {
 }
 
 // BeforeCreate generates a UUID v4 for UserID if one is not already set.
-func (u *UserRecord) BeforeCreate(tx *gorm.DB) error {
+func (u *UserRecord) BeforeCreate(_ *gorm.DB) error {
 	if u.UserID == "" {
 		u.UserID = uuid.New().String()
 	}
@@ -55,65 +58,56 @@ func NewUserStore(dbCfg database.Config, expectedOU string) (*UserStore, error) 
 	return &UserStore{db: db, agency: expectedOU}, nil
 }
 
-// GetOrCreateUser implements auth.UserProfileService, enabling JIT provisioning
-// via the auth middleware. Returns the internal UserID on success.
+// GetOrCreateUser implements auth.UserProfileService. It finds the pre-seeded
+// user by email, syncs their SSOID from the token if not yet set, and returns
+// the internal UserID. Returns an error if the user has not been seeded.
 func (s *UserStore) GetOrCreateUser(idpUserID, email, givenName, phone, organizationID, ouHandle string) (*string, error) {
-	u, err := s.FindOrProvision(idpUserID, email, givenName, ouHandle)
+	u, err := s.FindAndSync(idpUserID, email, givenName, ouHandle)
 	if err != nil {
 		return nil, err
 	}
 	return &u.UserID, nil
 }
 
-// FindOrProvision looks up a user by SSOID and creates them if they don't exist.
-// ouHandle is validated against the configured agency for every call.
-// If the user already exists, email is synced; name is only synced when non-empty.
-func (s *UserStore) FindOrProvision(ssoid, email, name, ouHandle string) (*UserRecord, error) {
+// FindAndSync looks up a pre-seeded user by email and syncs their SSOID from
+// the token on first login. Returns ErrUserNotFound if no matching user exists.
+func (s *UserStore) FindAndSync(ssoid, email, name, ouHandle string) (*UserRecord, error) {
 	if ouHandle != s.agency {
 		return nil, ErrUnauthorizedAgency
 	}
 
 	var user UserRecord
-	err := s.db.First(&user, "ssoid = ?", ssoid).Error
-	if err == nil {
-		needsUpdate := user.Email != email || (name != "" && user.Name != name)
-		if needsUpdate {
-			updates := map[string]any{"email": email}
-			if name != "" {
-				updates["name"] = name
-			}
-			if err := s.db.Model(&user).Updates(updates).Error; err != nil {
-				return nil, fmt.Errorf("failed to sync user attributes: %w", err)
-			}
-			user.Email = email
-			if name != "" {
-				user.Name = name
-			}
+	if err := s.db.First(&user, "email = ?", email).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound
 		}
-		return &user, nil
-	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, fmt.Errorf("failed to query user: %w", err)
 	}
 
-	user = UserRecord{
-		SSOID: ssoid,
-		Email: email,
-		Name:  name,
+	updates := map[string]any{}
+
+	// Sync SSOID from token on first login (when not yet set).
+	if ssoid != "" && (user.SSOID == nil || *user.SSOID == "") {
+		updates["ssoid"] = ssoid
 	}
-	result := s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&user)
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to provision user: %w", result.Error)
+
+	// Sync name if provided and changed.
+	if name != "" && user.Name != name {
+		updates["name"] = name
 	}
-	// RowsAffected == 0 means a concurrent request inserted the same SSOID first.
-	// Use a fresh variable so GORM doesn't reuse the partially-filled struct above.
-	if result.RowsAffected == 0 {
-		var existingUser UserRecord
-		if err := s.db.First(&existingUser, "ssoid = ?", ssoid).Error; err != nil {
-			return nil, fmt.Errorf("failed to fetch provisioned user: %w", err)
+
+	if len(updates) > 0 {
+		if err := s.db.Model(&user).Updates(updates).Error; err != nil {
+			return nil, fmt.Errorf("failed to sync user attributes: %w", err)
 		}
-		return &existingUser, nil
+		if _, ok := updates["ssoid"]; ok {
+			user.SSOID = &ssoid
+		}
+		if _, ok := updates["name"]; ok {
+			user.Name = name
+		}
 	}
+
 	return &user, nil
 }
 

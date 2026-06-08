@@ -110,7 +110,7 @@ func (m *mockTaskConfigProvider) GetTaskConfig(_ string) (*taskconfig.TaskConfig
 	return m.cfg, m.err
 }
 
-func newMiddlewareTestDB(t *testing.T) *UserRoleStore {
+func newMiddlewareTestDB(t *testing.T) *RoleService {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
@@ -125,14 +125,14 @@ func newMiddlewareTestDB(t *testing.T) *UserRoleStore {
 		sqlDB, _ := db.DB()
 		_ = sqlDB.Close()
 	})
-	return NewUserRoleStore(db)
+	return NewRoleService(db)
 }
 
 // ---------- Integration tests: RequireAction ----------
 
 func TestRequireAction_NoPermissionsInConfig_Allows(t *testing.T) {
-	urs := newMiddlewareTestDB(t)
-	m := NewMiddleware(urs,
+	svc := newMiddlewareTestDB(t)
+	m := NewMiddleware(svc,
 		&mockTaskCodeResolver{taskCode: "fcau_lab_test_v1"},
 		&mockTaskConfigProvider{cfg: &taskconfig.TaskConfig{
 			TaskCode:    "fcau_lab_test_v1",
