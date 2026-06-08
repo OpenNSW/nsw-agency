@@ -34,12 +34,12 @@ func newTestUserService(t *testing.T) *UserService {
 	return NewUserService(db)
 }
 
-// ---------- SeedUsers ----------
+// ---------- CreateBulk ----------
 
-func TestUserService_SeedUsers_NewUsers(t *testing.T) {
+func TestUserService_CreateBulk_NewUsers(t *testing.T) {
 	svc := newTestUserService(t)
 
-	inserted, err := svc.SeedUsers([]SeedInput{
+	inserted, err := svc.CreateBulk([]BulkInput{
 		{Name: "Jane Doe", Email: "jane@agency.gov.au", Roles: []string{"lab_officer"}},
 		{Name: "John Doe", Email: "john@agency.gov.au", Roles: []string{"lab_officer"}},
 	})
@@ -51,18 +51,18 @@ func TestUserService_SeedUsers_NewUsers(t *testing.T) {
 	}
 }
 
-func TestUserService_SeedUsers_CreatesRoles(t *testing.T) {
+func TestUserService_CreateBulk_CreatesRoles(t *testing.T) {
 	svc := newTestUserService(t)
 
-	_, err := svc.SeedUsers([]SeedInput{
+	_, err := svc.CreateBulk([]BulkInput{
 		{Name: "Jane Doe", Email: "jane@agency.gov.au", Roles: []string{"lab_officer", "lab_manager"}},
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	roleStore := rbac.NewRoleStore(svc.db)
-	roles, err := roleStore.List()
+	roleService := rbac.NewRoleService(svc.db)
+	roles, err := roleService.List()
 	if err != nil {
 		t.Fatalf("unexpected error listing roles: %v", err)
 	}
@@ -71,22 +71,22 @@ func TestUserService_SeedUsers_CreatesRoles(t *testing.T) {
 	}
 }
 
-func TestUserService_SeedUsers_ReusesExistingRoles(t *testing.T) {
+func TestUserService_CreateBulk_ReusesExistingRoles(t *testing.T) {
 	svc := newTestUserService(t)
 
-	roleStore := rbac.NewRoleStore(svc.db)
-	if _, err := roleStore.Create("lab_officer"); err != nil {
+	roleService := rbac.NewRoleService(svc.db)
+	if _, err := roleService.Create("lab_officer"); err != nil {
 		t.Fatalf("failed to pre-create role: %v", err)
 	}
 
-	_, err := svc.SeedUsers([]SeedInput{
+	_, err := svc.CreateBulk([]BulkInput{
 		{Name: "Jane Doe", Email: "jane@agency.gov.au", Roles: []string{"lab_officer"}},
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	roles, err := roleStore.List()
+	roles, err := roleService.List()
 	if err != nil {
 		t.Fatalf("unexpected error listing roles: %v", err)
 	}
@@ -95,16 +95,16 @@ func TestUserService_SeedUsers_ReusesExistingRoles(t *testing.T) {
 	}
 }
 
-func TestUserService_SeedUsers_ExistingUserSkipped(t *testing.T) {
+func TestUserService_CreateBulk_ExistingUserSkipped(t *testing.T) {
 	svc := newTestUserService(t)
 
-	if _, err := svc.SeedUsers([]SeedInput{
+	if _, err := svc.CreateBulk([]BulkInput{
 		{Name: "Jane Doe", Email: "jane@agency.gov.au", Roles: []string{"lab_officer"}},
 	}); err != nil {
 		t.Fatalf("unexpected error on first seed: %v", err)
 	}
 
-	inserted, err := svc.SeedUsers([]SeedInput{
+	inserted, err := svc.CreateBulk([]BulkInput{
 		{Name: "Jane Doe", Email: "jane@agency.gov.au", Roles: []string{"lab_officer"}},
 	})
 	if err != nil {
@@ -115,10 +115,10 @@ func TestUserService_SeedUsers_ExistingUserSkipped(t *testing.T) {
 	}
 }
 
-func TestUserService_SeedUsers_DeduplicatesEmailsInInput(t *testing.T) {
+func TestUserService_CreateBulk_DeduplicatesEmailsInInput(t *testing.T) {
 	svc := newTestUserService(t)
 
-	inserted, err := svc.SeedUsers([]SeedInput{
+	inserted, err := svc.CreateBulk([]BulkInput{
 		{Name: "Jane Doe", Email: "jane@agency.gov.au", Roles: []string{"lab_officer"}},
 		{Name: "Jane Doe", Email: "jane@agency.gov.au", Roles: []string{"lab_officer"}},
 	})
@@ -130,10 +130,10 @@ func TestUserService_SeedUsers_DeduplicatesEmailsInInput(t *testing.T) {
 	}
 }
 
-func TestUserService_SeedUsers_AssignsRolesToUser(t *testing.T) {
+func TestUserService_CreateBulk_AssignsRolesToUser(t *testing.T) {
 	svc := newTestUserService(t)
 
-	if _, err := svc.SeedUsers([]SeedInput{
+	if _, err := svc.CreateBulk([]BulkInput{
 		{Name: "Jane Doe", Email: "jane@agency.gov.au", Roles: []string{"lab_officer", "lab_manager"}},
 	}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -144,8 +144,8 @@ func TestUserService_SeedUsers_AssignsRolesToUser(t *testing.T) {
 		t.Fatalf("failed to fetch user: %v", err)
 	}
 
-	userRoleStore := rbac.NewUserRoleStore(svc.db)
-	roles, err := userRoleStore.GetRolesForUser(u.UserID)
+	roleService := rbac.NewRoleService(svc.db)
+	roles, err := roleService.GetRolesForUser(u.UserID)
 	if err != nil {
 		t.Fatalf("failed to get roles: %v", err)
 	}
@@ -154,10 +154,10 @@ func TestUserService_SeedUsers_AssignsRolesToUser(t *testing.T) {
 	}
 }
 
-func TestUserService_SeedUsers_EmptyInput(t *testing.T) {
+func TestUserService_CreateBulk_EmptyInput(t *testing.T) {
 	svc := newTestUserService(t)
 
-	inserted, err := svc.SeedUsers([]SeedInput{})
+	inserted, err := svc.CreateBulk([]BulkInput{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -171,7 +171,7 @@ func TestUserService_SeedUsers_EmptyInput(t *testing.T) {
 func TestUserService_DropUser_ExistingUser(t *testing.T) {
 	svc := newTestUserService(t)
 
-	if _, err := svc.SeedUsers([]SeedInput{
+	if _, err := svc.CreateBulk([]BulkInput{
 		{Name: "Jane Doe", Email: "jane@agency.gov.au", Roles: []string{"lab_officer"}},
 	}); err != nil {
 		t.Fatalf("unexpected error seeding user: %v", err)
@@ -191,7 +191,7 @@ func TestUserService_DropUser_ExistingUser(t *testing.T) {
 func TestUserService_DropUser_RemovesRoleAssignments(t *testing.T) {
 	svc := newTestUserService(t)
 
-	if _, err := svc.SeedUsers([]SeedInput{
+	if _, err := svc.CreateBulk([]BulkInput{
 		{Name: "Jane Doe", Email: "jane@agency.gov.au", Roles: []string{"lab_officer"}},
 	}); err != nil {
 		t.Fatalf("unexpected error seeding user: %v", err)
@@ -206,8 +206,8 @@ func TestUserService_DropUser_RemovesRoleAssignments(t *testing.T) {
 		t.Fatalf("unexpected error dropping user: %v", err)
 	}
 
-	userRoleStore := rbac.NewUserRoleStore(svc.db)
-	roles, err := userRoleStore.GetRolesForUser(u.UserID)
+	roleService := rbac.NewRoleService(svc.db)
+	roles, err := roleService.GetRolesForUser(u.UserID)
 	if err != nil {
 		t.Fatalf("unexpected error fetching roles: %v", err)
 	}

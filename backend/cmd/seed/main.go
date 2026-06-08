@@ -77,7 +77,7 @@ func runUserAddFromFile(filePath string) {
 	}
 
 	svc := newUserService()
-	inserted, err := svc.SeedUsers(toSeedInputs(sf.Users))
+	inserted, err := svc.CreateBulk(toBulkInputs(sf.Users))
 	if err != nil {
 		fatalf("%v", err)
 	}
@@ -108,7 +108,7 @@ func runUserAddInteractive() {
 	}
 
 	svc := newUserService()
-	inserted, err := svc.SeedUsers([]user.SeedInput{{Name: name, Email: email, Roles: roles}})
+	inserted, err := svc.CreateBulk([]user.BulkInput{{Name: name, Email: email, Roles: roles}})
 	if err != nil {
 		fatalf("%v", err)
 	}
@@ -158,10 +158,10 @@ func openDB(cfg database.Config) (*gorm.DB, error) {
 	return connector.Open()
 }
 
-func toSeedInputs(users []seedUser) []user.SeedInput {
-	inputs := make([]user.SeedInput, len(users))
+func toBulkInputs(users []seedUser) []user.BulkInput {
+	inputs := make([]user.BulkInput, len(users))
 	for i, u := range users {
-		inputs[i] = user.SeedInput{
+		inputs[i] = user.BulkInput{
 			SSOID: u.SSOID,
 			Name:  u.Name,
 			Email: u.Email,

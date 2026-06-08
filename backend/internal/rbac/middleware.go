@@ -22,15 +22,15 @@ type TaskConfigProvider interface {
 
 // Middleware enforces role-based access control on task routes.
 type Middleware struct {
-	userRoleStore    *UserRoleStore
+	roleService      *RoleService
 	taskCodeResolver TaskCodeResolver
 	configProvider   TaskConfigProvider
 }
 
 // NewMiddleware creates a new RBAC Middleware.
-func NewMiddleware(userRoleStore *UserRoleStore, taskCodeResolver TaskCodeResolver, configProvider TaskConfigProvider) *Middleware {
+func NewMiddleware(roleService *RoleService, taskCodeResolver TaskCodeResolver, configProvider TaskConfigProvider) *Middleware {
 	return &Middleware{
-		userRoleStore:    userRoleStore,
+		roleService:      roleService,
 		taskCodeResolver: taskCodeResolver,
 		configProvider:   configProvider,
 	}
@@ -70,7 +70,7 @@ func (m *Middleware) RequireAction(action string) func(http.Handler) http.Handle
 				return
 			}
 
-			roles, err := m.userRoleStore.GetRolesForUser(authCtx.User.ID)
+			roles, err := m.roleService.GetRolesForUser(authCtx.User.ID)
 			if err != nil {
 				slog.ErrorContext(ctx, "rbac: failed to get roles for user", "userID", authCtx.User.ID, "error", err)
 				httputil.WriteJSONError(w, http.StatusInternalServerError, "failed to resolve user roles")

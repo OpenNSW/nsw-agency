@@ -8,8 +8,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// SeedInput represents user data used for seeding.
-type SeedInput struct {
+// BulkInput represents user data used for bulk creation.
+type BulkInput struct {
 	SSOID string
 	Name  string
 	Email string
@@ -25,13 +25,13 @@ func NewUserService(db *gorm.DB) *UserService {
 	return &UserService{db: db}
 }
 
-// SeedUsers seeds users and their role assignments in a single transaction.
+// CreateBulk creates users and their role assignments in a single transaction.
 // Returns the number of newly created users.
-func (s *UserService) SeedUsers(users []SeedInput) (int, error) {
+func (s *UserService) CreateBulk(users []BulkInput) (int, error) {
 	var inserted int
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		var err error
-		inserted, err = seedUsersInTx(tx, users)
+		inserted, err = createBulkInTx(tx, users)
 		return err
 	})
 	return inserted, err
@@ -57,9 +57,8 @@ func (s *UserService) DropUser(email string) error {
 	})
 }
 
-func seedUsersInTx(tx *gorm.DB, users []SeedInput) (int, error) {
-	roleStore := rbac.NewRoleStore(tx)
-	userRoleStore := rbac.NewUserRoleStore(tx)
+func createBulkInTx(tx *gorm.DB, users []BulkInput) (int, error) {
+	roleService := rbac.NewRoleService(tx)
 
 	// Deduplicate users by email — keep the first occurrence.
 	seen := make(map[string]struct{})
@@ -83,9 +82,9 @@ func seedUsersInTx(tx *gorm.DB, users []SeedInput) (int, error) {
 	// Upsert roles — create if not exists, reuse existing.
 	roleIndex := make(map[string]*rbac.RoleRecord)
 	for name := range roleNames {
-		role, err := roleStore.FindByName(name)
+		role, err := roleService.FindByName(name)
 		if errors.Is(err, rbac.ErrRoleNotFound) {
-			role, err = roleStore.Create(name)
+			role, err = roleService.Create(name)
 		}
 		if err != nil {
 			return 0, fmt.Errorf("upsert role %q: %w", name, err)
@@ -111,7 +110,7 @@ func seedUsersInTx(tx *gorm.DB, users []SeedInput) (int, error) {
 
 		for _, roleName := range u.Roles {
 			role := roleIndex[roleName]
-			if err := userRoleStore.Assign(existing.UserID, role.ID); err != nil {
+			if err := roleService.Assign(existing.UserID, role.ID); err != nil {
 				return inserted, fmt.Errorf("assign role %q to user %q: %w", roleName, u.Email, err)
 			}
 		}
