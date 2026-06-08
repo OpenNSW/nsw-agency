@@ -11,7 +11,9 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/OpenNSW/nsw-agency/backend/internal/rbac"
 	"github.com/OpenNSW/nsw-agency/backend/internal/template"
+	"github.com/OpenNSW/nsw-agency/backend/internal/user"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 )
 
@@ -112,7 +114,9 @@ func newServiceHarness(t *testing.T, writeFn func(root string)) *serviceHarness 
 	srv, capture := newCallbackServer(t)
 	hc := httpclient.NewClientBuilder().Build()
 
-	svc := NewService(store, loader, hc)
+	roleService := rbac.NewRoleService(store.db)
+	profileSvc := user.NewProfileService(roleService)
+	svc := NewService(store, loader, hc, roleService, profileSvc)
 	t.Cleanup(func() { _ = svc.Close() })
 
 	return &serviceHarness{

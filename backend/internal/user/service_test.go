@@ -1,9 +1,11 @@
 package user
 
 import (
+	"context"
 	"errors"
 	"testing"
 
+	"github.com/OpenNSW/nsw-agency/backend/internal/auth"
 	"github.com/OpenNSW/nsw-agency/backend/internal/rbac"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -222,5 +224,87 @@ func TestUserService_DropUser_NotFound(t *testing.T) {
 	err := svc.DropUser("nonexistent@agency.gov.au")
 	if err == nil {
 		t.Error("expected error for non-existent user, got nil")
+	}
+}
+
+// ---------- ProfileService ----------
+
+func newTestProfileService(t *testing.T) (*ProfileService, *rbac.RoleService) {
+	t.Helper()
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		t.Fatalf("failed to open test database: %v", err)
+	}
+	if err := db.AutoMigrate(&rbac.RoleRecord{}, &rbac.UserRoleRecord{}); err != nil {
+		t.Fatalf("failed to migrate tables: %v", err)
+	}
+	t.Cleanup(func() {
+		sqlDB, _ := db.DB()
+		_ = sqlDB.Close()
+	})
+	roleService := rbac.NewRoleService(db)
+	return NewProfileService(roleService), roleService
+}
+
+func TestProfileService_GetMe_NoAuthContext(t *testing.T) {
+	svc, _ := newTestProfileService(t)
+
+	_, err := svc.GetMe(context.Background())
+	if err == nil {
+		t.Error("expected error for missing auth context, got nil")
+	}
+}
+
+func TestProfileService_GetMe_ReturnsProfile(t *testing.T) {
+	svc, roleService := newTestProfileService(t)
+
+	const userID = "user-001"
+	role, err := roleService.Create("lab_officer")
+	if err != nil {
+		t.Fatalf("failed to create role: %v", err)
+	}
+	if err := roleService.Assign(userID, role.ID); err != nil {
+		t.Fatalf("failed to assign role: %v", err)
+	}
+
+	ctx := auth.WithAuthContext(context.Background(), &auth.AuthContext{
+		User: &auth.UserContext{ID: userID, Email: "jane@agency.gov.au", GivenName: "Jane"},
+	})
+
+	result, err := svc.GetMe(ctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result["email"] != "jane@agency.gov.au" {
+		t.Errorf("email: got %v, want jane@agency.gov.au", result["email"])
+	}
+	if result["name"] != "Jane" {
+		t.Errorf("name: got %v, want Jane", result["name"])
+	}
+	roles, ok := result["roles"].([]string)
+	if !ok || len(roles) != 1 || roles[0] != "lab_officer" {
+		t.Errorf("roles: got %v, want [lab_officer]", result["roles"])
+	}
+}
+
+func TestProfileService_GetMe_NoRoles(t *testing.T) {
+	svc, _ := newTestProfileService(t)
+
+	ctx := auth.WithAuthContext(context.Background(), &auth.AuthContext{
+		User: &auth.UserContext{ID: "user-no-roles", Email: "nobody@agency.gov.au", GivenName: "Nobody"},
+	})
+
+	result, err := svc.GetMe(ctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	roles, ok := result["roles"].([]string)
+	if !ok {
+		t.Fatalf("roles: expected []string, got %T", result["roles"])
+	}
+	if len(roles) != 0 {
+		t.Errorf("roles: expected empty, got %v", roles)
 	}
 }

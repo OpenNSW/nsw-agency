@@ -309,3 +309,17 @@ func (s *ApplicationStore) Close() error {
 	}
 	return sqlDB.Close()
 }
+
+// DB returns the underlying gorm.DB connection.
+func (s *ApplicationStore) DB() *gorm.DB {
+	return s.db
+}
+
+// GetTaskCode implements rbac.TaskCodeResolver.
+func (s *ApplicationStore) GetTaskCode(ctx context.Context, taskID string) (string, error) {
+	var app ApplicationRecord
+	if err := s.db.WithContext(ctx).Select("task_code").First(&app, "task_id = ?", taskID).Error; err != nil {
+		return "", err
+	}
+	return app.TaskCode, nil
+}

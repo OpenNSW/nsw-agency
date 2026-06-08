@@ -77,7 +77,8 @@ func (m *Middleware) RequireAction(action string) func(http.Handler) http.Handle
 				return
 			}
 
-			if !hasAction(resolveAllowedActions(roles, cfg.Permissions), action) {
+			_, allowedActions := ResolveAccess(roles, cfg.Permissions)
+			if !hasAction(allowedActions, action) {
 				httputil.WriteJSONError(w, http.StatusForbidden, "access denied")
 				return
 			}
@@ -87,20 +88,23 @@ func (m *Middleware) RequireAction(action string) func(http.Handler) http.Handle
 	}
 }
 
-// resolveAllowedActions returns the union of actions permitted across all the
-// user's roles for the given task permissions array.
-func resolveAllowedActions(roles []RoleRecord, permissions []taskconfig.Permission) []string {
+// ResolveAccess returns whether the user has access to the task (isAccessible)
+// and the union of actions they may perform, based on their roles and the task's
+// permission configuration. Returns (false, nil) when no role matches.
+func ResolveAccess(roles []RoleRecord, permissions []taskconfig.Permission) (bool, []string) {
 	roleSet := make(map[string]struct{}, len(roles))
 	for _, r := range roles {
 		roleSet[r.Name] = struct{}{}
 	}
 
+	isAccessible := false
 	seen := make(map[string]struct{})
 	var actions []string
 	for _, p := range permissions {
 		if _, ok := roleSet[p.Role]; !ok {
 			continue
 		}
+		isAccessible = true
 		for _, a := range p.Actions {
 			if _, exists := seen[a]; !exists {
 				seen[a] = struct{}{}
@@ -108,7 +112,7 @@ func resolveAllowedActions(roles []RoleRecord, permissions []taskconfig.Permissi
 			}
 		}
 	}
-	return actions
+	return isAccessible, actions
 }
 
 // hasAction reports whether action exists in the provided actions slice.

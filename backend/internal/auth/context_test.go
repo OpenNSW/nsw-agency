@@ -5,6 +5,24 @@ import (
 	"testing"
 )
 
+// ---------- WithAuthContext / GetAuthContext ----------
+
+func TestWithAuthContext_RoundTrip(t *testing.T) {
+	want := &AuthContext{User: &UserContext{ID: "user-001", Email: "a@fcau.gov"}}
+	ctx := WithAuthContext(context.Background(), want)
+
+	got := GetAuthContext(ctx)
+	if got == nil {
+		t.Fatal("expected AuthContext after WithAuthContext, got nil")
+	}
+	if got.User.ID != want.User.ID {
+		t.Errorf("User.ID: got %q, want %q", got.User.ID, want.User.ID)
+	}
+	if got.User.Email != want.User.Email {
+		t.Errorf("User.Email: got %q, want %q", got.User.Email, want.User.Email)
+	}
+}
+
 // ---------- GetAuthContext ----------
 
 func TestGetAuthContext_NilWhenNotSet(t *testing.T) {

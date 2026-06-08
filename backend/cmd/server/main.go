@@ -14,6 +14,7 @@ import (
 	"github.com/OpenNSW/nsw-agency/backend/internal/application"
 	"github.com/OpenNSW/nsw-agency/backend/internal/auth"
 	"github.com/OpenNSW/nsw-agency/backend/internal/feedback"
+	"github.com/OpenNSW/nsw-agency/backend/internal/rbac"
 	"github.com/OpenNSW/nsw-agency/backend/internal/storage"
 	"github.com/OpenNSW/nsw-agency/backend/internal/template"
 	"github.com/OpenNSW/nsw-agency/backend/internal/user"
@@ -87,8 +88,15 @@ func main() {
 		WithTLS(&httpclient.TLSConfig{InsecureSkipVerify: cfg.NSW.TokenInsecureSkipVerify}).
 		Build()
 
+	// Initialize RBAC Service and Middleware
+	roleService := rbac.NewRoleService(store.DB())
+	rbacMiddleware := rbac.NewMiddleware(roleService, store, templateLoader)
+
+	// Initialize user profile service
+	userProfileSvc := user.NewProfileService(roleService)
+
 	// Initialize Agency service
-	service := application.NewService(store, templateLoader, nswHttpClient)
+	service := application.NewService(store, templateLoader, nswHttpClient, roleService, userProfileSvc)
 	defer func() {
 		if err := service.Close(); err != nil {
 			slog.Error("failed to close service", "error", err)
@@ -121,9 +129,10 @@ func main() {
 	protect := authManager.RequireAuthMiddleware()
 	mux.Handle("GET /api/v1/consignments", protect(http.HandlerFunc(handler.HandleGetConsignments)))
 	mux.Handle("GET /api/v1/applications", protect(http.HandlerFunc(handler.HandleGetApplications)))
-	mux.Handle("GET /api/v1/applications/{taskId}", protect(http.HandlerFunc(handler.HandleGetApplication)))
-	mux.Handle("POST /api/v1/applications/{taskId}/review", protect(http.HandlerFunc(handler.HandleReviewApplication)))
-	mux.Handle("POST /api/v1/applications/{taskId}/feedback", protect(http.HandlerFunc(feedbackHandler.HandleFeedback)))
+	mux.Handle("GET /api/v1/me", protect(http.HandlerFunc(handler.HandleMe)))
+	mux.Handle("GET /api/v1/applications/{taskId}", protect(rbacMiddleware.RequireAction("VIEW")(http.HandlerFunc(handler.HandleGetApplication))))
+	mux.Handle("POST /api/v1/applications/{taskId}/review", protect(rbacMiddleware.RequireAction("REVIEW")(http.HandlerFunc(handler.HandleReviewApplication))))
+	mux.Handle("POST /api/v1/applications/{taskId}/feedback", protect(rbacMiddleware.RequireAction("FEEDBACK")(http.HandlerFunc(feedbackHandler.HandleFeedback))))
 	mux.Handle("POST /api/v1/storage", protect(http.HandlerFunc(storageHandler.HandleCreateUpload)))
 	mux.Handle("GET /api/v1/storage/{key}", protect(http.HandlerFunc(storageHandler.HandleGetUploadURL)))
 

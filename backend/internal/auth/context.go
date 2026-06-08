@@ -65,3 +65,9 @@ func GetAuthContext(ctx context.Context) *AuthContext {
 	}
 	return authCtx
 }
+
+// WithAuthContext stores authCtx in the returned context. Used by the auth
+// middleware and in tests that need to inject an auth context directly.
+func WithAuthContext(ctx context.Context, authCtx *AuthContext) context.Context {
+	return context.WithValue(ctx, authContextKey, authCtx)
+}

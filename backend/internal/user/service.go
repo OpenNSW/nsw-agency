@@ -1,9 +1,11 @@
 package user
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
+	"github.com/OpenNSW/nsw-agency/backend/internal/auth"
 	"github.com/OpenNSW/nsw-agency/backend/internal/rbac"
 	"gorm.io/gorm"
 )
@@ -123,4 +125,40 @@ func nullableSSID(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+// ---------- ProfileService ----------
+
+// ProfileService handles request-time user profile queries.
+type ProfileService struct {
+	roleService *rbac.RoleService
+}
+
+// NewProfileService creates a ProfileService for use in HTTP handlers.
+func NewProfileService(roleService *rbac.RoleService) *ProfileService {
+	return &ProfileService{roleService: roleService}
+}
+
+// GetMe returns the authenticated user's email, name, and assigned roles.
+func (s *ProfileService) GetMe(ctx context.Context) (map[string]any, error) {
+	authCtx := auth.GetAuthContext(ctx)
+	if authCtx == nil || authCtx.User == nil {
+		return nil, fmt.Errorf("unauthenticated")
+	}
+
+	roles, err := s.roleService.GetRolesForUser(authCtx.User.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get roles: %w", err)
+	}
+
+	roleNames := make([]string, len(roles))
+	for i, r := range roles {
+		roleNames[i] = r.Name
+	}
+
+	return map[string]any{
+		"email": authCtx.User.Email,
+		"name":  authCtx.User.GivenName,
+		"roles": roleNames,
+	}, nil
 }

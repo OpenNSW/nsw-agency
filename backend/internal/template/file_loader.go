@@ -144,3 +144,12 @@ func (l *FileLoader) GetForm(formID string) (json.RawMessage, bool) {
 	formBytes, ok := l.forms[formID]
 	return formBytes, ok
 }
+
+// ListTaskConfigs returns all loaded task configurations.
+func (l *FileLoader) ListTaskConfigs() []*taskconfig.TaskConfig {
+	configs := make([]*taskconfig.TaskConfig, 0, len(l.taskConfigs))
+	for _, c := range l.taskConfigs {
+		configs = append(configs, c)
+	}
+	return configs
+}
