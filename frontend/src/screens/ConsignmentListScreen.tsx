@@ -6,6 +6,7 @@ import { MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, ArchiveIcon } f
 import { type ConsignmentSummary } from '../services/types'
 import { fetchConsignments } from '../services/consignments'
 import i18n from '../i18n'
+import { useDebounce } from '../hooks/useDebounce'
 
 const PAGE_SIZE = 20
 
@@ -15,28 +16,18 @@ export function ConsignmentListScreen() {
   const [consignments, setConsignments] = useState<ConsignmentSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [searchQuery, setSearchQuery] = useState('')
+  const debouncedSearchTerm = useDebounce(searchTerm, 400)
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
-  // Debounce search term
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setSearchQuery((prev) => {
-        if (prev !== searchTerm) {
-          setPage(1)
-          return searchTerm
-        }
-        return prev
-      })
-    }, 400)
-
-    return () => {
-      clearTimeout(handler)
-    }
-  }, [searchTerm])
+  // Reset page when search term changes
+  const [prevDebouncedSearchTerm, setPrevDebouncedSearchTerm] = useState(debouncedSearchTerm)
+  if (debouncedSearchTerm !== prevDebouncedSearchTerm) {
+    setPrevDebouncedSearchTerm(debouncedSearchTerm)
+    setPage(1)
+  }
 
   useEffect(() => {
     async function fetchData(isSilent = false) {
@@ -45,7 +36,7 @@ export function ConsignmentListScreen() {
         const result = await fetchConsignments({
           page,
           pageSize: PAGE_SIZE,
-          q: searchQuery,
+          q: debouncedSearchTerm,
         })
         setConsignments(result.items || [])
         setTotal(result.total || 0)
@@ -64,7 +55,7 @@ export function ConsignmentListScreen() {
     // Poll for new consignments every 15 seconds
     const interval = setInterval(() => void fetchData(true), 15000)
     return () => clearInterval(interval)
-  }, [page, searchQuery])
+  }, [page, debouncedSearchTerm])
 
   // Format date: Jan 27, 2026
   const formatDateForTable = (dateString?: string) => {
