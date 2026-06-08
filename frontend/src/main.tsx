@@ -7,6 +7,7 @@ import '@radix-ui/themes/styles.css'
 import './index.css'
 import App from './App.tsx'
 import { initAppConfig } from './config.ts'
+import './i18n'
 import { userManager } from './oidcUserManager'
 
 void initAppConfig().then(() => {
