@@ -14,11 +14,24 @@ export function ConsignmentListScreen() {
   const navigate = useNavigate()
   const [consignments, setConsignments] = useState<ConsignmentSummary[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+
+  // Debounce search term
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearchQuery(searchTerm)
+      setPage(1)
+    }, 400)
+
+    return () => {
+      clearTimeout(handler)
+    }
+  }, [searchTerm])
 
   useEffect(() => {
     async function fetchData(isSilent = false) {
@@ -58,17 +71,6 @@ export function ConsignmentListScreen() {
     })
   }
 
-  if (loading && page === 1) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Spinner size="3" />
-        <Text size="3" color="gray" className="ml-3">
-          {t('consignments.list.loading')}
-        </Text>
-      </div>
-    )
-  }
-
   return (
     <div className="animate-fade-in max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -90,21 +92,35 @@ export function ConsignmentListScreen() {
             <TextField.Root
               size="2"
               placeholder={t('consignments.list.searchPlaceholder')}
-              value={searchQuery}
+              value={searchTerm}
               onChange={(e) => {
-                setSearchQuery(e.target.value)
-                setPage(1)
+                setSearchTerm(e.target.value)
               }}
             >
               <TextField.Slot>
-                <MagnifyingGlassIcon height="16" width="16" />
+                {loading && searchTerm !== '' ? (
+                  <Spinner size="1" />
+                ) : (
+                  <MagnifyingGlassIcon height="16" width="16" />
+                )}
               </TextField.Slot>
             </TextField.Root>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          {consignments.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative min-h-[400px]">
+          {loading && (
+            <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
+              <div className="flex flex-col items-center gap-2">
+                <Spinner size="3" />
+                <Text size="2" color="gray">
+                  {t('consignments.list.loading')}
+                </Text>
+              </div>
+            </div>
+          )}
+
+          {consignments.length === 0 && !loading ? (
             <div className="p-12 text-center">
               <div className="bg-white w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-gray-100">
                 <ArchiveIcon className="w-8 h-8 text-gray-300" />
