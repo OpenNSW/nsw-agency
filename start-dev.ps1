@@ -325,6 +325,18 @@ function Start-Backend {
     # DB_DRIVER falls back to sqlite only if not set by parent env, --env-file, or .env.
     if (-not $envBlock.Contains('DB_DRIVER')) { $envBlock['DB_DRIVER'] = 'sqlite' }
 
+    # Seed the database before starting
+    $seedFile = Join-Path $BACKEND_DIR "data/seed/${AgencyName}_users.json"
+    if (Test-Path $seedFile) {
+        Write-Host "[start-dev] Seeding $AgencyName database using $seedFile..."
+        $seedPsi = [System.Diagnostics.ProcessStartInfo]::new($shellCmd, "$shellArg `"go run ./cmd/seed user add --file data/seed/${AgencyName}_users.json`"")
+        $seedPsi.WorkingDirectory = $BACKEND_DIR
+        $seedPsi.UseShellExecute  = $false
+        foreach ($k in $envBlock.Keys) { $seedPsi.Environment[$k] = [string]$envBlock[$k] }
+        $seedProc = [System.Diagnostics.Process]::Start($seedPsi)
+        $seedProc.WaitForExit()
+    }
+
     $psi = [System.Diagnostics.ProcessStartInfo]::new($shellCmd, "$shellArg `"go run ./cmd/server`"")
     $psi.WorkingDirectory = $BACKEND_DIR
     $psi.UseShellExecute  = $false

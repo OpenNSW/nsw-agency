@@ -1,0 +1,9 @@
+{
+  "users": [
+    {
+      "name": "NPQS User",
+      "email": "npqs_user@government.dev",
+      "roles": ["lab_officer"]
+    }
+  ]
+}

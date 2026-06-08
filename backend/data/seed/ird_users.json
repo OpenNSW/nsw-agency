@@ -1,0 +1,9 @@
+{
+  "users": [
+    {
+      "name": "IRD User",
+      "email": "ird_user@government.dev",
+      "roles": ["lab_officer"]
+    }
+  ]
+}

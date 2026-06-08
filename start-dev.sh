@@ -328,6 +328,13 @@ start_backend() {
     else
       echo "[start-dev] WARNING: backend/.env not found — backend will fail if NSW_* vars are unset." >&2
     fi
+
+    local seed_file="./data/seed/${agency}_users.json"
+    if [[ -f "$seed_file" ]]; then
+      echo "[start-dev] Seeding $agency database using $seed_file..."
+      go run ./cmd/seed user add --file "$seed_file" || true
+    fi
+
     exec go run ./cmd/server
   ) &
   PIDS+=("$!")
