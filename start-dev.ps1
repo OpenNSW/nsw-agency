@@ -285,7 +285,7 @@ function Run-Migrations {
         $psi = [System.Diagnostics.ProcessStartInfo]::new($shellCmd, "$shellArg `"go run ./cmd/migrate up`"")
         $psi.WorkingDirectory = $BACKEND_DIR
         $psi.UseShellExecute  = $false
-        foreach ($k in $agencyEnv.Keys) { $psi.Environment[$k] = [string]$agencyEnv[$k] }
+        foreach ($k in $agencyEnv.Keys) { $psi.EnvironmentVariables[$k] = [string]$agencyEnv[$k] }
         $proc = [System.Diagnostics.Process]::Start($psi)
         $proc.WaitForExit()
         if ($proc.ExitCode -ne 0) {
@@ -332,7 +332,7 @@ function Start-Backend {
         $seedPsi = [System.Diagnostics.ProcessStartInfo]::new($shellCmd, "$shellArg `"go run ./cmd/seed user add --file data/seed/${AgencyName}_users.json`"")
         $seedPsi.WorkingDirectory = $BACKEND_DIR
         $seedPsi.UseShellExecute  = $false
-        foreach ($k in $envBlock.Keys) { $seedPsi.Environment[$k] = [string]$envBlock[$k] }
+        foreach ($k in $envBlock.Keys) { $seedPsi.EnvironmentVariables[$k] = [string]$envBlock[$k] }
         $seedProc = [System.Diagnostics.Process]::Start($seedPsi)
         $seedProc.WaitForExit()
     }
@@ -340,7 +340,7 @@ function Start-Backend {
     $psi = [System.Diagnostics.ProcessStartInfo]::new($shellCmd, "$shellArg `"go run ./cmd/server`"")
     $psi.WorkingDirectory = $BACKEND_DIR
     $psi.UseShellExecute  = $false
-    foreach ($k in $envBlock.Keys) { $psi.Environment[$k] = [string]$envBlock[$k] }
+    foreach ($k in $envBlock.Keys) { $psi.EnvironmentVariables[$k] = [string]$envBlock[$k] }
     $jobs.Add([System.Diagnostics.Process]::Start($psi))
 }
 
@@ -372,7 +372,7 @@ function Start-Frontend {
     $psi = [System.Diagnostics.ProcessStartInfo]::new($shellCmd, "$shellArg `"pnpm run dev`"")
     $psi.WorkingDirectory = $FRONTEND_DIR
     $psi.UseShellExecute  = $false
-    foreach ($k in $envBlock.Keys) { $psi.Environment[$k] = [string]$envBlock[$k] }
+    foreach ($k in $envBlock.Keys) { $psi.EnvironmentVariables[$k] = [string]$envBlock[$k] }
     $jobs.Add([System.Diagnostics.Process]::Start($psi))
 }
 

@@ -1,7 +1,7 @@
 {
   "users": [
     {
-      "name": "FCAU User",
+      "name": "fcau_user",
       "email": "fcau_user@government.dev",
       "roles": ["lab_officer"]
     }
