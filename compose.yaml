@@ -1,0 +1,113 @@
+# Local/dev orchestration for the NSW Agency stack.
+#
+# Startup order is enforced by depends_on conditions:
+#   db (healthy) -> migrate (runs `migrate up`, exits 0) -> server -> frontend
+#
+# The migrate service is one-shot: it applies pending migrations and exits.
+# Seeing it as "exited (0)" in `docker compose ps` is expected, not an error.
+# The server will not start until migrate has completed successfully.
+#
+# NOTE: the frontend and backend authenticate against an external IdP
+# (VITE_IDP_BASE_URL / AUTH_JWKS_URL, default https://localhost:8090) that is
+# NOT part of this compose. The UI loads, but login requires that IdP reachable.
+#
+# Usage (note the --env-file flag — .env.docker is not the auto-loaded name):
+#   cp .env.docker.example .env.docker       # root: ports, db creds, host.docker.internal URLs
+#   cp backend/.env.example backend/.env     # then fill in NSW_* and AUTH_* values
+#   cp frontend/.env.example frontend/.env   # then fill in VITE_IDP_* values
+#   docker compose --env-file .env.docker up --build
+#
+# Root .env.docker is the single source for values compose interpolates
+# (${AGENCY_PORT}, ${DB_*}, ${FRONTEND_PORT}); the environment: blocks below inject
+# the same values into the containers so backend/.env cannot drift. It is also
+# layered onto the server as an env_file to override the dialed URLs (see below).
+
+services:
+  db:
+    image: postgres:16-bookworm
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-nsw_agency_db}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-nsw_agency_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: ["/app/migrate", "up"]
+    env_file:
+      - ./backend/.env
+    environment:
+      DB_DRIVER: postgres
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-nsw_agency_db}
+      MIGRATION_DIR: /app/migrations
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  server:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env
+      # Overlay: overrides ONLY the dialed URLs (AUTH_JWKS_URL, NSW_*) with
+      # host.docker.internal so the container reaches the IdP / NSW API on the
+      # host. Later env_file wins. AUTH_ISSUER is intentionally NOT in there
+      # (it is matched against the token's iss claim, so must stay localhost).
+      - ./.env.docker
+    # host.docker.internal is automatic on Docker Desktop; this makes it resolve
+    # on Linux / CI as well.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # These override backend/.env for the container (environment: beats env_file).
+    # DB_* + PORT come from .env.docker so the host mapping below and the
+    # container's runtime config share one source and cannot drift.
+    environment:
+      DB_DRIVER: postgres
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-nsw_agency_db}
+      PORT: ${AGENCY_PORT:-8081}
+    # Both sides from the same root var: host port == container listen port (PORT).
+    ports:
+      - "${AGENCY_PORT:-8081}:${AGENCY_PORT:-8081}"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    # The image targets OpenShift's "random UID in group 0" model: the html dir
+    # is group-writable for GID 0 so the entrypoint can write runtime-env.js.
+    # Plain Docker would run UID 101 with GID 101 (no write access), so pin GID 0.
+    user: "101:0"
+    env_file:
+      - ./frontend/.env
+    # VITE_API_BASE_URL is used by the browser, so it must be a host-reachable
+    # URL (not the internal "server" hostname). Defaults to http://localhost:8081.
+    ports:
+      - "${FRONTEND_PORT:-5175}:80"
+    depends_on:
+      - server
+
+volumes:
+  db-data:
