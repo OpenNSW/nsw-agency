@@ -27,10 +27,10 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY --from=builder /out/agency /app/agency
-COPY --from=builder /out/migrate /app/migrate
-COPY --from=builder /out/seed /app/seed
-COPY --from=builder /app/migrations /app/migrations
+COPY --from=builder --chown=appuser:appuser /out/agency /app/agency
+COPY --from=builder --chown=appuser:appuser /out/migrate /app/migrate
+COPY --from=builder --chown=appuser:appuser /out/seed /app/seed
+COPY --from=builder --chown=appuser:appuser /app/migrations /app/migrations
 
 # Runtime settings — UID 1001 matches appuser, OpenShift-compatible
 USER appuser
