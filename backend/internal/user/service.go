@@ -127,6 +127,9 @@ func nullableSSID(s string) *string {
 	return &s
 }
 
+// ErrUnauthenticated is returned when the auth context is missing or invalid.
+var ErrUnauthenticated = errors.New("unauthenticated")
+
 // ---------- ProfileService ----------
 
 // ProfileService handles request-time user profile queries.
@@ -143,7 +146,7 @@ func NewProfileService(roleService *rbac.RoleService) *ProfileService {
 func (s *ProfileService) GetMe(ctx context.Context) (map[string]any, error) {
 	authCtx := auth.GetAuthContext(ctx)
 	if authCtx == nil || authCtx.User == nil {
-		return nil, fmt.Errorf("unauthenticated")
+		return nil, ErrUnauthenticated
 	}
 
 	roles, err := s.roleService.GetRolesForUser(authCtx.User.ID)

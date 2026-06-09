@@ -123,7 +123,12 @@ func (h *Handler) HandleMe(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	result, err := h.service.GetMe(ctx)
 	if err != nil {
-		httputil.WriteJSONError(w, http.StatusUnauthorized, "Unauthenticated")
+		if errors.Is(err, ErrUnauthenticated) {
+			httputil.WriteJSONError(w, http.StatusUnauthorized, "Unauthenticated")
+		} else {
+			slog.ErrorContext(ctx, "failed to get user profile", "error", err)
+			httputil.WriteJSONError(w, http.StatusInternalServerError, "Internal server error")
+		}
 		return
 	}
 

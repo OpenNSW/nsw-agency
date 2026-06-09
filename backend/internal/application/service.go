@@ -22,6 +22,9 @@ import (
 // ErrApplicationNotFound is returned when an application is not found
 var ErrApplicationNotFound = errors.New("application not found")
 
+// ErrUnauthenticated is returned when the request has no valid auth context.
+var ErrUnauthenticated = errors.New("unauthenticated")
+
 // Service handles Agency portal operations
 type Service interface {
 	// CreateApplication creates a new application from injected data
@@ -390,7 +393,14 @@ func (s *service) sendToService(ctx context.Context, serviceURL string, response
 }
 
 func (s *service) GetMe(ctx context.Context) (map[string]any, error) {
-	return s.profileSvc.GetMe(ctx)
+	res, err := s.profileSvc.GetMe(ctx)
+	if err != nil {
+		if errors.Is(err, user.ErrUnauthenticated) {
+			return nil, ErrUnauthenticated
+		}
+		return nil, err
+	}
+	return res, nil
 }
 
 func resolveAccess(roles []rbac.RoleRecord, permissions []taskconfig.Permission) (bool, []string) {
