@@ -10,7 +10,8 @@ COPY . .
 # binaries. Go panic traces (function + line) and pprof still work, since they
 # use the runtime pclntab rather than the symbol table.
 RUN go build -ldflags="-s -w" -o /out/agency ./cmd/server \
-  && go build -ldflags="-s -w" -o /out/migrate ./cmd/migrate
+  && go build -ldflags="-s -w" -o /out/migrate ./cmd/migrate \
+  && go build -ldflags="-s -w" -o /out/seed ./cmd/seed
 
 FROM debian:bookworm-slim
 
@@ -26,10 +27,10 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY --from=builder /out/agency /app/agency
-COPY --from=builder /out/migrate /app/migrate
-COPY --from=builder /app/migrations /app/migrations
-COPY --from=builder /app/data/task-configs /app/data/task-configs
+COPY --from=builder --chown=appuser:appuser /out/agency /app/agency
+COPY --from=builder --chown=appuser:appuser /out/migrate /app/migrate
+COPY --from=builder --chown=appuser:appuser /out/seed /app/seed
+COPY --from=builder --chown=appuser:appuser /app/migrations /app/migrations
 
 # Runtime settings — UID 1001 matches appuser, OpenShift-compatible
 USER appuser
