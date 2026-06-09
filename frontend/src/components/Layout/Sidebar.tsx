@@ -1,6 +1,7 @@
+import { useTranslation } from 'react-i18next'
 import { Link, useLocation } from 'react-router-dom'
 import { ArchiveIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from '@radix-ui/react-icons'
-import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState, useMemo } from 'react'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -22,10 +23,6 @@ interface NavGroup {
 
 type NavItemOrGroup = NavItem | NavGroup
 
-const navStructure: NavItemOrGroup[] = [
-  { name: 'Consignments', path: '/consignments', icon: <ArchiveIcon className="w-5 h-5" /> },
-]
-
 function isNavGroup(item: NavItemOrGroup): item is NavGroup {
   return 'items' in item
 }
@@ -36,10 +33,16 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isExpanded, onToggle }: SidebarProps) {
+  const { t } = useTranslation()
   const location = useLocation()
   const [isHovered, setIsHovered] = useState(false)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const previousPathRef = useRef<string>(location.pathname)
+
+  const navStructure = useMemo<NavItemOrGroup[]>(
+    () => [{ name: t('sidebar.nav.consignments'), path: '/consignments', icon: <ArchiveIcon className="w-5 h-5" /> }],
+    [t],
+  )
 
   // Determine if sidebar should show expanded content
   const showExpanded = isExpanded || (!isExpanded && isHovered)
@@ -60,7 +63,7 @@ export function Sidebar({ isExpanded, onToggle }: SidebarProps) {
 
       setExpandedGroups(groupsToExpand)
     }
-  }, [location.pathname])
+  }, [location.pathname, navStructure])
 
   const toggleGroup = (groupName: string) => {
     setExpandedGroups((prev) => {
@@ -198,8 +201,8 @@ export function Sidebar({ isExpanded, onToggle }: SidebarProps) {
           <div className="p-4">
             <div className="flex items-center gap-3 px-4 py-3 rounded-md bg-primary-800/30 text-primary-100">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">NSW</p>
-                <p className="text-xs text-primary-200 truncate">v0.1.0</p>
+                <p className="text-sm font-medium text-white truncate">{t('sidebar.version.label')}</p>
+                <p className="text-xs text-primary-200 truncate">{__APP_VERSION__}</p>
               </div>
             </div>
           </div>
@@ -214,9 +217,13 @@ export function Sidebar({ isExpanded, onToggle }: SidebarProps) {
             } h-10 rounded-full bg-primary-500 hover:bg-primary-600 flex items-center ${
               showExpanded ? 'justify-between px-4' : 'justify-center'
             } text-white transition-all shadow-lg`}
-            title={isExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+            title={isExpanded ? t('sidebar.toggle.collapseTitle') : t('sidebar.toggle.expandTitle')}
           >
-            {showExpanded && <span className="text-sm font-medium">{isExpanded ? 'Collapse' : 'Expand'}</span>}
+            {showExpanded && (
+              <span className="text-sm font-medium">
+                {isExpanded ? t('sidebar.toggle.collapse') : t('sidebar.toggle.expand')}
+              </span>
+            )}
             {isExpanded ? <ChevronLeftIcon className="w-5 h-5" /> : <ChevronRightIcon className="w-5 h-5" />}
           </button>
         </div>

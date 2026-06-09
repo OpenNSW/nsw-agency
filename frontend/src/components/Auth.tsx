@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from 'react-oidc-context'
 import { DropdownMenu, Avatar, Flex, Text, Button } from '@radix-ui/themes'
 
@@ -17,17 +18,19 @@ export function SignedOut({ children, fallback }: { children: ReactNode; fallbac
 }
 
 export function SignInButton() {
+  const { t } = useTranslation()
   const auth = useAuth()
   return (
     <Button onClick={() => void auth.signinRedirect()} size="2" style={{ cursor: 'pointer' }}>
-      Sign In
+      {t('auth.signIn')}
     </Button>
   )
 }
 
 export function UserDropdown({ onSignOut }: { onSignOut: () => void }) {
+  const { t } = useTranslation()
   const auth = useAuth()
-  const name = (auth.user?.profile?.name as string) || (auth.user?.profile?.email as string) || 'User'
+  const name = (auth.user?.profile?.name as string) || (auth.user?.profile?.email as string) || t('auth.userFallback')
   const email = (auth.user?.profile?.email as string) || ''
   const initials = name
     .split(/\s+/)
@@ -57,7 +60,7 @@ export function UserDropdown({ onSignOut }: { onSignOut: () => void }) {
         </Flex>
         <DropdownMenu.Separator />
         <DropdownMenu.Item color="red" onClick={onSignOut} style={{ cursor: 'pointer' }}>
-          Sign Out
+          {t('auth.signOut')}
         </DropdownMenu.Item>
       </DropdownMenu.Content>
     </DropdownMenu.Root>

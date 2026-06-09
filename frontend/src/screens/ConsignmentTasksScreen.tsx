@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Badge, Text, Spinner, IconButton, Button, Flex } from '@radix-ui/themes'
 import { ChevronLeftIcon, ChevronRightIcon, ArrowLeftIcon, ArchiveIcon } from '@radix-ui/react-icons'
 import { type AgencyApplication } from '../services/types'
 import { fetchApplications } from '../services/applications'
+import i18n from '../i18n'
 
 const PAGE_SIZE = 20
 
 export function ConsignmentTasksScreen() {
+  const { t } = useTranslation()
   const { consignmentId } = useParams<{ consignmentId: string }>()
   const navigate = useNavigate()
   const [applications, setApplications] = useState<AgencyApplication[]>([])
@@ -41,7 +44,7 @@ export function ConsignmentTasksScreen() {
 
   const formatDateForTable = (dateString?: string) => {
     if (!dateString) return '-'
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString(i18n.resolvedLanguage || undefined, {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -53,7 +56,7 @@ export function ConsignmentTasksScreen() {
       <div className="flex items-center justify-center py-12">
         <Spinner size="3" />
         <Text size="3" color="gray" className="ml-3">
-          Loading tasks...
+          {t('consignments.tasks.loading')}
         </Text>
       </div>
     )
@@ -69,17 +72,17 @@ export function ConsignmentTasksScreen() {
           }}
           className="mb-4 -ml-2 text-gray-600 hover:text-blue-600"
         >
-          <ArrowLeftIcon /> Back to Consignments
+          <ArrowLeftIcon /> {t('consignments.tasks.backButton')}
         </Button>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Consignment Tasks</h1>
+            <h1 className="text-2xl font-semibold text-gray-900">{t('consignments.tasks.title')}</h1>
             <Text size="2" color="gray" className="font-mono">
-              ConsignmentId: {consignmentId}
+              {t('consignments.tasks.consignmentIdLabel', { consignmentId: consignmentId ?? '' })}
             </Text>
           </div>
           <Badge color="blue" variant="soft" size="2">
-            {total} Total Tasks
+            {t('consignments.tasks.badge', { total })}
           </Badge>
         </div>
       </div>
@@ -91,7 +94,7 @@ export function ConsignmentTasksScreen() {
               <ArchiveIcon className="w-8 h-8 text-gray-300" />
             </div>
             <Text size="3" color="gray" weight="medium">
-              No tasks found for this consignment.
+              {t('consignments.tasks.empty')}
             </Text>
           </div>
         ) : (
@@ -99,11 +102,17 @@ export function ConsignmentTasksScreen() {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50/50 border-b border-gray-200 text-left">
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Task</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Category</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Last Updated
+                    {t('consignments.tasks.table.task')}
+                  </th>
+                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    {t('consignments.tasks.table.category')}
+                  </th>
+                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    {t('consignments.tasks.table.status')}
+                  </th>
+                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    {t('consignments.tasks.table.lastUpdated')}
                   </th>
                 </tr>
               </thead>
@@ -124,7 +133,7 @@ export function ConsignmentTasksScreen() {
                           </span>
                         )}
                         <Text size="2" weight="bold" className="text-gray-900">
-                          {app.title || 'Standard Review'}
+                          {app.title || t('consignments.tasks.defaultTitle')}
                         </Text>
                       </Flex>
                     </td>
@@ -165,7 +174,7 @@ export function ConsignmentTasksScreen() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between pt-4">
           <Text size="2" color="gray">
-            Page {page} of {totalPages} ({total} results)
+            {t('common.pagination.info', { page, totalPages, total })}
           </Text>
           <div className="flex items-center gap-2">
             <IconButton size="1" variant="soft" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
