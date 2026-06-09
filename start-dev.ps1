@@ -308,12 +308,13 @@ function Start-Backend {
 
     # Per-agency values set before .env so .env cannot override them.
     # Final precedence: parent env > --env-file > per-agency defaults > .env > script fallback.
-    if (-not $envBlock.Contains('PORT'))            { $envBlock['PORT']            = "$bePort"                         }
-    if (-not $envBlock.Contains('DB_PATH'))         { $envBlock['DB_PATH']         = "./${AgencyName}_applications.db" }
-    if (-not $envBlock.Contains('DB_NAME'))         { $envBlock['DB_NAME']         = "${AgencyName}_nsw_agency_db"     }
-    if (-not $envBlock.Contains('NSW_CLIENT_ID'))   { $envBlock['NSW_CLIENT_ID']   = $nswClientId                      }
-    if (-not $envBlock.Contains('AUTH_EXPECTED_OU')) { $envBlock['AUTH_EXPECTED_OU'] = $cfg.OU_HANDLE                  }
-    if (-not $envBlock.Contains('ALLOWED_ORIGINS')) { $envBlock['ALLOWED_ORIGINS'] = "http://localhost:$($cfg.FE_PORT)" }
+    if (-not $envBlock.Contains('PORT'))             { $envBlock['PORT']             = "$bePort"                                  }
+    if (-not $envBlock.Contains('DB_PATH'))          { $envBlock['DB_PATH']          = "./${AgencyName}_applications.db"          }
+    if (-not $envBlock.Contains('DB_NAME'))          { $envBlock['DB_NAME']          = "${AgencyName}_nsw_agency_db"              }
+    if (-not $envBlock.Contains('NSW_CLIENT_ID'))    { $envBlock['NSW_CLIENT_ID']    = $nswClientId                               }
+    if (-not $envBlock.Contains('AUTH_EXPECTED_OU')) { $envBlock['AUTH_EXPECTED_OU'] = $cfg.OU_HANDLE                             }
+    if (-not $envBlock.Contains('ALLOWED_ORIGINS'))  { $envBlock['ALLOWED_ORIGINS']  = "http://localhost:$($cfg.FE_PORT)"         }
+    if (-not $envBlock.Contains('TASK_CONFIGS_DIR')) { $envBlock['TASK_CONFIGS_DIR'] = "./data/task-configs/${AgencyName}"        }
 
     $dotEnv = Join-Path $BACKEND_DIR '.env'
     if (Test-Path $dotEnv) {

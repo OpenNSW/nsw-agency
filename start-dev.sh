@@ -313,6 +313,7 @@ start_backend() {
     export PORT="${PORT:-$BE_PORT}"
     export DB_DRIVER="${DB_DRIVER:-sqlite}"
     export DB_PATH="${DB_PATH:-./${agency}_applications.db}"
+    export TASK_CONFIGS_DIR="${TASK_CONFIGS_DIR:-./data/task-configs/${agency}}"
     export AUTH_EXPECTED_OU="${AUTH_EXPECTED_OU:-$OU_HANDLE}"
     export ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-http://localhost:$FE_PORT}"
     export NSW_CLIENT_ID
