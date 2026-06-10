@@ -64,8 +64,7 @@ type Application struct {
 	ServiceURL       string         `json:"serviceUrl"`
 	Data             map[string]any `json:"data"`                       // Data from NSW service to be rendered in the UI
 	AgencyActionData map[string]any `json:"agencyActionData,omitempty"` // Copy of the payload sent back to the NSW after review, for display in the UI
-	IsAccessible     bool           `json:"isAccessible"`
-	AllowedActions   []string       `json:"allowedActions"`
+	AllowedActions   []string       `json:"allowedActions,omitempty"`
 
 	// Task metadata from config
 	Title       string `json:"title,omitempty"`
@@ -171,8 +170,9 @@ func (s *service) GetApplications(ctx context.Context, status string, consignmen
 		}
 	}
 
-	applications := make([]Application, len(records))
-	for i, record := range records {
+	applications := make([]Application, 0, len(records))
+	for _, record := range records {
+		var permissions []taskconfig.Permission
 		app := Application{
 			TaskID:        record.TaskID,
 			TaskCode:      record.TaskCode,
@@ -185,18 +185,19 @@ func (s *service) GetApplications(ctx context.Context, status string, consignmen
 			UpdatedAt:     record.UpdatedAt,
 		}
 
-		// Attach basic metadata for the list view
 		if config, err := s.templateProvider.GetTaskConfig(record.TaskCode); err == nil {
 			app.Title = config.Meta.Title
 			app.Category = config.Meta.Category
 			app.Icon = config.Meta.Icon
-
-			app.IsAccessible, app.AllowedActions = resolveAccess(roles, config.Permissions)
-		} else {
-			app.IsAccessible, app.AllowedActions = resolveAccess(roles, nil)
+			permissions = config.Permissions
 		}
 
-		applications[i] = app
+		accessible, _ := resolveAccess(roles, permissions)
+		if !accessible {
+			continue
+		}
+
+		applications = append(applications, app)
 	}
 
 	return &PagedResponse[Application]{
@@ -268,14 +269,14 @@ func (s *service) GetApplication(ctx context.Context, taskID string) (*Applicati
 	config, err := s.templateProvider.GetTaskConfig(record.TaskCode)
 	if err != nil {
 		slog.WarnContext(ctx, "task config not found for application", "taskID", taskID, "taskCode", record.TaskCode)
-		app.IsAccessible, app.AllowedActions = resolveAccess(roles, nil)
+		_, app.AllowedActions = resolveAccess(roles, nil)
 	} else {
 		app.Title = config.Meta.Title
 		app.Description = config.Meta.Description
 		app.Icon = config.Meta.Icon
 		app.Category = config.Meta.Category
 
-		app.IsAccessible, app.AllowedActions = resolveAccess(roles, config.Permissions)
+		_, app.AllowedActions = resolveAccess(roles, config.Permissions)
 
 		if config.Forms.View != "" {
 			if form, ok := s.templateProvider.GetForm(config.Forms.View); ok {

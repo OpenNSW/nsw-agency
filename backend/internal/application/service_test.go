@@ -11,6 +11,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/OpenNSW/nsw-agency/backend/internal/auth"
 	"github.com/OpenNSW/nsw-agency/backend/internal/rbac"
 	"github.com/OpenNSW/nsw-agency/backend/internal/template"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
@@ -126,6 +127,13 @@ func newServiceHarness(t *testing.T, writeFn func(root string)) *serviceHarness 
 		capture:          capture,
 		service:          svc,
 	}
+}
+
+// newAuthContext injects a minimal auth context carrying the given userID.
+func newAuthContext(ctx context.Context, userID string) context.Context {
+	return auth.WithAuthContext(ctx, &auth.AuthContext{
+		User: &auth.UserContext{ID: userID},
+	})
 }
 
 // seed inserts an application record with the harness's callback URL as ServiceURL.
@@ -432,5 +440,91 @@ func TestGetApplication_NotFound(t *testing.T) {
 	_, err := h.service.GetApplication(context.Background(), "does-not-exist")
 	if err != ErrApplicationNotFound {
 		t.Errorf("expected ErrApplicationNotFound, got %v", err)
+	}
+}
+
+// ---------- GetApplications: RBAC filtering ----------
+
+func TestGetApplications_FiltersInaccessibleItems(t *testing.T) {
+	h := newServiceHarness(t, func(root string) {
+		writeTaskConfigFile(t, root, "restricted.json", `{
+			"meta": {"title": "Restricted"},
+			"permissions": [{"role": "manager", "actions": ["VIEW"]}]
+		}`)
+	})
+	h.seed("t-restricted", "restricted", nil)
+
+	// No auth context — user has no roles, task requires manager.
+	result, err := h.service.GetApplications(context.Background(), "", "", "", 1, 20)
+	if err != nil {
+		t.Fatalf("GetApplications failed: %v", err)
+	}
+	if len(result.Items) != 0 {
+		t.Errorf("expected inaccessible item to be filtered out, got %d items", len(result.Items))
+	}
+}
+
+func TestGetApplications_IncludesAccessibleItems(t *testing.T) {
+	h := newServiceHarness(t, func(root string) {
+		writeTaskConfigFile(t, root, "open.json", `{
+			"meta": {"title": "Open"}
+		}`)
+	})
+	h.seed("t-open", "open", nil)
+
+	// No permissions config — all users have access.
+	result, err := h.service.GetApplications(context.Background(), "", "", "", 1, 20)
+	if err != nil {
+		t.Fatalf("GetApplications failed: %v", err)
+	}
+	if len(result.Items) != 1 {
+		t.Errorf("expected 1 accessible item, got %d", len(result.Items))
+	}
+}
+
+// ---------- GetApplication: AllowedActions ----------
+
+func TestGetApplication_PopulatesAllowedActions(t *testing.T) {
+	h := newServiceHarness(t, func(root string) {
+		writeTaskConfigFile(t, root, "alpha.json", `{
+			"meta": {"title": "Alpha"},
+			"permissions": [{"role": "officer", "actions": ["VIEW", "REVIEW"]}]
+		}`)
+	})
+	h.seed("t-actions", "alpha", nil)
+
+	roleService := rbac.NewRoleService(h.store.db)
+	role, err := roleService.Create("officer")
+	if err != nil {
+		t.Fatalf("failed to create role: %v", err)
+	}
+
+	const userID = "user-001"
+	if err := roleService.Assign(userID, role.ID); err != nil {
+		t.Fatalf("failed to assign role: %v", err)
+	}
+
+	ctx := newAuthContext(context.Background(), userID)
+
+	app, err := h.service.GetApplication(ctx, "t-actions")
+	if err != nil {
+		t.Fatalf("GetApplication failed: %v", err)
+	}
+	if len(app.AllowedActions) != 2 {
+		t.Errorf("expected 2 allowed actions, got %v", app.AllowedActions)
+	}
+}
+
+func TestGetApplication_NoConfig_EmptyAllowedActions(t *testing.T) {
+	h := newServiceHarness(t, nil)
+	h.seed("t-noconfig", "no-such-task", nil)
+
+	app, err := h.service.GetApplication(context.Background(), "t-noconfig")
+	if err != nil {
+		t.Fatalf("GetApplication failed: %v", err)
+	}
+	// No config → falls back to full access.
+	if len(app.AllowedActions) != 3 {
+		t.Errorf("expected 3 default allowed actions, got %v", app.AllowedActions)
 	}
 }

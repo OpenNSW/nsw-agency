@@ -13,9 +13,6 @@ type Provider interface {
 
 	// GetForm retrieves the raw JSON schema/uiSchema for a form ID.
 	GetForm(formID string) (json.RawMessage, bool)
-
-	// ListTaskConfigs returns all loaded task configurations.
-	ListTaskConfigs() []*taskconfig.TaskConfig
 }
 
 // Loader defines the interface to load, parse, and validate templates.

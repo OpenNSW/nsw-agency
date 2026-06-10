@@ -9,6 +9,7 @@ import (
 
 	"github.com/OpenNSW/nsw-agency/backend/internal/database"
 	"github.com/OpenNSW/nsw-agency/backend/internal/feedback"
+	"github.com/OpenNSW/nsw-agency/backend/internal/rbac"
 )
 
 // ---------- helpers ----------
@@ -51,7 +52,7 @@ func newTestStore(t *testing.T) *ApplicationStore {
 		t.Fatalf("failed to create store (driver=%s): %v", dbCfg.Driver, err)
 	}
 
-	if err := store.db.AutoMigrate(&ConsignmentRecord{}, &ApplicationRecord{}); err != nil {
+	if err := store.db.AutoMigrate(&ConsignmentRecord{}, &ApplicationRecord{}, &rbac.RoleRecord{}, &rbac.UserRoleRecord{}); err != nil {
 		t.Fatalf("failed to migrate schema: %v", err)
 	}
 
