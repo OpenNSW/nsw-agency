@@ -13,7 +13,6 @@ import (
 
 	"github.com/OpenNSW/nsw-agency/backend/internal/rbac"
 	"github.com/OpenNSW/nsw-agency/backend/internal/template"
-	"github.com/OpenNSW/nsw-agency/backend/internal/user"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 )
 
@@ -115,8 +114,7 @@ func newServiceHarness(t *testing.T, writeFn func(root string)) *serviceHarness 
 	hc := httpclient.NewClientBuilder().Build()
 
 	roleService := rbac.NewRoleService(store.db)
-	profileSvc := user.NewProfileService(roleService)
-	svc := NewService(store, loader, hc, roleService, profileSvc)
+	svc := NewService(store, loader, hc, roleService)
 	t.Cleanup(func() { _ = svc.Close() })
 
 	return &serviceHarness{

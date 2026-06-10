@@ -113,28 +113,6 @@ func (h *Handler) HandleGetApplications(w http.ResponseWriter, r *http.Request) 
 	httputil.WriteJSONResponse(w, http.StatusOK, result)
 }
 
-// HandleMe handles GET /api/v1/me
-func (h *Handler) HandleMe(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		httputil.WriteJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
-		return
-	}
-
-	ctx := r.Context()
-	result, err := h.service.GetMe(ctx)
-	if err != nil {
-		if errors.Is(err, ErrUnauthenticated) {
-			httputil.WriteJSONError(w, http.StatusUnauthorized, "Unauthenticated")
-		} else {
-			slog.ErrorContext(ctx, "failed to get user profile", "error", err)
-			httputil.WriteJSONError(w, http.StatusInternalServerError, "Internal server error")
-		}
-		return
-	}
-
-	httputil.WriteJSONResponse(w, http.StatusOK, result)
-}
-
 // HandleGetConsignments handles GET /api/v1/consignments
 // Returns a paginated list of unique consignments with their latest status, optionally filtered by q
 func (h *Handler) HandleGetConsignments(w http.ResponseWriter, r *http.Request) {

@@ -14,16 +14,12 @@ import (
 	"github.com/OpenNSW/nsw-agency/backend/internal/rbac"
 	"github.com/OpenNSW/nsw-agency/backend/internal/taskconfig"
 	"github.com/OpenNSW/nsw-agency/backend/internal/template"
-	"github.com/OpenNSW/nsw-agency/backend/internal/user"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 	"gorm.io/gorm"
 )
 
 // ErrApplicationNotFound is returned when an application is not found
 var ErrApplicationNotFound = errors.New("application not found")
-
-// ErrUnauthenticated is returned when the request has no valid auth context.
-var ErrUnauthenticated = errors.New("unauthenticated")
 
 // Service handles Agency portal operations
 type Service interface {
@@ -45,9 +41,6 @@ type Service interface {
 	// FeedbackApplication sends a change-request feedback to the trader via the NSW task API
 	// and updates the application status to FEEDBACK_REQUESTED.
 	FeedbackApplication(ctx context.Context, taskID string, content map[string]any) error
-
-	// GetMe returns the authenticated user's metadata, roles, and allowed actions per task config.
-	GetMe(ctx context.Context) (map[string]any, error)
 
 	// Close closes the service and releases resources
 	Close() error
@@ -109,12 +102,11 @@ type service struct {
 	templateProvider template.Provider
 	httpClient       *httpclient.Client
 	roleService      *rbac.RoleService
-	profileSvc       *user.ProfileService
 }
 
 // NewService creates a new Agency service instance with database storage
-func NewService(store *ApplicationStore, templateProvider template.Provider, httpClient *httpclient.Client, roleService *rbac.RoleService, profileSvc *user.ProfileService) Service {
-	if store == nil || templateProvider == nil || httpClient == nil || roleService == nil || profileSvc == nil {
+func NewService(store *ApplicationStore, templateProvider template.Provider, httpClient *httpclient.Client, roleService *rbac.RoleService) Service {
+	if store == nil || templateProvider == nil || httpClient == nil || roleService == nil {
 		panic("NewService: all dependencies must be non-nil")
 	}
 	return &service{
@@ -122,7 +114,6 @@ func NewService(store *ApplicationStore, templateProvider template.Provider, htt
 		templateProvider: templateProvider,
 		httpClient:       httpClient,
 		roleService:      roleService,
-		profileSvc:       profileSvc,
 	}
 }
 
@@ -390,17 +381,6 @@ func (s *service) sendToService(ctx context.Context, serviceURL string, response
 		return fmt.Errorf("service returned status %d", resp.StatusCode)
 	}
 	return nil
-}
-
-func (s *service) GetMe(ctx context.Context) (map[string]any, error) {
-	res, err := s.profileSvc.GetMe(ctx)
-	if err != nil {
-		if errors.Is(err, user.ErrUnauthenticated) {
-			return nil, ErrUnauthenticated
-		}
-		return nil, err
-	}
-	return res, nil
 }
 
 func resolveAccess(roles []rbac.RoleRecord, permissions []taskconfig.Permission) (bool, []string) {
