@@ -176,7 +176,8 @@ export function ConsignmentDetailScreen() {
     )
   }
 
-  const isActionable = application.status === 'PENDING'
+  const canReview = application.allowedActions?.includes('REVIEW') ?? false
+  const isActionable = application.status === 'PENDING' && canReview
 
   const statusColor =
     application.status === 'APPROVED'
@@ -271,7 +272,11 @@ export function ConsignmentDetailScreen() {
               <InfoCircledIcon />
               {t('consignments.detail.section.review')}
             </Text>
-            {agencyFormConfig && isActionable ? (
+            {!canReview ? (
+              <Text size="2" color="gray" className="italic">
+                {t('consignments.detail.empty.noReviewPermission')}
+              </Text>
+            ) : isActionable && agencyFormConfig ? (
               <form
                 onSubmit={(event) => {
                   void handleSubmit(event)

@@ -101,6 +101,7 @@ const en = {
       },
       empty: {
         noSubmissionData: 'No submission data available',
+        noReviewPermission: 'You do not have permission to review this application.',
       },
       feedback: {
         round: 'Round {{round}}',

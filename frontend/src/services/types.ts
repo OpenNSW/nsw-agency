@@ -34,6 +34,9 @@ export interface AgencyApplication {
   dataForm?: FormDefinition
   agencyForm?: FormDefinition
 
+  // RBAC — only present on the detail response
+  allowedActions?: string[]
+
   status: string
   feedbackHistory?: FeedbackEntry[]
   reviewerNotes?: string
