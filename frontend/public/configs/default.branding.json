@@ -1,18 +1,13 @@
 {
   "branding": {
-    "systemName": "NSW",
+    "systemName": "National Single Window",
     "appName": "NSW Agency Officer Portal",
-    "logoUrl": "",
-    "systemLogoUrl": "",
-    "favicon": "",
+    "logoUrl": "/branding/nsw-logo.png",
+    "systemLogoUrl": "/branding/nsw-logo.png",
+    "favicon": "/branding/nsw-logo.png",
     "portalName": "NSW Agency Portal",
     "description": "A unified digital platform enabling seamless regulatory workflows and approvals for government agencies and authorised officers.",
-    "heroImageUrl": "",
-    "partnerLogos": [
-      {
-        "url": "",
-        "alt": ""
-      }
-    ]
+    "heroImageUrl": "/branding/hero-bg.png",
+    "partnerLogos": []
   }
 }

@@ -285,15 +285,15 @@ ensure_branding_file() {
   cat >"$file" <<EOF
 {
   "branding": {
-    "systemName": "NSW",
+    "systemName": "National Single Window",
     "appName": "${app_name}",
-    "logoUrl": "",
-    "systemLogoUrl": "",
-    "favicon": "",
-    "portalName": "",
-    "description": "",
-    "heroImageUrl": "",
-    "partnerLogos": [{"url": "", "alt": ""}]
+    "logoUrl": "/branding/nsw-logo.png",
+    "systemLogoUrl": "/branding/nsw-logo.png",
+    "favicon": "/branding/nsw-logo.png",
+    "portalName": "${app_name}",
+    "description": "A unified digital platform enabling seamless regulatory workflows and approvals for government agencies and authorised officers.",
+    "heroImageUrl": "/branding/hero-bg.png",
+    "partnerLogos": []
   }
 }
 EOF
