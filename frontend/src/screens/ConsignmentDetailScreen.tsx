@@ -272,11 +272,7 @@ export function ConsignmentDetailScreen() {
               <InfoCircledIcon />
               {t('consignments.detail.section.review')}
             </Text>
-            {!canReview ? (
-              <Text size="2" color="gray" className="italic">
-                {t('consignments.detail.empty.noReviewPermission')}
-              </Text>
-            ) : isActionable && agencyFormConfig ? (
+            {isActionable && agencyFormConfig ? (
               <form
                 onSubmit={(event) => {
                   void handleSubmit(event)
@@ -312,6 +308,10 @@ export function ConsignmentDetailScreen() {
                   </Button>
                 </Flex>
               </form>
+            ) : application.status === 'PENDING' && !canReview ? (
+              <Text size="2" color="gray" className="italic">
+                {t('consignments.detail.empty.noReviewPermission')}
+              </Text>
             ) : agencyFormConfig ? (
               <JsonForms
                 schema={agencyFormConfig.schema}
@@ -319,10 +319,6 @@ export function ConsignmentDetailScreen() {
                 data={agencyFormData}
                 renderers={radixRenderers}
                 readonly
-                onChange={({ data, errors }: { data: Record<string, unknown>; errors?: unknown[] }) => {
-                  setAgencyFormData(data)
-                  setFormErrors(errors || [])
-                }}
                 ajv={ajvInstance}
               />
             ) : null}
