@@ -383,10 +383,9 @@ export function ConsignmentDetailScreen() {
               {t('consignments.detail.section.submittedInformation')}
             </Text>
             {(() => {
-              // Downstream task nodes nest the original submission under a
-              // `userform` key, while the first node sends those fields flat at
-              // the top level. The shared view form binds to top-level scopes,
-              // so unwrap `userform` when present to populate it consistently.
+              // The submission may arrive flat at the top level or nested under
+              // a `userform` key. Unwrap `userform` when present so the view
+              // form, which binds to top-level scopes, populates consistently.
               const isObject = (val: unknown): val is Record<string, unknown> =>
                 val !== null && typeof val === 'object' && !Array.isArray(val)
               const rawData = application.data
