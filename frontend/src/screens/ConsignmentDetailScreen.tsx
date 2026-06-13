@@ -383,22 +383,33 @@ export function ConsignmentDetailScreen() {
               {t('consignments.detail.section.submittedInformation')}
             </Text>
             {(() => {
+              // Downstream task nodes nest the original submission under a
+              // `userform` key, while the first node sends those fields flat at
+              // the top level. The shared view form binds to top-level scopes,
+              // so unwrap `userform` when present to populate it consistently.
+              const rawData = application.data as Record<string, unknown> | undefined
+              const nested = rawData?.userform
+              const submittedData =
+                nested && typeof nested === 'object' && !Array.isArray(nested)
+                  ? (nested as Record<string, unknown>)
+                  : rawData
+
               if (application.dataForm) {
                 return (
                   <JsonForms
                     schema={application.dataForm.schema}
                     uischema={application.dataForm.uiSchema}
-                    data={application.data}
+                    data={submittedData}
                     renderers={radixRenderers}
                     readonly={true}
                   />
                 )
               }
 
-              if (application.data && Object.keys(application.data).length > 0) {
+              if (submittedData && Object.keys(submittedData).length > 0) {
                 return (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {Object.entries(application.data).map(([key, value]) => (
+                    {Object.entries(submittedData).map(([key, value]) => (
                       <Box key={key}>
                         <Text size="1" color="gray" as="div" className="capitalize mb-1">
                           {key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ')}
