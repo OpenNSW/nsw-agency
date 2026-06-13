@@ -383,22 +383,31 @@ export function ConsignmentDetailScreen() {
               {t('consignments.detail.section.submittedInformation')}
             </Text>
             {(() => {
+              // The submission may arrive flat at the top level or nested under
+              // a `userform` key. Unwrap `userform` when present so the view
+              // form, which binds to top-level scopes, populates consistently.
+              const isObject = (val: unknown): val is Record<string, unknown> =>
+                val !== null && typeof val === 'object' && !Array.isArray(val)
+              const rawData = application.data
+              const nested = isObject(rawData) ? rawData.userform : undefined
+              const submittedData = isObject(nested) ? nested : isObject(rawData) ? rawData : null
+
               if (application.dataForm) {
                 return (
                   <JsonForms
                     schema={application.dataForm.schema}
                     uischema={application.dataForm.uiSchema}
-                    data={application.data}
+                    data={submittedData}
                     renderers={radixRenderers}
                     readonly={true}
                   />
                 )
               }
 
-              if (application.data && Object.keys(application.data).length > 0) {
+              if (submittedData && Object.keys(submittedData).length > 0) {
                 return (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {Object.entries(application.data).map(([key, value]) => (
+                    {Object.entries(submittedData).map(([key, value]) => (
                       <Box key={key}>
                         <Text size="1" color="gray" as="div" className="capitalize mb-1">
                           {key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ')}
