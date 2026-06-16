@@ -6,11 +6,11 @@ This app uses Asgardeo/Thunder OIDC for sign-in.
 
 Required environment variables:
 
-- `VITE_BRANDING_NAME`: Name of Agency branding configuration (e.g. `npqs`, `fcau`, `ird`, `cda`, `slpa`, or `default`)
+- `VITE_BRANDING_NAME`: Name of Agency branding configuration (e.g. `npqs`, `fcau`, `cda`, `slpa`, or `default`)
 - `VITE_API_BASE_URL`: Agency backend API base URL (for example `http://localhost:8081`)
 - `VITE_IDP_BASE_URL`: IdP base URL (for example `https://localhost:8090`)
 - `VITE_IDP_CLIENT_ID`: NSW Agency-specific IdP application client id
-- `VITE_IDP_EXPECTED_OU_HANDLE`: Required organization/OU handle for access restriction (e.g., `npqs`, `fcau`, `ird`, `cda`, `slpa`)
+- `VITE_IDP_EXPECTED_OU_HANDLE`: Required organization/OU handle for access restriction (e.g., `npqs`, `fcau`, `cda`, `slpa`)
 - `VITE_APP_URL`: public URL of this Agency deployment
 - `VITE_IDP_SCOPES` (optional): comma-separated scopes (defaults to `openid,profile,email,ou`)
 
@@ -88,9 +88,8 @@ Use the repo-root [../start-dev.sh](../start-dev.sh) to start the frontend (and 
 # From the repo root
 ./start-dev.sh npqs frontend     # NPQS frontend on port 5174
 ./start-dev.sh fcau frontend     # FCAU frontend on port 5175
-./start-dev.sh ird  frontend     # IRD  frontend on port 5176
-./start-dev.sh cda  frontend     # CDA  frontend on port 5177
-./start-dev.sh slpa frontend     # SLPA frontend on port 5178
+./start-dev.sh cda  frontend     # CDA  frontend on port 5176
+./start-dev.sh slpa frontend     # SLPA frontend on port 5177
 ./start-dev.sh npqs              # also start the matching backend
 ```
 

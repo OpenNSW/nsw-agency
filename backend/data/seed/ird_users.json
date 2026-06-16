@@ -1,9 +1,0 @@
-{
-  "users": [
-    {
-      "name": "ird_user",
-      "email": "ird_user@government.dev",
-      "roles": ["lab_officer"]
-    }
-  ]
-}

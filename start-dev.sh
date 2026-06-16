@@ -4,7 +4,7 @@
 # Usage:
 #   ./start-dev.sh [--clean-run] [--env-file=PATH] <agency> [target]
 #
-#   <agency>  One of: npqs, fcau, ird, cda, slpa, all
+#   <agency>  One of: npqs, fcau, cda, slpa, all
 #             'all' fans out and starts every agency in parallel.
 #   [target]  One of: all (default), backend, frontend
 #
@@ -50,9 +50,8 @@ IDP_BASE_URL="https://localhost:8090" # For frontend Vite proxying to a local Id
 # (Scalar vars rather than `declare -A` so this works on stock macOS bash 3.2.)
 CONFIG_npqs="8081|5174|OGA_PORTAL_APP_NPQS|NPQS_TO_NSW|National Plant Quarantine Service (NPQS)|npqs"
 CONFIG_fcau="8082|5175|OGA_PORTAL_APP_FCAU|FCAU_TO_NSW|Food Control Administration Unit (FCAU)|fcau"
-CONFIG_ird="8083|5176|OGA_PORTAL_APP_IRD|IRD_TO_NSW|Inland Revenue Department (IRD)|ird"
-CONFIG_cda="8084|5177|OGA_PORTAL_APP_CDA|CDA_TO_NSW|Coconut Development Authority (CDA)|cda"
-CONFIG_slpa="8085|5178|OGA_PORTAL_APP_SLPA|SLPA_TO_NSW|Sri Lanka Ports Authority (SLPA)|slpa"
+CONFIG_cda="8083|5176|OGA_PORTAL_APP_CDA|CDA_TO_NSW|Coconut Development Authority (CDA)|cda"
+CONFIG_slpa="8084|5177|OGA_PORTAL_APP_SLPA|SLPA_TO_NSW|Sri Lanka Ports Authority (SLPA)|slpa"
 
 # Agencies (every CONFIG_* ), alphabetised for predictable launch order in 'all' mode
 #  Derived from the config above so adding an agency only requires editing the CONFIG_* block.
