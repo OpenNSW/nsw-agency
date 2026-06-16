@@ -1,0 +1,9 @@
+{
+  "users": [
+    {
+      "name": "slpa_user",
+      "email": "slpa_user@government.dev",
+      "roles": ["lab_officer"]
+    }
+  ]
+}

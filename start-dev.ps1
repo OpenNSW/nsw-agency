@@ -47,6 +47,7 @@ $AGENCY_CONFIGS = [ordered]@{
     fcau = @{ BE_PORT = 8082; FE_PORT = 5175; IDP_CLIENT_ID = 'OGA_PORTAL_APP_FCAU'; NSW_CLIENT_ID = 'FCAU_TO_NSW'; APP_NAME = 'Food Control Administration Unit (FCAU)';  OU_HANDLE = 'fcau' }
     ird  = @{ BE_PORT = 8083; FE_PORT = 5176; IDP_CLIENT_ID = 'OGA_PORTAL_APP_IRD';  NSW_CLIENT_ID = 'IRD_TO_NSW';  APP_NAME = 'Inland Revenue Department (IRD)';          OU_HANDLE = 'ird'  }
     cda  = @{ BE_PORT = 8084; FE_PORT = 5177; IDP_CLIENT_ID = 'OGA_PORTAL_APP_CDA';  NSW_CLIENT_ID = 'CDA_TO_NSW';  APP_NAME = 'Coconut Development Authority (CDA)';       OU_HANDLE = 'cda'  }
+    slpa = @{ BE_PORT = 8085; FE_PORT = 5178; IDP_CLIENT_ID = 'OGA_PORTAL_APP_SLPA'; NSW_CLIENT_ID = 'SLPA_TO_NSW'; APP_NAME = 'Sri Lanka Ports Authority (SLPA)';          OU_HANDLE = 'slpa' }
 }
 
 $ALL_AGENCIES = $AGENCY_CONFIGS.Keys | Sort-Object

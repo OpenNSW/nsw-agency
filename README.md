@@ -58,12 +58,13 @@ Every process runs in its own process group (`set -m`), so `Ctrl-C` cleanly stop
 | FCAU       | 8082         | `backend/fcau_applications.db` | `FCAU_TO_NSW`  | 5175          | `frontend/public/configs/fcau.branding.json` | `AGENCY_PORTAL_APP_FCAU` |
 | IRD        | 8083         | `backend/ird_applications.db`  | `IRD_TO_NSW`   | 5176          | `frontend/public/configs/ird.branding.json`  | `AGENCY_PORTAL_APP_IRD`  |
 | CDA        | 8084         | `backend/cda_applications.db`  | `CDA_TO_NSW`   | 5177          | `frontend/public/configs/cda.branding.json`  | `AGENCY_PORTAL_APP_CDA`  |
+| SLPA       | 8085         | `backend/slpa_applications.db` | `SLPA_TO_NSW`  | 5178          | `frontend/public/configs/slpa.branding.json` | `OGA_PORTAL_APP_SLPA`    |
 
 The branding-config paths above are gitignored — copy them from [default.branding.json](frontend/public/configs/default.branding.json) (see below).
 
 The script sets `PORT`, `DB_PATH`, `NSW_CLIENT_ID` for the backend and `VITE_PORT`, `VITE_BRANDING_NAME`, `VITE_API_BASE_URL`, `VITE_IDP_CLIENT_ID`, `VITE_APP_URL` for the frontend. Any of these can be overridden by exporting them before invoking the script (other backend/frontend env vars — OAuth secrets, IdP base URL, etc. — still come from `backend/.env` and `frontend/.env`).
 
-Only [default.branding.json](frontend/public/configs/default.branding.json) is tracked in git — per-NSW Agency branding files (`npqs.branding.json`, `fcau.branding.json`, `ird.branding.json`, `cda.branding.json`) are gitignored because branding is deployment-specific. To run a Agency locally, copy the default and edit it:
+Only [default.branding.json](frontend/public/configs/default.branding.json) is tracked in git — per-NSW Agency branding files (`npqs.branding.json`, `fcau.branding.json`, `ird.branding.json`, `cda.branding.json`, `slpa.branding.json`) are gitignored because branding is deployment-specific. To run a Agency locally, copy the default and edit it:
 
 ```bash
 cd frontend/public/configs
