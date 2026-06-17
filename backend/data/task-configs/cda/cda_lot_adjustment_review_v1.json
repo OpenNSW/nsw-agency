@@ -1,0 +1,11 @@
+{
+  "taskCode": "cda_lot_adjustment_review_v1",
+  "meta": {
+    "title": "CDA Officer Lot Adjustment Review",
+    "description": "Officer reviews the trader's request to remove specific lots and uploads the revised certificate if approved."
+  },
+  "forms": {
+    "view": "cda-lot-adjustment-trader--user-form",
+    "review": "cda-lot-adjustment-officer--review-form"
+  }
+}
