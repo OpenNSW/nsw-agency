@@ -8,11 +8,5 @@
   "forms": {
     "view": "cda-apply-coconut-cert--user-form",
     "review": "cda-apply-coconut-cert--officer-verification-form"
-  },
-  "permissions": [
-    {
-      "role": "cda_officer",
-      "actions": ["view", "review"]
-    }
-  ]
+  }
 }
