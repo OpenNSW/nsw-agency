@@ -69,6 +69,48 @@ export function ConsignmentDetailScreen() {
         else?: ExtendedJsonSchema
       }
 
+      const findTitle = (schema: ExtendedJsonSchema | undefined, propertyKey: string): string | undefined => {
+        if (!schema) return undefined
+        if (schema.properties?.[propertyKey]) {
+          const prop = schema.properties[propertyKey]
+          if (
+            typeof prop === 'object' &&
+            prop !== null &&
+            'title' in prop &&
+            typeof (prop as Record<string, unknown>).title === 'string'
+          ) {
+            return (prop as Record<string, unknown>).title as string
+          }
+        }
+        if (schema.allOf && Array.isArray(schema.allOf)) {
+          for (const sub of schema.allOf) {
+            const title = findTitle(sub, propertyKey)
+            if (title) return title
+          }
+        }
+        if (schema.anyOf && Array.isArray(schema.anyOf)) {
+          for (const sub of schema.anyOf) {
+            const title = findTitle(sub, propertyKey)
+            if (title) return title
+          }
+        }
+        if (schema.oneOf && Array.isArray(schema.oneOf)) {
+          for (const sub of schema.oneOf) {
+            const title = findTitle(sub, propertyKey)
+            if (title) return title
+          }
+        }
+        if (schema.then && typeof schema.then === 'object') {
+          const title = findTitle(schema.then, propertyKey)
+          if (title) return title
+        }
+        if (schema.else && typeof schema.else === 'object') {
+          const title = findTitle(schema.else, propertyKey)
+          if (title) return title
+        }
+        return undefined
+      }
+
       const errorMessages = (formErrors as AjvError[])
         .map((err) => {
           let propertyKey = ''
@@ -84,49 +126,7 @@ export function ConsignmentDetailScreen() {
 
           let friendlyName = ''
           if (propertyKey) {
-            const findTitle = (schema: ExtendedJsonSchema | undefined): string | undefined => {
-              if (!schema) return undefined
-              if (schema.properties?.[propertyKey]) {
-                const prop = schema.properties[propertyKey]
-                if (
-                  typeof prop === 'object' &&
-                  prop !== null &&
-                  'title' in prop &&
-                  typeof (prop as Record<string, unknown>).title === 'string'
-                ) {
-                  return (prop as Record<string, unknown>).title as string
-                }
-              }
-              if (schema.allOf && Array.isArray(schema.allOf)) {
-                for (const sub of schema.allOf) {
-                  const title = findTitle(sub)
-                  if (title) return title
-                }
-              }
-              if (schema.anyOf && Array.isArray(schema.anyOf)) {
-                for (const sub of schema.anyOf) {
-                  const title = findTitle(sub)
-                  if (title) return title
-                }
-              }
-              if (schema.oneOf && Array.isArray(schema.oneOf)) {
-                for (const sub of schema.oneOf) {
-                  const title = findTitle(sub)
-                  if (title) return title
-                }
-              }
-              if (schema.then && typeof schema.then === 'object') {
-                const title = findTitle(schema.then)
-                if (title) return title
-              }
-              if (schema.else && typeof schema.else === 'object') {
-                const title = findTitle(schema.else)
-                if (title) return title
-              }
-              return undefined
-            }
-
-            const title = findTitle(agencyFormConfig?.schema)
+            const title = findTitle(agencyFormConfig?.schema, propertyKey)
             friendlyName =
               title ||
               propertyKey
