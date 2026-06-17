@@ -52,7 +52,106 @@ export function ConsignmentDetailScreen() {
       return
     }
     if (formErrors.length > 0) {
-      setError(t('errors.validationErrors'))
+      interface AjvError {
+        keyword: string
+        instancePath: string
+        schemaPath: string
+        params: Record<string, unknown>
+        message?: string
+      }
+
+      interface ExtendedJsonSchema {
+        properties?: Record<string, unknown>
+        allOf?: ExtendedJsonSchema[]
+        anyOf?: ExtendedJsonSchema[]
+        oneOf?: ExtendedJsonSchema[]
+        then?: ExtendedJsonSchema
+        else?: ExtendedJsonSchema
+      }
+
+      const errorMessages = (formErrors as AjvError[])
+        .map((err) => {
+          let propertyKey = ''
+          if (err.keyword === 'required' && typeof err.params?.missingProperty === 'string') {
+            propertyKey = err.params.missingProperty
+          } else if (err.instancePath) {
+            const segments = err.instancePath.split('/')
+            const lastSegment = segments[segments.length - 1]
+            if (lastSegment) {
+              propertyKey = lastSegment
+            }
+          }
+
+          let friendlyName = ''
+          if (propertyKey) {
+            const findTitle = (schema: ExtendedJsonSchema | undefined): string | undefined => {
+              if (!schema) return undefined
+              if (schema.properties?.[propertyKey]) {
+                const prop = schema.properties[propertyKey]
+                if (
+                  typeof prop === 'object' &&
+                  prop !== null &&
+                  'title' in prop &&
+                  typeof (prop as Record<string, unknown>).title === 'string'
+                ) {
+                  return (prop as Record<string, unknown>).title as string
+                }
+              }
+              if (schema.allOf && Array.isArray(schema.allOf)) {
+                for (const sub of schema.allOf) {
+                  const title = findTitle(sub)
+                  if (title) return title
+                }
+              }
+              if (schema.anyOf && Array.isArray(schema.anyOf)) {
+                for (const sub of schema.anyOf) {
+                  const title = findTitle(sub)
+                  if (title) return title
+                }
+              }
+              if (schema.oneOf && Array.isArray(schema.oneOf)) {
+                for (const sub of schema.oneOf) {
+                  const title = findTitle(sub)
+                  if (title) return title
+                }
+              }
+              if (schema.then && typeof schema.then === 'object') {
+                const title = findTitle(schema.then)
+                if (title) return title
+              }
+              if (schema.else && typeof schema.else === 'object') {
+                const title = findTitle(schema.else)
+                if (title) return title
+              }
+              return undefined
+            }
+
+            const title = findTitle(agencyFormConfig?.schema)
+            friendlyName =
+              title ||
+              propertyKey
+                .replace(/([A-Z])/g, ' $1')
+                .replace(/_/g, ' ')
+                .trim()
+                .replace(/^\w/, (c) => c.toUpperCase())
+          }
+
+          if (err.keyword === 'required') {
+            return friendlyName
+              ? t('errors.fieldRequired', { field: friendlyName })
+              : (err.message || 'Field is required.')
+          }
+
+          if (friendlyName) {
+            return `"${friendlyName}": ${err.message || 'Invalid value'}`
+          }
+
+          return err.message || 'Validation error'
+        })
+        .filter(Boolean)
+
+      const uniqueErrorMessages = Array.from(new Set(errorMessages))
+      setError(`${t('errors.validationErrors')}\n${uniqueErrorMessages.join('\n')}`)
       return
     }
     setIsSubmitting(true)
@@ -228,7 +327,7 @@ export function ConsignmentDetailScreen() {
           <Callout.Icon>
             <ExclamationTriangleIcon />
           </Callout.Icon>
-          <Callout.Text>{error}</Callout.Text>
+          <Callout.Text className="whitespace-pre-wrap">{error}</Callout.Text>
         </Callout.Root>
       )}
 

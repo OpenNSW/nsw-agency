@@ -123,6 +123,7 @@ const en = {
     loadFailed: 'Failed to load application details',
     dataUnavailable: 'Application data not available',
     validationErrors: 'Please fix validation errors before submitting.',
+    fieldRequired: '"{{field}}" is required.',
     submitFailed: 'Failed to submit review',
   },
 } as const
