@@ -303,7 +303,13 @@ func buildCallbackURL(serviceURL, taskID string) string {
 	if strings.Contains(serviceURL, "{id}") {
 		return strings.ReplaceAll(serviceURL, "{id}", url.PathEscape(taskID))
 	}
-	return fmt.Sprintf("%s/%s", strings.TrimSuffix(serviceURL, "/"), url.PathEscape(taskID))
+	u, err := url.Parse(serviceURL)
+	if err != nil {
+		return fmt.Sprintf("%s/%s", strings.TrimSuffix(serviceURL, "/"), url.PathEscape(taskID))
+	}
+	u.Path = strings.TrimSuffix(u.Path, "/") + "/" + taskID
+	u.RawPath = ""
+	return u.String()
 }
 
 // ReviewApplication approves or rejects an application
