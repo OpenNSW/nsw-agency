@@ -139,7 +139,7 @@ export function ConsignmentDetailScreen() {
           if (err.keyword === 'required') {
             return friendlyName
               ? t('errors.fieldRequired', { field: friendlyName })
-              : (err.message || 'Field is required.')
+              : err.message || 'Field is required.'
           }
 
           if (friendlyName) {
