@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Badge, Text, Spinner, IconButton, Button, Flex } from '@radix-ui/themes'
 import { ChevronLeftIcon, ChevronRightIcon, ArrowLeftIcon, ArchiveIcon } from '@radix-ui/react-icons'
-import { type AgencyApplication } from '../services/types'
-import { fetchApplications } from '../services/applications'
-import i18n from '../i18n'
+import { type AgencyApplication } from '../../services/types'
+import { fetchApplications } from '../../services/applications'
+import i18n from '../../i18n'
 
 const PAGE_SIZE = 20
 
