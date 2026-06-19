@@ -1,7 +1,7 @@
 {
   "users": [
     {
-      "name": "cda_user",
+      "name": "CDA Officer",
       "email": "cda_officer@government.dev",
       "roles": ["lab_officer"]
     }

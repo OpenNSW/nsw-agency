@@ -1,8 +1,8 @@
 {
   "users": [
     {
-      "name": "npqs_user",
-      "email": "npqs_user@government.dev",
+      "name": "NPQS Officer",
+      "email": "npqs_officer@government.dev",
       "roles": ["lab_officer"]
     }
   ]

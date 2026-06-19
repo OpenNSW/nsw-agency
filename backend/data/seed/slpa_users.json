@@ -1,8 +1,8 @@
 {
   "users": [
     {
-      "name": "slpa_user",
-      "email": "slpa_user@government.dev",
+      "name": "SLPA Officer",
+      "email": "slpa_officer@government.dev",
       "roles": ["lab_officer"]
     }
   ]
