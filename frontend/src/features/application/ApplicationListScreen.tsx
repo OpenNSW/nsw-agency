@@ -3,13 +3,13 @@ import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Badge, Text, Spinner, IconButton, Button, Flex } from '@radix-ui/themes'
 import { ChevronLeftIcon, ChevronRightIcon, ArrowLeftIcon, ArchiveIcon } from '@radix-ui/react-icons'
-import { type AgencyApplication } from '@/services/types'
-import { fetchApplications } from '@/services/applications'
+import { type AgencyApplication } from './types'
+import { fetchApplications } from './service'
 import i18n from '@/i18n'
 
 const PAGE_SIZE = 20
 
-export function ConsignmentTasksScreen() {
+export function ApplicationListScreen() {
   const { t } = useTranslation()
   const { consignmentId } = useParams<{ consignmentId: string }>()
   const navigate = useNavigate()

@@ -9,22 +9,14 @@ import {
   InfoCircledIcon,
   ChatBubbleIcon,
 } from '@radix-ui/react-icons'
-import { type AgencyApplication } from '../services/types'
+import { type AgencyApplication } from './types'
 import { JsonForms } from '@jsonforms/react'
 import { radixRenderers } from '@opennsw/jsonforms-renderers'
 import { createAjv, type JsonSchema, type UISchemaElement } from '@jsonforms/core'
-import { fetchApplicationDetail, submitReview } from '../services/applications'
-interface SchemaOption {
-  const: unknown
-  title?: string
-}
+import { fetchApplicationDetail, submitReview } from './service'
+import { type SchemaProperty } from './types'
 
-interface SchemaProperty {
-  oneOf?: SchemaOption[]
-  enum?: string[]
-}
-
-export function ConsignmentDetailScreen() {
+export function ApplicationDetailScreen() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
 

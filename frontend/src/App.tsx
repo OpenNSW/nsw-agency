@@ -2,15 +2,15 @@ import type { ReactNode } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { ConsignmentListScreen } from './features/consignment/ConsignmentListScreen'
-import { ConsignmentTasksScreen } from './features/consignment/ConsignmentTasksScreen'
-import { ConsignmentDetailScreen } from './screens/ConsignmentDetailScreen'
+import { ApplicationListScreen } from './features/application/ApplicationListScreen'
+import { ApplicationDetailScreen } from './features/application/ApplicationDetailScreen'
 import { appConfig } from './config.ts'
 import { useEffect } from 'react'
 import { SignedOut } from './components/Auth'
 import { LoginScreen } from './screens/LoginScreen'
 import { useAuthContext } from './hooks/useAuthContext'
 import { UnauthorizedScreen } from './screens/UnauthorizedScreen'
-import { uploadFile, getDownloadUrl } from './services/storage'
+import { uploadFile, getDownloadUrl } from './features/application/service'
 import { UploadProvider } from '@opennsw/jsonforms-renderers'
 
 function UploadWrapper({ children }: { children: ReactNode }) {
@@ -61,8 +61,8 @@ function App() {
       <Route element={<ProtectedLayout />}>
         <Route path="/" element={<Navigate to="/consignments" replace />} />
         <Route path="/consignments" element={<ConsignmentListScreen />} />
-        <Route path="/consignments/:consignmentId/tasks" element={<ConsignmentTasksScreen />} />
-        <Route path="/consignments/:consignmentId" element={<ConsignmentDetailScreen />} />
+        <Route path="/consignments/:consignmentId/tasks" element={<ApplicationListScreen />} />
+        <Route path="/consignments/:consignmentId" element={<ApplicationDetailScreen />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />
