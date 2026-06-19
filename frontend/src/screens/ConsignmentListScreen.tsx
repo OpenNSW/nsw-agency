@@ -67,6 +67,17 @@ export function ConsignmentListScreen() {
     })
   }
 
+  if (loading && page === 1) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Spinner size="3" />
+        <Text size="3" color="gray" className="ml-3">
+          {t('consignments.list.loading')}
+        </Text>
+      </div>
+    )
+  }
+
   return (
     <div className="animate-fade-in max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
