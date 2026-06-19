@@ -25,7 +25,7 @@ func main() {
 	case "drop":
 		runUserDrop()
 	default:
-		fmt.Fprintf(os.Stderr, "seed: unknown command %q\n\n", os.Args[2])
+		fmt.Fprintf(os.Stderr, "nswac: unknown command %q\n\n", os.Args[2])
 		usage()
 		os.Exit(1)
 	}
@@ -33,23 +33,23 @@ func main() {
 
 // ---------- user add ----------
 
-type seedUser struct {
+type cliUser struct {
 	SSOID string   `json:"ssoid"`
 	Name  string   `json:"name"`
 	Email string   `json:"email"`
 	Roles []string `json:"roles"`
 }
 
-type seedFile struct {
-	Users []seedUser `json:"users"`
+type cliFile struct {
+	Users []cliUser `json:"users"`
 }
 
-// runUserAdd handles both file-based and interactive user seeding.
+// runUserAdd handles both file-based and interactive user import.
 // If --file is provided, it reads from the JSON file; otherwise it prompts interactively.
 func runUserAdd(args []string) {
 	fs := flag.NewFlagSet("user add", flag.ExitOnError)
 	fs.Usage = usage
-	filePath := fs.String("file", "", "path to users JSON seed file")
+	filePath := fs.String("file", "", "path to users JSON import file")
 	if err := fs.Parse(args); err != nil {
 		fatalf("%v", err)
 	}
@@ -67,12 +67,12 @@ func runUserAddFromFile(filePath string) {
 		fatalf("read file: %v", err)
 	}
 
-	var sf seedFile
+	var sf cliFile
 	if err := json.Unmarshal(data, &sf); err != nil {
 		fatalf("parse JSON: %v", err)
 	}
 	if len(sf.Users) == 0 {
-		fmt.Println("seed: no users found in file, nothing to do")
+		fmt.Println("nswac: no users found in file, nothing to do")
 		return
 	}
 
@@ -81,7 +81,7 @@ func runUserAddFromFile(filePath string) {
 	if err != nil {
 		fatalf("%v", err)
 	}
-	fmt.Printf("seed: successfully seeded %d user(s)\n", inserted)
+	fmt.Printf("nswac: successfully imported %d user(s)\n", inserted)
 }
 
 func runUserAddInteractive() {
@@ -113,9 +113,9 @@ func runUserAddInteractive() {
 		fatalf("%v", err)
 	}
 	if inserted == 0 {
-		fmt.Printf("seed: user %q already exists — skipped\n", email)
+		fmt.Printf("nswac: user %q already exists — roles updated\n", email)
 	} else {
-		fmt.Printf("seed: user %q seeded successfully\n", email)
+		fmt.Printf("nswac: user %q created successfully\n", email)
 	}
 }
 
@@ -133,7 +133,7 @@ func runUserDrop() {
 	if err := svc.DropUser(email); err != nil {
 		fatalf("%v", err)
 	}
-	fmt.Printf("seed: user %q dropped successfully\n", email)
+	fmt.Printf("nswac: user %q dropped successfully\n", email)
 }
 
 // ---------- helpers ----------
@@ -158,7 +158,7 @@ func openDB(cfg database.Config) (*gorm.DB, error) {
 	return connector.Open()
 }
 
-func toBulkInputs(users []seedUser) []user.BulkInput {
+func toBulkInputs(users []cliUser) []user.BulkInput {
 	inputs := make([]user.BulkInput, len(users))
 	for i, u := range users {
 		inputs[i] = user.BulkInput{
@@ -178,15 +178,15 @@ func prompt(sc *bufio.Scanner, label string) string {
 }
 
 func usage() {
-	fmt.Fprint(os.Stderr, `Usage: seed user <command> [flags]
+	fmt.Fprint(os.Stderr, `Usage: nswac user <command> [flags]
 
 Commands:
   user add              Interactively add a single user and assign roles
-  user add --file PATH  Seed users and roles from a JSON file
+  user add --file PATH  Import users and roles from a JSON file
   user drop             Interactively remove a user by email (also removes their role assignments)
 
 Flags for user add:
-  --file <path>   Path to users JSON seed file (required for file-based seeding)
+  --file <path>   Path to users JSON file (required for file-based import)
 
 JSON file format:
   {
@@ -212,6 +212,6 @@ Environment variables:
 }
 
 func fatalf(format string, args ...any) {
-	fmt.Fprintf(os.Stderr, "seed: "+format+"\n", args...)
+	fmt.Fprintf(os.Stderr, "nswac: "+format+"\n", args...)
 	os.Exit(1)
 }

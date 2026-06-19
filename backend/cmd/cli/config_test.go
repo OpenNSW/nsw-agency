@@ -2,8 +2,8 @@ package main
 
 import "testing"
 
-func TestSeedLoadConfig_Defaults(t *testing.T) {
-	t.Setenv("DB_DRIVER", "sqlite")
+func TestCLILoadConfig_Defaults(t *testing.T) {
+	t.Setenv("DB_DRIVER", "")
 
 	cfg, err := LoadConfig()
 	if err != nil {
@@ -17,7 +17,7 @@ func TestSeedLoadConfig_Defaults(t *testing.T) {
 	}
 }
 
-func TestSeedLoadConfig_SQLite(t *testing.T) {
+func TestCLILoadConfig_SQLite(t *testing.T) {
 	t.Setenv("DB_DRIVER", "sqlite")
 	t.Setenv("DB_PATH", "./custom.db")
 
@@ -33,7 +33,7 @@ func TestSeedLoadConfig_SQLite(t *testing.T) {
 	}
 }
 
-func TestSeedLoadConfig_Postgres(t *testing.T) {
+func TestCLILoadConfig_Postgres(t *testing.T) {
 	t.Setenv("DB_DRIVER", "postgres")
 	t.Setenv("DB_HOST", "db.example.com")
 	t.Setenv("DB_PORT", "5433")
@@ -69,7 +69,7 @@ func TestSeedLoadConfig_Postgres(t *testing.T) {
 	}
 }
 
-func TestSeedLoadConfig_Postgres_RequiresPassword(t *testing.T) {
+func TestCLILoadConfig_Postgres_RequiresPassword(t *testing.T) {
 	t.Setenv("DB_DRIVER", "postgres")
 	t.Setenv("DB_PASSWORD", "")
 
@@ -79,7 +79,7 @@ func TestSeedLoadConfig_Postgres_RequiresPassword(t *testing.T) {
 	}
 }
 
-func TestSeedLoadConfig_UnsupportedDriver(t *testing.T) {
+func TestCLILoadConfig_UnsupportedDriver(t *testing.T) {
 	t.Setenv("DB_DRIVER", "mysql")
 
 	_, err := LoadConfig()

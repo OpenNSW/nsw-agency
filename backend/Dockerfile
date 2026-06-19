@@ -11,7 +11,7 @@ COPY . .
 # use the runtime pclntab rather than the symbol table.
 RUN go build -ldflags="-s -w" -o /out/agency ./cmd/server \
   && go build -ldflags="-s -w" -o /out/migrate ./cmd/migrate \
-  && go build -ldflags="-s -w" -o /out/seed ./cmd/seed
+  && go build -ldflags="-s -w" -o /out/nswac ./cmd/cli
 
 ARG NSW_SRILANKA_REF=main
 RUN git clone --depth 1 --branch ${NSW_SRILANKA_REF} https://github.com/OpenNSW/nsw-srilanka /out/nsw-srilanka
@@ -32,7 +32,7 @@ WORKDIR /app
 
 COPY --from=builder --chown=appuser:appuser /out/agency /app/agency
 COPY --from=builder --chown=appuser:appuser /out/migrate /app/migrate
-COPY --from=builder --chown=appuser:appuser /out/seed /app/seed
+COPY --from=builder /out/nswac /usr/local/bin/nswac
 COPY --from=builder --chown=appuser:appuser /app/migrations /app/migrations
 COPY --from=builder --chown=appuser:appuser /app/data/task-configs /app/data/task-configs
 COPY --from=builder --chown=appuser:appuser /out/nsw-srilanka/configs /app/nsw-srilanka-configs

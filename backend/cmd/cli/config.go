@@ -7,7 +7,7 @@ import (
 	"github.com/OpenNSW/nsw-agency/backend/internal/database"
 )
 
-// Config holds all configuration for the seed command.
+// Config holds all configuration for the CLI command.
 type Config struct {
 	DB database.Config
 }
