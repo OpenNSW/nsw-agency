@@ -21,25 +21,24 @@ export function ApplicationListScreen() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   useEffect(() => {
+    const controller = new AbortController()
     async function fetchData() {
       if (!consignmentId) return
       try {
         setLoading(true)
-        const result = await fetchApplications({
-          consignmentId,
-          page,
-          pageSize: PAGE_SIZE,
-        })
+        const result = await fetchApplications({ consignmentId, page, pageSize: PAGE_SIZE }, controller.signal)
         setApplications(result.items)
         setTotal(result.total)
       } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return
         console.error('Failed to fetch tasks:', error)
       } finally {
-        setLoading(false)
+        if (!controller.signal.aborted) setLoading(false)
       }
     }
 
     void fetchData()
+    return () => controller.abort()
   }, [consignmentId, page])
 
   const formatDateForTable = (dateString?: string) => {

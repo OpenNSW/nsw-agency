@@ -72,6 +72,7 @@ export function ApplicationDetailScreen() {
   }
 
   useEffect(() => {
+    const controller = new AbortController()
     async function fetchData() {
       if (!taskId) {
         setError(t('errors.noTaskId'))
@@ -79,7 +80,7 @@ export function ApplicationDetailScreen() {
         return
       }
       try {
-        const data = await fetchApplicationDetail(taskId)
+        const data = await fetchApplicationDetail(taskId, controller.signal)
         setApplication(data)
         if (data.agencyForm) {
           const schema = structuredClone(data.agencyForm.schema)
@@ -116,13 +117,15 @@ export function ApplicationDetailScreen() {
         setAgencyFormData(data.agencyActionData || {})
         setShowErrors(false)
       } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return
         setError(t('errors.loadFailed'))
         console.error(err)
       } finally {
-        setLoading(false)
+        if (!controller.signal.aborted) setLoading(false)
       }
     }
     void fetchData()
+    return () => controller.abort()
   }, [taskId, t])
 
   if (loading) {

@@ -84,8 +84,17 @@ export async function uploadFile(file: File): Promise<UploadResponse> {
   })
   const metadata = res.data as UploadMetadataResponse
 
+  let uploadUrl = metadata.upload_url
+  if (uploadUrl.startsWith('/')) {
+    try {
+      uploadUrl = new URL(uploadUrl, API_BASE_URL).href
+    } catch {
+      uploadUrl = new URL(uploadUrl, window.location.origin).href
+    }
+  }
+
   // Upload file bytes directly to the storage destination (presigned URL — no auth header needed)
-  const uploadResponse = await fetch(metadata.upload_url, {
+  const uploadResponse = await fetch(uploadUrl, {
     method: 'PUT',
     headers: {
       'Content-Type': file.type || 'application/octet-stream',
@@ -110,10 +119,14 @@ export async function getDownloadUrl(key: string): Promise<{ url: string; expire
   })
   const response = res.data as DownloadMetadataResponse
 
-  // Normalize the URL if it's a relative path (common in local dev)
-  const url = response.download_url.startsWith('/')
-    ? new URL(API_BASE_URL).origin + response.download_url
-    : response.download_url
+  let url = response.download_url
+  if (response.download_url.startsWith('/')) {
+    try {
+      url = new URL(response.download_url, API_BASE_URL).href
+    } catch {
+      url = new URL(response.download_url, window.location.origin).href
+    }
+  }
 
   return { url, expiresAt: response.expires_at }
 }
