@@ -5,8 +5,8 @@ import { Badge, Text, TextField, Spinner, IconButton } from '@radix-ui/themes'
 import { MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, ArchiveIcon } from '@radix-ui/react-icons'
 import { type ConsignmentSummary } from './types'
 import { fetchConsignments } from './service'
-import i18n from '../../i18n'
-import { useDebounce } from '../../hooks/useDebounce'
+import i18n from '@/i18n'
+import { useDebounce } from '@/hooks/useDebounce'
 
 const PAGE_SIZE = 20
 
