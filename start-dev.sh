@@ -45,13 +45,16 @@ set -m
 
 IDP_BASE_URL="https://localhost:8090" # For frontend Vite proxying to a local IdP instance; not used by backend.
 
-# Single source of truth for per-agency config: "BE_PORT|FE_PORT|IDP_CLIENT_ID|NSW_CLIENT_ID|APP_NAME|OU_HANDLE".
+# Single source of truth for per-agency config:
+#   "BE_PORT|FE_PORT|IDP_CLIENT_ID|NSW_CLIENT_ID|APP_NAME|OU_HANDLE|NSW_INBOUND_CLIENT_ID".
+# NSW_CLIENT_ID is the outbound Agency->NSW m2m client; NSW_INBOUND_CLIENT_ID is
+# the inbound NSW->Agency m2m client this agency accepts on /api/v1/inject.
 # Adding an agency means one line here — nothing else.
 # (Scalar vars rather than `declare -A` so this works on stock macOS bash 3.2.)
-CONFIG_npqs="8081|5174|OGA_PORTAL_APP_NPQS|NPQS_TO_NSW|National Plant Quarantine Service (NPQS)|npqs"
-CONFIG_fcau="8082|5175|OGA_PORTAL_APP_FCAU|FCAU_TO_NSW|Food Control Administration Unit (FCAU)|fcau"
-CONFIG_cda="8083|5176|OGA_PORTAL_APP_CDA|CDA_TO_NSW|Coconut Development Authority (CDA)|cda"
-CONFIG_slpa="8084|5177|OGA_PORTAL_APP_SLPA|SLPA_TO_NSW|Sri Lanka Ports Authority (SLPA)|slpa"
+CONFIG_npqs="8081|5174|OGA_PORTAL_APP_NPQS|NPQS_TO_NSW|National Plant Quarantine Service (NPQS)|npqs|NSW_TO_NPQS"
+CONFIG_fcau="8082|5175|OGA_PORTAL_APP_FCAU|FCAU_TO_NSW|Food Control Administration Unit (FCAU)|fcau|NSW_TO_FCAU"
+CONFIG_cda="8083|5176|OGA_PORTAL_APP_CDA|CDA_TO_NSW|Coconut Development Authority (CDA)|cda|NSW_TO_CDA"
+CONFIG_slpa="8084|5177|OGA_PORTAL_APP_SLPA|SLPA_TO_NSW|Sri Lanka Ports Authority (SLPA)|slpa|NSW_TO_SLPA"
 
 # Agencies (every CONFIG_* ), alphabetised for predictable launch order in 'all' mode
 #  Derived from the config above so adding an agency only requires editing the CONFIG_* block.
@@ -157,7 +160,8 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# Sets BE_PORT, FE_PORT, IDP_CLIENT_ID, NSW_CLIENT_ID for the given agency.
+# Sets BE_PORT, FE_PORT, IDP_CLIENT_ID, NSW_CLIENT_ID, OU_HANDLE,
+# NSW_INBOUND_CLIENT_ID for the given agency.
 resolve_agency() {
   local varname="CONFIG_$1"
   local config="${!varname:-}"
@@ -165,7 +169,7 @@ resolve_agency() {
     echo "Unknown agency '$1'. Expected: ${ALL_AGENCIES[*]}, all." >&2
     return 1
   fi
-  IFS='|' read -r BE_PORT FE_PORT IDP_CLIENT_ID NSW_CLIENT_ID APP_NAME OU_HANDLE <<<"$config"
+  IFS='|' read -r BE_PORT FE_PORT IDP_CLIENT_ID NSW_CLIENT_ID APP_NAME OU_HANDLE NSW_INBOUND_CLIENT_ID <<<"$config"
   APP_NAME="${APP_NAME:-$1}"
 }
 
@@ -320,7 +324,15 @@ start_backend() {
     export NSW_CLIENT_SECRET
     export AUTH_JWKS_URL="${AUTH_JWKS_URL:-$IDP_BASE_URL/oauth2/jwks}"
     export AUTH_EXPECTED_OU="${AUTH_EXPECTED_OU:-$OU_HANDLE}"
-    export AUTH_CLIENT_IDS="${AUTH_CLIENT_IDS:-$IDP_CLIENT_ID}"
+    # Inbound clients this agency accepts: its SPA portal (user tokens) plus the
+    # NSW->Agency m2m client (client_credentials) so NSW core can call /inject.
+    # Append the inbound client only when set, so a config without the 7th field
+    # doesn't leave a trailing comma in AUTH_CLIENT_IDS.
+    client_ids="$IDP_CLIENT_ID"
+    if [[ -n "${NSW_INBOUND_CLIENT_ID:-}" ]]; then
+      client_ids="$client_ids,$NSW_INBOUND_CLIENT_ID"
+    fi
+    export AUTH_CLIENT_IDS="${AUTH_CLIENT_IDS:-$client_ids}"
     # The Go server does not autoload .env — source it (non-clobber) so
     # NSW_* vars (API base URL, OAuth client secret, token URL) reach
     # the process without overriding anything already set above.

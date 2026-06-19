@@ -121,12 +121,17 @@ func main() {
 	// Health check
 	mux.HandleFunc("GET /health", handler.HandleHealth)
 
-	// Endpoint for services to inject data (service-to-service, no user auth).
-	// TODO: protect with m2m auth once required client credentials are registered in the IdP.
-	mux.HandleFunc("POST /api/v1/inject", handler.HandleInjectData)
+	// Shared auth middleware: requires a valid IdP token whose client_id is in
+	// AUTH_CLIENT_IDS and aud=AGENCY_API.
+	protect := authManager.RequireAuthMiddleware()
+
+	// Endpoint for services to inject data (service-to-service M2M). Protected by
+	// the same auth middleware; the NSW->Agency M2M client (e.g. NSW_TO_NPQS) is
+	// whitelisted in AUTH_CLIENT_IDS so NSW core authenticates with its
+	// client_credentials token.
+	mux.Handle("POST /api/v1/inject", protect(http.HandlerFunc(handler.HandleInjectData)))
 
 	// Endpoints for UI to fetch and manage applications (protected by JIT user auth)
-	protect := authManager.RequireAuthMiddleware()
 	mux.Handle("GET /api/v1/consignments", protect(http.HandlerFunc(handler.HandleGetConsignments)))
 	mux.Handle("GET /api/v1/applications", protect(http.HandlerFunc(handler.HandleGetApplications)))
 	mux.Handle("GET /api/v1/users/me", protect(http.HandlerFunc(profileHandler.HandleMe)))
