@@ -3,10 +3,10 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { Badge, Text, TextField, Spinner, IconButton } from '@radix-ui/themes'
 import { MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, ArchiveIcon } from '@radix-ui/react-icons'
-import { type ConsignmentSummary } from '../services/types'
-import { fetchConsignments } from '../services/consignments'
-import i18n from '../i18n'
-import { useDebounce } from '../hooks/useDebounce'
+import { type ConsignmentSummary } from './types'
+import { fetchConsignments } from './service'
+import i18n from '@/i18n'
+import { useDebounce } from '@/hooks/useDebounce'
 
 const PAGE_SIZE = 20
 

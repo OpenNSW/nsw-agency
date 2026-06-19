@@ -17,6 +17,13 @@ export interface FormDefinition {
   uiSchema: UISchemaElement
 }
 
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  page: number
+  pageSize: number
+}
+
 export interface AgencyApplication {
   taskId: string
   consignmentId: string
@@ -43,18 +50,4 @@ export interface AgencyApplication {
   reviewedAt?: string
   createdAt: string
   updatedAt: string
-}
-
-export interface ConsignmentSummary {
-  consignmentId: string
-  updatedAt: string
-  status: string
-  taskCount: number
-}
-
-export interface PaginatedResponse<T> {
-  items: T[]
-  total: number
-  page: number
-  pageSize: number
 }

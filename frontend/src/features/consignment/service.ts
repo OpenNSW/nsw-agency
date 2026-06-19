@@ -1,6 +1,7 @@
-import { API_BASE_URL } from '../constants'
-import { http } from './http'
-import { type ConsignmentSummary, type PaginatedResponse } from './types'
+import { API_BASE_URL } from '@/constants'
+import { http } from '@/services/http'
+import { type PaginatedResponse } from '@/services/types'
+import { type ConsignmentSummary } from './types'
 
 export async function fetchConsignments(
   params?: { q?: string; page?: number; pageSize?: number },
