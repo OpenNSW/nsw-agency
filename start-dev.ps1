@@ -330,7 +330,7 @@ function Start-Backend {
     $seedFile = Join-Path $BACKEND_DIR "data/seed/${AgencyName}_users.json"
     if (Test-Path $seedFile) {
         Write-Host "[start-dev] Seeding $AgencyName database using $seedFile..."
-        $seedPsi = [System.Diagnostics.ProcessStartInfo]::new($shellCmd, "$shellArg `"go run ./cmd/seed user add --file data/seed/${AgencyName}_users.json`"")
+        $seedPsi = [System.Diagnostics.ProcessStartInfo]::new($shellCmd, "$shellArg `"go run ./cmd/cli user add --file data/seed/${AgencyName}_users.json`"")
         $seedPsi.WorkingDirectory = $BACKEND_DIR
         $seedPsi.UseShellExecute  = $false
         foreach ($k in $envBlock.Keys) { $seedPsi.EnvironmentVariables[$k] = [string]$envBlock[$k] }

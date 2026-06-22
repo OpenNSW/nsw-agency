@@ -345,7 +345,7 @@ start_backend() {
     local seed_file="./data/seed/${agency}_users.json"
     if [[ -f "$seed_file" ]]; then
       echo "[start-dev] Seeding $agency database using $seed_file..."
-      go run ./cmd/seed user add --file "$seed_file" || true
+      go run ./cmd/cli user add --file "$seed_file" || true
     fi
 
     exec go run ./cmd/server
