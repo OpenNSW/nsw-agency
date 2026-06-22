@@ -55,6 +55,7 @@ CONFIG_npqs="8081|5174|OGA_PORTAL_APP_NPQS|NPQS_TO_NSW|National Plant Quarantine
 CONFIG_fcau="8082|5175|OGA_PORTAL_APP_FCAU|FCAU_TO_NSW|Food Control Administration Unit (FCAU)|fcau|NSW_TO_FCAU"
 CONFIG_cda="8083|5176|OGA_PORTAL_APP_CDA|CDA_TO_NSW|Coconut Development Authority (CDA)|cda|NSW_TO_CDA"
 CONFIG_slpa="8084|5177|OGA_PORTAL_APP_SLPA|SLPA_TO_NSW|Sri Lanka Ports Authority (SLPA)|slpa|NSW_TO_SLPA"
+CONFIG_customs="8085|5178|OGA_PORTAL_APP_CUSTOMS|CUSTOMS_TO_NSW|Sri Lanka Customs (CUSTOMS)|customs|NSW_TO_CUSTOMS"
 
 # Agencies (every CONFIG_* ), alphabetised for predictable launch order in 'all' mode
 #  Derived from the config above so adding an agency only requires editing the CONFIG_* block.
