@@ -8,7 +8,7 @@ import './index.css'
 import App from './App.tsx'
 import { initAppConfig } from './config.ts'
 import './i18n'
-import { userManager } from './oidcUserManager'
+import { userManager } from '@/features/user/oidcUserManager'
 
 void initAppConfig().then(() => {
   createRoot(document.getElementById('root')!).render(

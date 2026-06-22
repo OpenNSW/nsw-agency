@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next'
 import { BellIcon, MagnifyingGlassIcon } from '@radix-ui/react-icons'
-import { SignedIn, SignedOut, SignInButton, UserDropdown } from '../Auth'
-import { useSignOutHandler } from '../../hooks/useSignOutHandler'
-import { appConfig } from '../../config'
+import { SignedIn, SignedOut, SignInButton, UserDropdown } from '@/features/user/Auth'
+import { useSignOutHandler } from '@/features/user/hooks/useSignOutHandler'
+import { appConfig } from '@/config'
 
 export function TopBar() {
   const { t } = useTranslation()

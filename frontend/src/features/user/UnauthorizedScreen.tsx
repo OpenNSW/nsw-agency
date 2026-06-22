@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
-import { SignedIn } from '../components/Auth'
+import { SignedIn } from './Auth'
 import { Button } from '@radix-ui/themes'
-import { useSignOutHandler } from '../hooks/useSignOutHandler'
+import { useSignOutHandler } from './hooks/useSignOutHandler'
 
 export function UnauthorizedScreen() {
   const { t } = useTranslation()

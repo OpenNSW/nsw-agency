@@ -1,5 +1,5 @@
 import { useAuth } from 'react-oidc-context'
-import { getExpectedOuHandle } from '../runtimeConfig'
+import { getExpectedOuHandle } from '@/runtimeConfig'
 
 interface UseAuthContextResult {
   isSignedIn: boolean

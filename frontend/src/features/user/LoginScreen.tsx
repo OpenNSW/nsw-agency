@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { useAuth } from 'react-oidc-context'
-import { appConfig } from '../config'
+import { appConfig } from '@/config'
 
 export function LoginScreen() {
   const { t } = useTranslation()

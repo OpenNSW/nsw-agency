@@ -1,5 +1,5 @@
 import { UserManager, WebStorageStateStore } from 'oidc-client-ts'
-import { getEnv, getRequiredEnv } from './runtimeConfig'
+import { getEnv, getRequiredEnv } from '@/runtimeConfig'
 
 const rawScopes = getEnv('VITE_IDP_SCOPES')
 const scope = rawScopes
