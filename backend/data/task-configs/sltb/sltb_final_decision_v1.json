@@ -1,0 +1,10 @@
+{
+  "taskCode": "sltb_final_decision_v1",
+  "meta": {
+    "title": "SLTB Final Decision",
+    "description": "Final review and certificate generation by SLTB officer."
+  },
+  "forms": {
+    "review": "sltb-final-decision--officer-form"
+  }
+}

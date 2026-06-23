@@ -1,0 +1,10 @@
+{
+  "taskCode": "sltb_lab_decision_v1",
+  "meta": {
+    "title": "Lab Testing Decision",
+    "description": "Determine whether laboratory testing is required for the submitted tea sample."
+  },
+  "forms": {
+    "review": "sltb-lab-decision--officer-form"
+  }
+}

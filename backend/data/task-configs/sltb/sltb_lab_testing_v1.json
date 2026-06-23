@@ -1,0 +1,10 @@
+{
+  "taskCode": "sltb_lab_testing_v1",
+  "meta": {
+    "title": "Lab Testing & Results",
+    "description": "Record the laboratory test results for the tea sample."
+  },
+  "forms": {
+    "review": "sltb-lab-testing--officer-form"
+  }
+}

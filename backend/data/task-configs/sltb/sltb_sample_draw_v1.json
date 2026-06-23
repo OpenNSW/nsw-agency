@@ -1,0 +1,10 @@
+{
+  "taskCode": "sltb_sample_draw_v1",
+  "meta": {
+    "title": "Record Warehouse Sample Draw",
+    "description": "Record the completion of the warehouse sample draw and assign a sample number."
+  },
+  "forms": {
+    "review": "sltb-record-sample-draw--officer-form"
+  }
+}

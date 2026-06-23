@@ -1,0 +1,10 @@
+{
+  "taskCode": "sltb_sample_ack_dropoff_v1",
+  "meta": {
+    "title": "Acknowledge Sample Drop-off",
+    "description": "Acknowledge receipt of the trader's dropped-off tea sample and assign a sample number."
+  },
+  "forms": {
+    "review": "sltb-dropoff--officer-ack-form"
+  }
+}

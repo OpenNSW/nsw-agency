@@ -43,11 +43,14 @@ $IDP_BASE_URL = 'https://localhost:8090'
 # Single source of truth for per-agency config: BE_PORT, FE_PORT, IDP_CLIENT_ID, NSW_CLIENT_ID, APP_NAME, OU_HANDLE.
 # Adding an agency means one entry here - nothing else.
 $AGENCY_CONFIGS = [ordered]@{
-    npqs = @{ BE_PORT = 8081; FE_PORT = 5174; IDP_CLIENT_ID = 'OGA_PORTAL_APP_NPQS'; NSW_CLIENT_ID = 'NPQS_TO_NSW'; APP_NAME = 'National Plant Quarantine Service (NPQS)'; OU_HANDLE = 'npqs' }
-    fcau = @{ BE_PORT = 8082; FE_PORT = 5175; IDP_CLIENT_ID = 'OGA_PORTAL_APP_FCAU'; NSW_CLIENT_ID = 'FCAU_TO_NSW'; APP_NAME = 'Food Control Administration Unit (FCAU)';  OU_HANDLE = 'fcau' }
-    cda  = @{ BE_PORT = 8083; FE_PORT = 5176; IDP_CLIENT_ID = 'OGA_PORTAL_APP_CDA';  NSW_CLIENT_ID = 'CDA_TO_NSW';  APP_NAME = 'Coconut Development Authority (CDA)';       OU_HANDLE = 'cda'  }
-    slpa = @{ BE_PORT = 8084; FE_PORT = 5177; IDP_CLIENT_ID = 'OGA_PORTAL_APP_SLPA'; NSW_CLIENT_ID = 'SLPA_TO_NSW'; APP_NAME = 'Sri Lanka Ports Authority (SLPA)';          OU_HANDLE = 'slpa' }
+    npqs    = @{ BE_PORT = 8081; FE_PORT = 5174; IDP_CLIENT_ID = 'OGA_PORTAL_APP_NPQS';    NSW_CLIENT_ID = 'NPQS_TO_NSW';    APP_NAME = 'National Plant Quarantine Service (NPQS)'; OU_HANDLE = 'npqs'    }
+    fcau    = @{ BE_PORT = 8082; FE_PORT = 5175; IDP_CLIENT_ID = 'OGA_PORTAL_APP_FCAU';    NSW_CLIENT_ID = 'FCAU_TO_NSW';    APP_NAME = 'Food Control Administration Unit (FCAU)';  OU_HANDLE = 'fcau'    }
+    cda     = @{ BE_PORT = 8083; FE_PORT = 5176; IDP_CLIENT_ID = 'OGA_PORTAL_APP_CDA';     NSW_CLIENT_ID = 'CDA_TO_NSW';     APP_NAME = 'Coconut Development Authority (CDA)';       OU_HANDLE = 'cda'     }
+    slpa    = @{ BE_PORT = 8084; FE_PORT = 5177; IDP_CLIENT_ID = 'OGA_PORTAL_APP_SLPA';    NSW_CLIENT_ID = 'SLPA_TO_NSW';    APP_NAME = 'Sri Lanka Ports Authority (SLPA)';          OU_HANDLE = 'slpa'    }
+    customs = @{ BE_PORT = 8085; FE_PORT = 5178; IDP_CLIENT_ID = 'OGA_PORTAL_APP_CUSTOMS'; NSW_CLIENT_ID = 'CUSTOMS_TO_NSW'; APP_NAME = 'Sri Lanka Customs (CUSTOMS)';          OU_HANDLE = 'customs' }
+    sltb    = @{ BE_PORT = 8086; FE_PORT = 5179; IDP_CLIENT_ID = 'OGA_PORTAL_APP_SLTB';    NSW_CLIENT_ID = 'SLTB_TO_NSW';    APP_NAME = 'Sri Lanka Tea Board (SLTB)';                OU_HANDLE = 'sltb'    }
 }
+
 
 $ALL_AGENCIES = $AGENCY_CONFIGS.Keys | Sort-Object
 

@@ -56,6 +56,8 @@ CONFIG_fcau="8082|5175|OGA_PORTAL_APP_FCAU|FCAU_TO_NSW|Food Control Administrati
 CONFIG_cda="8083|5176|OGA_PORTAL_APP_CDA|CDA_TO_NSW|Coconut Development Authority (CDA)|cda|NSW_TO_CDA"
 CONFIG_slpa="8084|5177|OGA_PORTAL_APP_SLPA|SLPA_TO_NSW|Sri Lanka Ports Authority (SLPA)|slpa|NSW_TO_SLPA"
 CONFIG_customs="8085|5178|OGA_PORTAL_APP_CUSTOMS|CUSTOMS_TO_NSW|Sri Lanka Customs (CUSTOMS)|customs|NSW_TO_CUSTOMS"
+CONFIG_sltb="8086|5179|OGA_PORTAL_APP_SLTB|SLTB_TO_NSW|Sri Lanka Tea Board (SLTB)|sltb|NSW_TO_SLTB"
+
 
 # Agencies (every CONFIG_* ), alphabetised for predictable launch order in 'all' mode
 #  Derived from the config above so adding an agency only requires editing the CONFIG_* block.
@@ -370,6 +372,7 @@ start_frontend() {
     VITE_IDP_SCOPES="${VITE_IDP_SCOPES:-openid,profile,email,ou,role,agency:application:read,agency:application:review,agency:application:feedback,agency:consignment:read,agency:storage:read,agency:storage:write}" \
     VITE_IDP_EXPECTED_OU_HANDLE="${VITE_IDP_EXPECTED_OU_HANDLE:-$OU_HANDLE}" \
     VITE_APP_URL="${VITE_APP_URL:-http://localhost:$FE_PORT}" \
+    CI="${CI:-true}" \
     exec pnpm run dev
   ) &
   PIDS+=("$!")

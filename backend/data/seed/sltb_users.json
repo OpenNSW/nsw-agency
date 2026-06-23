@@ -1,0 +1,9 @@
+{
+  "users": [
+    {
+      "name": "SLTB Officer",
+      "email": "sltb_officer@government.dev",
+      "roles": ["lab_officer"]
+    }
+  ]
+}
