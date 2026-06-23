@@ -76,6 +76,9 @@ export function LoginScreen() {
             </div>
           )}
         </div>
+        <p className="absolute bottom-4 left-8 lg:left-36 text-xs text-gray-400">
+          {import.meta.env.VITE_APP_VERSION || 'dev'}
+        </p>
       </div>
     </div>
   )
