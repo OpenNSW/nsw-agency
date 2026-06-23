@@ -366,7 +366,13 @@ function Start-Frontend {
     if (-not $envBlock.Contains('VITE_API_BASE_URL'))           { $envBlock['VITE_API_BASE_URL']           = "http://localhost:$bePort" }
     if (-not $envBlock.Contains('VITE_IDP_BASE_URL'))           { $envBlock['VITE_IDP_BASE_URL']           = $IDP_BASE_URL             }
     if (-not $envBlock.Contains('VITE_IDP_CLIENT_ID'))          { $envBlock['VITE_IDP_CLIENT_ID']          = $idpClient                }
-    if (-not $envBlock.Contains('VITE_IDP_SCOPES'))             { $envBlock['VITE_IDP_SCOPES']             = 'openid,profile,email,ou' }
+    if (-not $envBlock.Contains('VITE_IDP_SCOPES')) {
+        $envBlock['VITE_IDP_SCOPES'] = @(
+            'openid', 'profile', 'email', 'ou', 'role',
+            'agency:application:read', 'agency:application:review', 'agency:application:feedback',
+            'agency:consignment:read', 'agency:storage:read', 'agency:storage:write'
+        ) -join ','
+    }
     if (-not $envBlock.Contains('VITE_IDP_EXPECTED_OU_HANDLE')) { $envBlock['VITE_IDP_EXPECTED_OU_HANDLE'] = $ouHandle                 }
     if (-not $envBlock.Contains('VITE_APP_URL'))                { $envBlock['VITE_APP_URL']                = "http://localhost:$fePort" }
 
