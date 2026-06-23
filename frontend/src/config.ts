@@ -1,5 +1,4 @@
-import { validateConfig } from './configs/types'
-import type { UIConfig } from './configs/types'
+import { z } from 'zod'
 
 import { getEnv } from './runtimeConfig'
 
@@ -38,4 +37,46 @@ export async function initAppConfig(): Promise<void> {
       }
     }
   }
+}
+
+const UIConfigSchema = z.object({
+  branding: z.object({
+    systemName: z.string().min(1),
+    appName: z.string().min(1),
+    logoUrl: z.string().optional(),
+    systemLogoUrl: z.string().optional(),
+    favicon: z.string().optional(),
+    portalName: z.string().optional(),
+    description: z.string().optional(),
+    heroImageUrl: z.string().optional(),
+    partnerLogos: z.array(z.object({ url: z.string(), alt: z.string() })).optional(),
+  }),
+  theme: z
+    .object({
+      fontFamily: z.string(),
+      borderRadius: z.string(),
+    })
+    .optional(),
+  features: z
+    .object({
+      preConsignment: z.boolean(),
+      consignmentManagement: z.boolean(),
+      reportingDashboard: z.boolean(),
+    })
+    .optional(),
+})
+
+export type UIConfig = z.infer<typeof UIConfigSchema>
+
+function validateConfig(parsed: unknown, instanceId: string): UIConfig {
+  const result = UIConfigSchema.safeParse(parsed)
+  if (!result.success) {
+    throw new Error(
+      'Invalid configuration for ' +
+        instanceId +
+        ':\n' +
+        result.error.issues.map((i) => '- ' + i.path.join('.') + ': ' + i.message).join('\n'),
+    )
+  }
+  return result.data
 }

@@ -1,6 +1,5 @@
-import { API_BASE_URL } from '@/constants'
-import { http } from '@/services/http'
-import { type PaginatedResponse } from '@/services/types'
+import { http, API_BASE_URL } from '@/http'
+import { type PaginatedResponse } from '@/types/response'
 import { type ConsignmentSummary } from './types'
 
 export async function fetchConsignments(
