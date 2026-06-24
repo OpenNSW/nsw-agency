@@ -20,6 +20,8 @@ tags:
     description: Consignment summary views
   - name: Storage
     description: File upload and download URL management
+  - name: Users
+    description: Authenticated user profile
 
 paths:
   /health:
@@ -44,10 +46,14 @@ paths:
     post:
       operationId: injectData
       summary: Inject application data
+      security:
+        - BearerAuth: []
       description: |
         Called by the NSW workflow engine to submit an application for agency review.
         If the application already exists and is in `FEEDBACK_REQUESTED` status, the
         submitted data is updated and the status is reset to `PENDING`.
+        Authenticated via M2M client credentials (the NSW-to-agency client is
+        whitelisted in `AUTH_CLIENT_IDS`).
       tags:
         - Applications
       requestBody:
@@ -304,6 +310,35 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/users/me:
+    get:
+      operationId: getMe
+      summary: Get current user profile
+      security:
+        - BearerAuth: []
+      description: |
+        Returns the profile of the currently authenticated user, including their
+        email, display name, and assigned RBAC roles.
+      tags:
+        - Users
+      responses:
+        "200":
+          description: Authenticated user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+              example:
+                email: officer@agency.gov.au
+                name: Jane Officer
+                roles: [REVIEWER]
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/storage:
     post:
       operationId: createUpload
@@ -446,6 +481,26 @@ components:
             error: Failed to get application
 
   schemas:
+    UserProfile:
+      type: object
+      description: Profile of the currently authenticated user
+      properties:
+        email:
+          type: string
+          format: email
+          description: The user's email address
+          example: officer@agency.gov.au
+        name:
+          type: string
+          description: The user's display name
+          example: Jane Officer
+        roles:
+          type: array
+          description: RBAC roles assigned to the user
+          items:
+            type: string
+          example: [REVIEWER]
+
     ErrorResponse:
       type: object
       properties:

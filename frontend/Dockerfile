@@ -13,6 +13,9 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 
 COPY . .
 
+ARG BUILD_VERSION=dev
+ENV VITE_APP_VERSION=${BUILD_VERSION}
+
 RUN pnpm build
 
 FROM nginxinc/nginx-unprivileged:stable-alpine3.23-perl
