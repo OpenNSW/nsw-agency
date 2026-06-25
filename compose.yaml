@@ -48,7 +48,7 @@ services:
       dockerfile: Dockerfile
     command: ["/app/migrate", "up"]
     env_file:
-      - ./.env.docker
+      - .env
     environment:
       DB_DRIVER: postgres
       DB_HOST: db
@@ -69,7 +69,7 @@ services:
     # The single self-contained env file: backend config, VITE_* browser config
     # (emitted at /runtime-env.js), and dialed URLs already on host.docker.internal.
     env_file:
-      - ./.env.docker
+      - .env
     # host.docker.internal is automatic on Docker Desktop; this makes it resolve
     # on Linux / CI as well.
     extra_hosts:

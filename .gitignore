@@ -29,7 +29,7 @@ results.sarif
 .env
 .env.local
 .env.*.local
-.env.docker
+.env
 
 # Per Agency branding configs are deployment-specific; only the default template is tracked.
 /frontend/public/configs/*.branding.json
