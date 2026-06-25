@@ -38,7 +38,6 @@ jobs:
 
       - name: Run ESLint
         run: pnpm run --recursive --parallel lint
-        continue-on-error: true
 
       - name: Check Formatting (Prettier)
         run: pnpm run format:check
