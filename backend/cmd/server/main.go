@@ -18,6 +18,7 @@ import (
 	"github.com/OpenNSW/nsw-agency/backend/internal/storage"
 	"github.com/OpenNSW/nsw-agency/backend/internal/template"
 	"github.com/OpenNSW/nsw-agency/backend/internal/user"
+	"github.com/OpenNSW/nsw-agency/backend/internal/web"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 )
 
@@ -140,6 +141,24 @@ func main() {
 	mux.Handle("POST /api/v1/applications/{taskId}/feedback", protect(rbacMiddleware.RequireAction("FEEDBACK")(http.HandlerFunc(feedbackHandler.HandleFeedback))))
 	mux.Handle("POST /api/v1/storage", protect(http.HandlerFunc(storageHandler.HandleCreateUpload)))
 	mux.Handle("GET /api/v1/storage/{key}", protect(http.HandlerFunc(storageHandler.HandleGetUploadURL)))
+
+	// Serve the built officer-portal SPA from this same process. The "/" pattern
+	// is the most general match, so the specific API, /health and /runtime-env.js
+	// routes take precedence. /runtime-env.js exposes cfg.Web.Runtime
+	// (window.__APP_CONFIG__) so the SPA reads config synchronously. cfg.Web.Dir
+	// is relative to the working dir (/app/web in the image); when it is absent
+	// (e.g. local API-only dev where the frontend runs via its own dev server),
+	// skip serving rather than failing.
+	if spa, err := web.NewHandler(cfg.Web); err != nil {
+		slog.Warn("frontend not served", "asset_dir", cfg.Web.Dir, "error", err)
+	} else {
+		if err := cfg.Web.Validate(); err != nil {
+			log.Fatalf("FATAL: serving the frontend but its config is invalid: %v", err)
+		}
+		mux.Handle("GET /runtime-env.js", http.HandlerFunc(spa.ServeRuntimeEnv))
+		mux.Handle("GET /", http.HandlerFunc(spa.ServeSPA))
+		slog.Info("serving officer portal alongside the API", "asset_dir", cfg.Web.Dir)
+	}
 
 	// Set up graceful shutdown
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)

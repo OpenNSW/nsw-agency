@@ -312,6 +312,11 @@ function Start-Backend {
     # Per-agency values set before .env so .env cannot override them.
     # Final precedence: parent env > --env-file > per-agency defaults > .env > script fallback.
     if (-not $envBlock.Contains('PORT'))             { $envBlock['PORT']             = "$bePort"                                  }
+    # Native dev serves the frontend via Vite (Start-Frontend), so the backend
+    # must stay API-only. Point WEB_DIR at a path that won't exist so a stray
+    # backend\web\ (e.g. from a `pnpm build --outDir ../backend/web` test) can't
+    # make the server serve the SPA and then fatal on missing VITE_* config.
+    if (-not $envBlock.Contains('WEB_DIR'))          { $envBlock['WEB_DIR']          = (Join-Path $BACKEND_DIR '.nonexistent-web') }
     if (-not $envBlock.Contains('DB_PATH'))          { $envBlock['DB_PATH']          = "./${AgencyName}_applications.db"          }
     if (-not $envBlock.Contains('DB_NAME'))          { $envBlock['DB_NAME']          = "${AgencyName}_nsw_agency_db"              }
     if (-not $envBlock.Contains('NSW_CLIENT_ID'))    { $envBlock['NSW_CLIENT_ID']    = $nswClientId                               }
