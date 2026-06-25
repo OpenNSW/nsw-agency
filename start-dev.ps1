@@ -43,12 +43,12 @@ $IDP_BASE_URL = 'https://localhost:8090'
 # Single source of truth for per-agency config: BE_PORT, FE_PORT, IDP_CLIENT_ID, NSW_CLIENT_ID, APP_NAME, OU_HANDLE.
 # Adding an agency means one entry here - nothing else.
 $AGENCY_CONFIGS = [ordered]@{
-    npqs    = @{ BE_PORT = 8081; FE_PORT = 5174; IDP_CLIENT_ID = 'OGA_PORTAL_APP_NPQS';    NSW_CLIENT_ID = 'NPQS_TO_NSW';    APP_NAME = 'National Plant Quarantine Service (NPQS)'; OU_HANDLE = 'npqs'    }
-    fcau    = @{ BE_PORT = 8082; FE_PORT = 5175; IDP_CLIENT_ID = 'OGA_PORTAL_APP_FCAU';    NSW_CLIENT_ID = 'FCAU_TO_NSW';    APP_NAME = 'Food Control Administration Unit (FCAU)';  OU_HANDLE = 'fcau'    }
-    cda     = @{ BE_PORT = 8083; FE_PORT = 5176; IDP_CLIENT_ID = 'OGA_PORTAL_APP_CDA';     NSW_CLIENT_ID = 'CDA_TO_NSW';     APP_NAME = 'Coconut Development Authority (CDA)';       OU_HANDLE = 'cda'     }
-    slpa    = @{ BE_PORT = 8084; FE_PORT = 5177; IDP_CLIENT_ID = 'OGA_PORTAL_APP_SLPA';    NSW_CLIENT_ID = 'SLPA_TO_NSW';    APP_NAME = 'Sri Lanka Ports Authority (SLPA)';          OU_HANDLE = 'slpa'    }
-    customs = @{ BE_PORT = 8085; FE_PORT = 5178; IDP_CLIENT_ID = 'OGA_PORTAL_APP_CUSTOMS'; NSW_CLIENT_ID = 'CUSTOMS_TO_NSW'; APP_NAME = 'Sri Lanka Customs (CUSTOMS)';          OU_HANDLE = 'customs' }
-    sltb    = @{ BE_PORT = 8086; FE_PORT = 5179; IDP_CLIENT_ID = 'OGA_PORTAL_APP_SLTB';    NSW_CLIENT_ID = 'SLTB_TO_NSW';    APP_NAME = 'Sri Lanka Tea Board (SLTB)';                OU_HANDLE = 'sltb'    }
+    npqs    = @{ BE_PORT = 8081; FE_PORT = 5174; IDP_CLIENT_ID = 'OGA_PORTAL_APP_NPQS';    NSW_CLIENT_ID = 'NPQS_TO_NSW';    APP_NAME = 'National Plant Quarantine Service (NPQS)'; OU_HANDLE = 'npqs';    NSW_INBOUND_CLIENT_ID = 'NSW_TO_NPQS'    }
+    fcau    = @{ BE_PORT = 8082; FE_PORT = 5175; IDP_CLIENT_ID = 'OGA_PORTAL_APP_FCAU';    NSW_CLIENT_ID = 'FCAU_TO_NSW';    APP_NAME = 'Food Control Administration Unit (FCAU)';  OU_HANDLE = 'fcau';    NSW_INBOUND_CLIENT_ID = 'NSW_TO_FCAU'    }
+    cda     = @{ BE_PORT = 8083; FE_PORT = 5176; IDP_CLIENT_ID = 'OGA_PORTAL_APP_CDA';     NSW_CLIENT_ID = 'CDA_TO_NSW';     APP_NAME = 'Coconut Development Authority (CDA)';       OU_HANDLE = 'cda';     NSW_INBOUND_CLIENT_ID = 'NSW_TO_CDA'     }
+    slpa    = @{ BE_PORT = 8084; FE_PORT = 5177; IDP_CLIENT_ID = 'OGA_PORTAL_APP_SLPA';    NSW_CLIENT_ID = 'SLPA_TO_NSW';    APP_NAME = 'Sri Lanka Ports Authority (SLPA)';          OU_HANDLE = 'slpa';    NSW_INBOUND_CLIENT_ID = 'NSW_TO_SLPA'    }
+    customs = @{ BE_PORT = 8085; FE_PORT = 5178; IDP_CLIENT_ID = 'OGA_PORTAL_APP_CUSTOMS'; NSW_CLIENT_ID = 'CUSTOMS_TO_NSW'; APP_NAME = 'Sri Lanka Customs (CUSTOMS)';          OU_HANDLE = 'customs'; NSW_INBOUND_CLIENT_ID = 'NSW_TO_CUSTOMS' }
+    sltb    = @{ BE_PORT = 8086; FE_PORT = 5179; IDP_CLIENT_ID = 'OGA_PORTAL_APP_SLTB';    NSW_CLIENT_ID = 'SLTB_TO_NSW';    APP_NAME = 'Sri Lanka Tea Board (SLTB)';                OU_HANDLE = 'sltb';    NSW_INBOUND_CLIENT_ID = 'NSW_TO_SLTB'    }
 }
 
 
@@ -318,6 +318,12 @@ function Start-Backend {
     if (-not $envBlock.Contains('AUTH_EXPECTED_OU')) { $envBlock['AUTH_EXPECTED_OU'] = $cfg.OU_HANDLE                             }
     if (-not $envBlock.Contains('ALLOWED_ORIGINS'))  { $envBlock['ALLOWED_ORIGINS']  = "http://localhost:$($cfg.FE_PORT)"         }
     if (-not $envBlock.Contains('TASK_CONFIGS_DIR')) { $envBlock['TASK_CONFIGS_DIR'] = "./data/task-configs/${AgencyName}"        }
+
+    $clientIds = $cfg.IDP_CLIENT_ID
+    if ($cfg.Contains('NSW_INBOUND_CLIENT_ID') -and $cfg.NSW_INBOUND_CLIENT_ID -ne '') {
+        $clientIds = "$clientIds,$($cfg.NSW_INBOUND_CLIENT_ID)"
+    }
+    if (-not $envBlock.Contains('AUTH_CLIENT_IDS'))  { $envBlock['AUTH_CLIENT_IDS']  = $clientIds                                 }
 
     $dotEnv = Join-Path $BACKEND_DIR '.env'
     if (Test-Path $dotEnv) {

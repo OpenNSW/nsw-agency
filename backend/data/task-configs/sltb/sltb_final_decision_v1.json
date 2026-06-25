@@ -5,6 +5,7 @@
     "description": "Final review and certificate generation by SLTB officer."
   },
   "forms": {
+    "view": "sltb-submit-blendsheet--user-form",
     "review": "sltb-final-decision--officer-form"
   }
 }

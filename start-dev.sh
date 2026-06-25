@@ -372,7 +372,6 @@ start_frontend() {
     VITE_IDP_SCOPES="${VITE_IDP_SCOPES:-openid,profile,email,ou,role,agency:application:read,agency:application:review,agency:application:feedback,agency:consignment:read,agency:storage:read,agency:storage:write}" \
     VITE_IDP_EXPECTED_OU_HANDLE="${VITE_IDP_EXPECTED_OU_HANDLE:-$OU_HANDLE}" \
     VITE_APP_URL="${VITE_APP_URL:-http://localhost:$FE_PORT}" \
-    CI="${CI:-true}" \
     exec pnpm run dev
   ) &
   PIDS+=("$!")
