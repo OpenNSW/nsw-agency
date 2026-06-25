@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/OpenNSW/nsw-agency/backend/internal/version"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httputil"
 )
 
@@ -181,6 +182,7 @@ func (h *Handler) HandleHealth(w http.ResponseWriter, r *http.Request) {
 	httputil.WriteJSONResponse(w, http.StatusOK, map[string]any{
 		"status":  "ok",
 		"service": "nsw-agency-portal",
+		"version": version.Get(),
 	})
 }
 
