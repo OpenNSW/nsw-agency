@@ -1,6 +1,5 @@
-import { API_BASE_URL } from '@/constants'
-import { http } from '@/services/http'
-import { type PaginatedResponse, type ReviewResponse } from '@/services/types'
+import { http, API_BASE_URL } from '@/http'
+import { type PaginatedResponse, type ReviewResponse } from '@/types/response'
 import {
   type AgencyApplication,
   type DownloadMetadataResponse,
