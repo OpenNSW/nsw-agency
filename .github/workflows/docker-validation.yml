@@ -1,16 +1,18 @@
 name: Docker Validation CI
-# Validates that all deployable Docker images build successfully on PRs to main.
-# This workflow never pushes images — it is purely a build correctness check.
-# Image publishing is handled by release.yml.
+# Validates that the consolidated Docker image builds successfully on PRs to main.
+# The whole app is one image (root Dockerfile): the Go server serves the API and
+# the officer-portal SPA from one process. This workflow never pushes — it is
+# purely a build-correctness check. Image publishing is handled by release.yml.
 
 on:
   pull_request:
-    branches: [main]
-    # Only run when files that affect a Docker build context change,
+    branches: [main, 'migration/*']
+    # Run only when files that affect the image build context change,
     # or when this workflow file itself changes.
     paths:
       - 'backend/**'
       - 'frontend/**'
+      - 'Dockerfile'
       - '.github/workflows/docker-validation.yml'
 
 # Cancel in-progress runs for the same branch/PR when a new commit arrives.
@@ -19,82 +21,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # STAGE 1: Detect which build contexts changed and build the validation
-  # matrix dynamically. Only changed contexts are included, so no runner is
-  # provisioned for an unchanged image. A change to this workflow file is
-  # treated as touching all contexts, so every image is validated.
-  detect-changes:
-    name: Detect Changed Build Contexts
-    runs-on: ubuntu-latest
-    outputs:
-      # JSON matrix consumed by docker-validate's `strategy.matrix`.
-      matrix: ${{ steps.build-matrix.outputs.matrix }}
-      # 'true' when at least one context needs validating.
-      any: ${{ steps.build-matrix.outputs.any }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Detect relevant changes
-        id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            backend:
-              - 'backend/**'
-            frontend:
-              - 'frontend/**'
-            workflow:
-              - '.github/workflows/docker-validation.yml'
-
-      # Assemble the matrix include[] from only the contexts that changed.
-      # matrix context is NOT available in a job-level `if`, so gating per
-      # image must happen here rather than via `if` on the matrix job.
-      - name: Build validation matrix
-        id: build-matrix
-        run: |
-          backend='{"name":"backend","context":"./backend","dockerfile":"./backend/Dockerfile","tag":"nsw-agency-backend:validate"}'
-          frontend='{"name":"agency-portal","context":"./frontend","dockerfile":"./frontend/Dockerfile","tag":"nsw-agency-app:validate"}'
-          workflow='${{ steps.filter.outputs.workflow }}'
-          include=()
-          if [[ "${{ steps.filter.outputs.backend }}" == "true" || "$workflow" == "true" ]]; then
-            include+=("$backend")
-          fi
-          if [[ "${{ steps.filter.outputs.frontend }}" == "true" || "$workflow" == "true" ]]; then
-            include+=("$frontend")
-          fi
-          matrix=$(printf '%s\n' "${include[@]}" | paste -sd, - | sed 's/^/{"include":[/; s/$/]}/')
-          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
-          if [[ ${#include[@]} -gt 0 ]]; then
-            echo "any=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "any=false" >> "$GITHUB_OUTPUT"
-          fi
-
-  # STAGE 2: Build all relevant Docker images in parallel.
-  # fail-fast: false ensures one failing build does not cancel the others,
-  # so you get a full picture of what broke in a single run.
   docker-validate:
-    name: Validate ${{ matrix.name }} image
-    needs: detect-changes
+    name: Validate agency image
     runs-on: ubuntu-latest
-    # Skip the whole job (and provisioning a runner) when nothing changed.
-    if: needs.detect-changes.outputs.any == 'true'
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
 
       # BuildKit is required for cache-from/cache-to and multi-stage build optimisations.
       - uses: docker/setup-buildx-action@v3
 
-      - name: Build ${{ matrix.name }} image
-        uses: docker/build-push-action@v5
+      - name: Build agency image
+        uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
+          context: .
+          file: ./Dockerfile
           push: false  # validation only — never push in this workflow
-          tags: ${{ matrix.tag }}
-          # GHA cache backend reuses layers across runs, keyed by image name.
+          tags: agency:validate
+          # GHA cache backend reuses layers across runs.
           cache-from: type=gha
           cache-to: type=gha,mode=max

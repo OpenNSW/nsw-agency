@@ -1,8 +1,8 @@
-name: Build and Push Development Images
+name: Build and Push Development Image
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, 'migration/*' ]
   workflow_dispatch:
 
 # Cancel in-progress runs for the same branch when a new commit arrives.
@@ -16,29 +16,11 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
+  IMAGE_NAME: agency
 
 jobs:
-  check-changes:
-    name: Detect Changed Paths
-    runs-on: ubuntu-latest
-    outputs:
-      backend: ${{ steps.filter.outputs.backend }}
-      frontend: ${{ steps.filter.outputs.frontend }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            backend:
-              - 'backend/**'
-            frontend:
-              - 'frontend/**'
-
-  build-backend:
-    name: Build & Push Dev - Agency Backend
-    needs: check-changes
-    if: needs.check-changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch'
+  build:
+    name: Build & Push Dev - NSW Agency
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Application Repository
@@ -61,49 +43,12 @@ jobs:
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v6
         with:
-          context: ./backend
-          file: ./backend/Dockerfile
+          context: .
+          file: ./Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ steps.repo_owner.outputs.owner }}/nsw-agency-backend:dev-${{ github.run_number }}-${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ steps.repo_owner.outputs.owner }}/${{ env.IMAGE_NAME }}:dev-${{ github.run_number }}-${{ github.sha }}
           build-args: |
             BUILD_VERSION=dev-${{ github.run_number }}-${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  build-frontend:
-    name: Build & Push Dev - Agency Portal
-    needs: check-changes
-    if: needs.check-changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Application Repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Convert repository owner to lowercase
-        id: repo_owner
-        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
-
-      - name: Build and Push Docker Image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./frontend
-          file: ./frontend/Dockerfile
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ steps.repo_owner.outputs.owner }}/nsw-agency-app:dev-${{ github.run_number }}-${{ github.sha }}
-          build-args: |
-            BUILD_VERSION=dev-${{ github.run_number }}-${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
