@@ -26,6 +26,7 @@ func NewOAuth2Authenticator(clientID, clientSecret, tokenURL string, scopes []st
 			ClientSecret: clientSecret,
 			TokenURL:     tokenURL,
 			Scopes:       scopes,
+			AuthStyle:    oauth2.AuthStyleInHeader,
 		},
 	}
 }
