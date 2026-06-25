@@ -1,7 +1,11 @@
 # Local/dev orchestration for the NSW Agency stack.
 #
 # Startup order is enforced by depends_on conditions:
-#   db (healthy) -> migrate (runs `migrate up`, exits 0) -> server -> frontend
+#   db (healthy) -> migrate (runs `migrate up`, exits 0) -> server (API + portal)
+#
+# The whole app is now ONE image (root Dockerfile): the server binary serves the
+# API and the officer-portal SPA from the same port. There is no separate
+# frontend container.
 #
 # The migrate service is one-shot: it applies pending migrations and exits.
 # Seeing it as "exited (0)" in `docker compose ps` is expected, not an error.
@@ -18,9 +22,10 @@
 #   docker compose --env-file .env.docker up --build
 #
 # Root .env.docker is the single source for values compose interpolates
-# (${AGENCY_PORT}, ${DB_*}, ${FRONTEND_PORT}); the environment: blocks below inject
-# the same values into the containers so backend/.env cannot drift. It is also
-# layered onto the server as an env_file to override the dialed URLs (see below).
+# (${AGENCY_PORT}, ${DB_*}); the environment: blocks below inject the same values
+# into the containers so backend/.env cannot drift. It is also layered onto the
+# server as an env_file to override the dialed URLs (see below). The portal is
+# served on ${AGENCY_PORT} (same as the API).
 
 services:
   db:
@@ -39,7 +44,7 @@ services:
 
   migrate:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
     command: ["/app/migrate", "up"]
     env_file:
@@ -59,10 +64,13 @@ services:
 
   server:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
     env_file:
       - ./backend/.env
+      # The server now serves the portal too, so it needs the VITE_* browser
+      # config it emits at /runtime-env.js (mirrors frontend/.env).
+      - ./frontend/.env
       # Overlay: overrides ONLY the dialed URLs (AUTH_JWKS_URL, NSW_*) with
       # host.docker.internal so the container reaches the IdP / NSW API on the
       # host. Later env_file wins. AUTH_ISSUER is intentionally NOT in there
@@ -83,7 +91,11 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       DB_NAME: ${DB_NAME:-nsw_agency_db}
       PORT: ${AGENCY_PORT:-8081}
+      # The portal and API share one origin now, so the browser's API base URL
+      # is just this server's host-reachable address. Overrides frontend/.env.
+      VITE_API_BASE_URL: "http://localhost:${AGENCY_PORT:-8081}"
     # Both sides from the same root var: host port == container listen port (PORT).
+    # This single port serves both the API and the officer portal.
     ports:
       - "${AGENCY_PORT:-8081}:${AGENCY_PORT:-8081}"
     depends_on:
@@ -91,23 +103,6 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    # The image targets OpenShift's "random UID in group 0" model: the html dir
-    # is group-writable for GID 0 so the entrypoint can write runtime-env.js.
-    # Plain Docker would run UID 101 with GID 101 (no write access), so pin GID 0.
-    user: "101:0"
-    env_file:
-      - ./frontend/.env
-    # VITE_API_BASE_URL is used by the browser, so it must be a host-reachable
-    # URL (not the internal "server" hostname). Defaults to http://localhost:8081.
-    ports:
-      - "${FRONTEND_PORT:-5175}:80"
-    depends_on:
-      - server
 
 volumes:
   db-data:
