@@ -15,11 +15,11 @@
 # (VITE_IDP_BASE_URL / AUTH_JWKS_URL, default https://localhost:8090) that is
 # NOT part of this compose. The UI loads, but login requires that IdP reachable.
 #
-# Usage (note the --env-file flag — .env.docker is not the auto-loaded name):
-#   cp .env.docker.example .env.docker       # the ONE self-contained env file
-#   docker compose --env-file .env.docker up --build
+# Usage (.env is the auto-loaded name, so no --env-file flag is needed):
+#   cp .env.example .env                     # the ONE self-contained env file
+#   docker compose up --build
 #
-# Root .env.docker is the single, self-contained source of truth for the stack:
+# Root .env is the single, self-contained source of truth for the stack:
 # it provides both the values compose interpolates (${AGENCY_PORT}, ${DB_*}) and
 # the full container runtime config loaded as the only env_file on the server and
 # migrate services. backend/.env and frontend/.env are NOT used here — they exist
@@ -86,7 +86,7 @@ services:
       DB_NAME: ${DB_NAME:-nsw_agency_db}
       PORT: ${AGENCY_PORT:-8081}
       # The portal and API share one origin now, so the browser's API base URL
-      # is just this server's host-reachable address. Overrides .env.docker.
+      # is just this server's host-reachable address. Overrides .env.
       VITE_API_BASE_URL: "http://localhost:${AGENCY_PORT:-8081}"
     # Both sides from the same root var: host port == container listen port (PORT).
     # This single port serves both the API and the officer portal.
