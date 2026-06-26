@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { ConsignmentListScreen } from './screens/ConsignmentListScreen'
 import { ConsignmentTasksScreen } from './screens/ConsignmentTasksScreen'
@@ -35,6 +35,11 @@ function ProtectedLayout() {
   )
 }
 
+function ConsignmentTasksScreenWrapper() {
+  const { consignmentId } = useParams<{ consignmentId: string }>()
+  return <ConsignmentTasksScreen key={consignmentId} />
+}
+
 function App() {
   useEffect(() => {
     document.title = `${appConfig.branding.portalName || appConfig.branding.appName} | ${appConfig.branding.systemName}`
@@ -61,7 +66,7 @@ function App() {
       <Route element={<ProtectedLayout />}>
         <Route path="/" element={<Navigate to="/consignments" replace />} />
         <Route path="/consignments" element={<ConsignmentListScreen />} />
-        <Route path="/consignments/:consignmentId/tasks" element={<ConsignmentTasksScreen />} />
+        <Route path="/consignments/:consignmentId/tasks" element={<ConsignmentTasksScreenWrapper />} />
         <Route path="/consignments/:consignmentId" element={<ConsignmentDetailScreen />} />
       </Route>
 

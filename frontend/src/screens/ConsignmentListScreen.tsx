@@ -180,7 +180,7 @@ export function ConsignmentListScreen() {
                           }
                           variant="surface"
                         >
-                          {consignment.status}
+                          {t(`common.status.${consignment.status.toLowerCase()}`, { defaultValue: consignment.status })}
                         </Badge>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-gray-600">

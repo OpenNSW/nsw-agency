@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next'
-import { BellIcon, MagnifyingGlassIcon } from '@radix-ui/react-icons'
+import { BellIcon, MagnifyingGlassIcon, GlobeIcon } from '@radix-ui/react-icons'
 import { SignedIn, SignedOut, SignInButton, UserDropdown } from '../Auth'
 import { useSignOutHandler } from '../../hooks/useSignOutHandler'
 import { appConfig } from '../../config'
+import { DropdownMenu } from '@radix-ui/themes'
 
 export function TopBar() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const handleSignOut = useSignOutHandler()
 
   return (
@@ -39,6 +40,30 @@ export function TopBar() {
           <BellIcon className="w-5 h-5" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
         </button>
+
+        {/* Language Selection */}
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger>
+            <button className="flex items-center gap-1.5 p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer focus:outline-none">
+              <GlobeIcon className="w-5 h-5" />
+              <span className="text-sm font-medium uppercase">{i18n.resolvedLanguage || 'en'}</span>
+            </button>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content align="end" size="2">
+            <DropdownMenu.Item
+              onClick={() => void i18n.changeLanguage('en')}
+              style={{ cursor: 'pointer' }}
+            >
+              English
+            </DropdownMenu.Item>
+            <DropdownMenu.Item
+              onClick={() => void i18n.changeLanguage('si')}
+              style={{ cursor: 'pointer' }}
+            >
+              සිංහල
+            </DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
 
         {/* User */}
         <div className="flex items-center gap-3 pl-3 border-l border-gray-200">

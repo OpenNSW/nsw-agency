@@ -100,6 +100,7 @@ const si = {
       },
       empty: {
         noSubmissionData: 'ඉදිරිපත් කළ දත්ත නොමැත',
+        noReviewPermission: 'මෙම අයදුම්පත සමාලෝචනය කිරීමට ඔබට අවසර නැත.',
       },
       feedback: {
         round: 'වටය {{round}}',
@@ -118,6 +119,7 @@ const si = {
     pagination: {
       info: 'පිටුව {{page}} න් {{totalPages}} (ප්රතිඵල {{total}})',
     },
+    dateTimeAt: '{{date}} {{time}} ට',
   },
 
   // ConsignmentDetailScreen.tsx

@@ -201,7 +201,7 @@ export function ConsignmentDetailScreen() {
           <ArrowLeftIcon /> {t('consignments.detail.backButton')}
         </Button>
         <Badge size="2" color={statusColor} highContrast>
-          {application.status}
+          {t(`common.status.${application.status.toLowerCase()}`, { defaultValue: application.status })}
         </Badge>
       </Flex>
 
@@ -342,7 +342,7 @@ export function ConsignmentDetailScreen() {
                   {t('consignments.detail.field.status')}
                 </Text>
                 <Badge size="2" color={statusColor}>
-                  {application.status}
+                  {t(`common.status.${application.status.toLowerCase()}`, { defaultValue: application.status })}
                 </Badge>
               </Box>
               <Box>
