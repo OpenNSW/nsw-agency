@@ -37,8 +37,8 @@ results.sarif
 **/.env
 **/.env.local
 **/.env.*.local
-.env.docker
-.env.docker.example
+.env
+.env.example
 
 # Compose / dev helpers / deploy manifests not needed inside the image
 compose.yaml
