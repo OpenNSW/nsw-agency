@@ -42,6 +42,9 @@ jobs:
       - name: Check Formatting (Prettier)
         run: pnpm run format:check
 
+      - name: Run Unit Tests
+        run: pnpm run test:coverage
+
       - name: Build
         run: pnpm run build
 
