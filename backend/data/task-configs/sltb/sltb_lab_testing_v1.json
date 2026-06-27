@@ -5,6 +5,7 @@
     "description": "Record the laboratory test results for the tea sample."
   },
   "forms": {
+    "view": "sltb-submit-blendsheet--user-form",
     "review": "sltb-lab-testing--officer-form"
   }
 }

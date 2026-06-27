@@ -5,6 +5,7 @@
     "description": "Record the completion of the warehouse sample draw and assign a sample number."
   },
   "forms": {
+    "view": "sltb-submit-blendsheet--user-form",
     "review": "sltb-record-sample-draw--officer-form"
   }
 }

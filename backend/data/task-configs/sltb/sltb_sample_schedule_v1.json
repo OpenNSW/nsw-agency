@@ -5,6 +5,7 @@
     "description": "Review the trader's suggested warehouse pickup date and assign a Tea Inspector."
   },
   "forms": {
+    "view": "sltb-schedule-pickup--suggest-form",
     "review": "sltb-schedule-pickup--officer-review-form"
   }
 }
