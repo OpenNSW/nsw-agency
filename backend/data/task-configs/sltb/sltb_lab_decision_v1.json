@@ -5,6 +5,7 @@
     "description": "Determine whether laboratory testing is required for the submitted tea sample."
   },
   "forms": {
+    "view": "sltb-submit-blendsheet--user-form",
     "review": "sltb-lab-decision--officer-form"
   }
 }
