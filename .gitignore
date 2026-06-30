@@ -3,6 +3,7 @@ node_modules/
 dist/
 *.tsbuildinfo
 .pnpm-store/
+/frontend/coverage/
 
 # Go
 *.exe
