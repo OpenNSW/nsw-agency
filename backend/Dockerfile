@@ -6,15 +6,17 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-# -ldflags="-s -w" strips the symbol table and DWARF debug info to shrink the
-# binaries. Go panic traces (function + line) and pprof still work, since they
-# use the runtime pclntab rather than the symbol table.
-RUN go build -ldflags="-s -w" -o /out/agency ./cmd/server \
-  && go build -ldflags="-s -w" -o /out/migrate ./cmd/migrate \
-  && go build -ldflags="-s -w" -o /out/nswac ./cmd/cli
 
 ARG NSW_SRILANKA_REF=main
 RUN git clone --depth 1 --branch ${NSW_SRILANKA_REF} https://github.com/OpenNSW/nsw-srilanka /out/nsw-srilanka
+
+# -ldflags="-s -w" strips the symbol table and DWARF debug info to shrink the
+# binaries. Go panic traces (function + line) and pprof still work, since they
+# use the runtime pclntab rather than the symbol table.
+ARG BUILD_VERSION=dev
+RUN go build -ldflags="-s -w -X 'github.com/OpenNSW/nsw-agency/backend/internal/version.version=${BUILD_VERSION}'" -o /out/agency ./cmd/server \
+  && go build -ldflags="-s -w -X 'github.com/OpenNSW/nsw-agency/backend/internal/version.version=${BUILD_VERSION}'" -o /out/migrate ./cmd/migrate \
+  && go build -ldflags="-s -w -X 'github.com/OpenNSW/nsw-agency/backend/internal/version.version=${BUILD_VERSION}'" -o /out/nswac ./cmd/cli
 
 FROM debian:bookworm-slim
 
