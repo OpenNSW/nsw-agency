@@ -1,14 +1,14 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "nsw-agency.name" -}}
+{{- define "agency.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
 {{- end }}
 
 {{/*
 Create a default fully qualified app name.
 */}}
-{{- define "nsw-agency.fullname" -}}
+{{- define "agency.fullname" -}}
 {{- if .Values.fullnameOverride -}}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
 {{- else -}}
@@ -24,16 +24,16 @@ Create a default fully qualified app name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "nsw-agency.chart" -}}
+{{- define "agency.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "nsw-agency.labels" -}}
-helm.sh/chart: {{ include "nsw-agency.chart" . }}
-{{ include "nsw-agency.selectorLabels" . }}
+{{- define "agency.labels" -}}
+helm.sh/chart: {{ include "agency.chart" . }}
+{{ include "agency.selectorLabels" . }}
 {{- if .Values.image.tag }}
 app.kubernetes.io/version: {{ .Values.image.tag | quote }}
 {{- else if .Chart.AppVersion }}
@@ -45,7 +45,7 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels
 */}}
-{{- define "nsw-agency.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "nsw-agency.name" . }}
+{{- define "agency.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "agency.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}

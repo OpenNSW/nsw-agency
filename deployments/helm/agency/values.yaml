@@ -3,7 +3,7 @@
 # One image serves both the API and the officer portal, so this chart deploys a
 # single release. Layer the example override file on top of these defaults:
 #
-#   helm install nsw-agency ./nsw-agency -f values-example.yaml
+#   helm install nsw-agency ./agency -f values-example.yaml
 #
 # The image, containerPort, env, and ingress/route settings are intentionally
 # left as neutral defaults here and are filled in by the override file.
@@ -22,6 +22,20 @@ image:
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
+
+# Pod-level security context (applies to the server and migration pods), e.g.
+#   runAsNonRoot: true
+#   runAsUser: 1000
+#   fsGroup: 1000
+podSecurityContext: {}
+
+# Container-level security context (applies to the server and migration
+# containers), e.g.
+#   allowPrivilegeEscalation: false
+#   readOnlyRootFilesystem: true
+#   capabilities:
+#     drop: ["ALL"]
+securityContext: {}
 
 # Port the application container listens on (set per component).
 containerPort: 8080

@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "nsw-agency.fullname" . }}
+  name: {{ include "agency.fullname" . }}
   labels:
-    {{- include "nsw-agency.labels" . | nindent 4 }}
+    {{- include "agency.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type | default "ClusterIP" }}
   ports:
@@ -12,4 +12,4 @@ spec:
       targetPort: http
       protocol: TCP
   selector:
-    {{- include "nsw-agency.selectorLabels" . | nindent 4 }}
+    {{- include "agency.selectorLabels" . | nindent 4 }}

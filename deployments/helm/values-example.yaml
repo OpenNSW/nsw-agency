@@ -1,5 +1,5 @@
 # Override values for the NSW Agency app (single image: API + officer portal).
-#   helm install nsw-agency ./nsw-agency -f values-example.yaml
+#   helm install nsw-agency ./agency -f values-example.yaml
 #
 # One image now serves both the API and the SPA from one process and one port,
 # so this is a single release (there is no separate frontend deployment).
@@ -57,13 +57,13 @@ env:
   AUTH_JWKS_URL: "https://idp.example.com/oauth2/jwks"
   AUTH_ISSUER: "https://idp.example.com"
   AUTH_AUDIENCE: "AGENCY_API"
-  AUTH_CLIENT_IDS: "OGA_PORTAL_APP_NPQS,NSW_TO_NPQS"
-  AUTH_EXPECTED_OU: "npqs"
+  AUTH_CLIENT_IDS: "<SPA_AGENCY_PORTAL>,<M2M_NSW_TO_AGENCY>"
+  AUTH_EXPECTED_OU: "<AGENCY_OU_HANDLE>"
   AUTH_JWKS_INSECURE_SKIP_VERIFY: "false"   # DEV-ONLY true; keep false in prod
 
   # --- Outbound auth: this backend calling the NSW API ---
   NSW_API_BASE_URL: "https://nsw-api.example.com/api/v1"
-  NSW_CLIENT_ID: "M2M_AGENCY_TO_NSW"
+  NSW_CLIENT_ID: "<M2M_AGENCY_TO_NSW>"
   # SECRET — pulled from a Kubernetes Secret, never inlined.
   NSW_CLIENT_SECRET:
     valueFrom:
@@ -83,11 +83,11 @@ env:
   # public host below (NOT the in-cluster Service name).
   VITE_API_BASE_URL: "https://agency.example.com"
   VITE_IDP_BASE_URL: "https://idp.example.com"
-  VITE_IDP_CLIENT_ID: "OGA_PORTAL_APP_NPQS"
+  VITE_IDP_CLIENT_ID: "<AGENCY_PORTAL_CLIENT_ID>"
   VITE_APP_URL: "https://agency.example.com"
   VITE_IDP_SCOPES: "openid,profile,email,ou,role,agency:application:read,agency:application:review,agency:application:feedback,agency:consignment:read,agency:storage:read,agency:storage:write"
-  # Org/OU handle for this portal instance (npqs | fcau | ird | cda).
-  VITE_IDP_EXPECTED_OU_HANDLE: "npqs"
+  # Org/OU handle for this portal instance — must match AUTH_EXPECTED_OU above.
+  VITE_IDP_EXPECTED_OU_HANDLE: "<AGENCY_OU_HANDLE>"
 
 # Run database migrations as a pre-upgrade hook before the server rolls out.
 # Reuses the env above (same DB) and the same image, running /app/migrate up.
@@ -114,3 +114,12 @@ ingress:
       paths:
         - path: "/"
           pathType: Prefix
+  # TLS termination at the ingress. The portal needs HTTPS for the OIDC PKCE
+  # flow (a secure context — see the chart README), so enable this on
+  # non-OpenShift clusters. secretName must reference a kubernetes.io/tls Secret
+  # you create out-of-band, e.g.:
+  #   kubectl create secret tls nsw-agency-tls --cert=tls.crt --key=tls.key
+  tls: []
+  #  - secretName: nsw-agency-tls
+  #    hosts:
+  #      - agency.example.com

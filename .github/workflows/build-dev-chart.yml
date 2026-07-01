@@ -50,13 +50,13 @@ jobs:
         # required and has no default, so installers must set it to the dev image
         # they want to test, e.g. --set image.tag=dev-<run>-<sha>.
         run: |
-          helm package deployments/helm/nsw-agency \
+          helm package deployments/helm/agency \
             --version "0.0.0-dev.${{ github.run_number }}" \
             --destination .
 
       - name: Push chart to GHCR
         run: |
-          helm push nsw-agency-0.0.0-dev.${{ github.run_number }}.tgz \
+          helm push agency-0.0.0-dev.${{ github.run_number }}.tgz \
             oci://${{ env.REGISTRY }}/${{ steps.repo_owner.outputs.owner }}/charts
 
       - name: Summary
@@ -64,7 +64,7 @@ jobs:
           {
             echo "## Dev Helm Chart Published"
             echo ""
-            echo "- Chart: \`oci://${{ env.REGISTRY }}/${{ steps.repo_owner.outputs.owner }}/charts/nsw-agency\`"
+            echo "- Chart: \`oci://${{ env.REGISTRY }}/${{ steps.repo_owner.outputs.owner }}/charts/agency\`"
             echo "- Version: 0.0.0-dev.${{ github.run_number }} (prerelease — install with --devel or --version)"
             echo "- image.tag is required at install, e.g. --set image.tag=dev-<run>-<sha>"
           } >> "$GITHUB_STEP_SUMMARY"

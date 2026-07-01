@@ -4,9 +4,10 @@ name: Release - Publish Helm Chart
 # chart-v* tag, e.g.:
 #   git tag chart-v0.3.0 && git push origin chart-v0.3.0
 #
-# The chart VERSION comes from the tag. The chart's appVersion (which app image
-# it deploys by default) comes from Chart.yaml — bump it in a PR when you want
-# the chart's default to track a newer app release.
+# The chart VERSION comes from the tag. The chart's appVersion comes from
+# Chart.yaml and is validated against the latest app release (v*.*.* tag) before
+# publishing — so a chart release always ships pointing at the current app
+# version. Bump appVersion in a PR to match the app release you're shipping.
 
 on:
   push:
@@ -36,6 +37,15 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # Full history + tags so the appVersion check can find the latest
+          # app release tag (v*.*.*).
+          fetch-depth: 0
+
+      - name: Validate appVersion matches the latest app release
+        uses: ./.github/actions/chart-appversion-check
+        with:
+          chart-dir: deployments/helm/agency
 
       - name: Set up Helm
         uses: azure/setup-helm@v4
@@ -58,7 +68,7 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Lint chart
-        run: helm lint deployments/helm/nsw-agency -f deployments/helm/values-example.yaml
+        run: helm lint deployments/helm/agency -f deployments/helm/values-example.yaml
 
       - name: Log in to GHCR (Helm)
         run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ${{ env.REGISTRY }} --username ${{ github.actor }} --password-stdin
@@ -68,13 +78,13 @@ jobs:
         # --app-version override), so the maintainer controls which app image the
         # chart ships with by editing Chart.yaml.
         run: |
-          helm package deployments/helm/nsw-agency \
+          helm package deployments/helm/agency \
             --version "${{ steps.chart.outputs.version }}" \
             --destination .
 
       - name: Push chart to GHCR
         run: |
-          helm push nsw-agency-${{ steps.chart.outputs.version }}.tgz \
+          helm push agency-${{ steps.chart.outputs.version }}.tgz \
             oci://${{ env.REGISTRY }}/${{ steps.repo_owner.outputs.owner }}/charts
 
       - name: Summary
@@ -82,6 +92,6 @@ jobs:
           {
             echo "## Helm Chart Released"
             echo ""
-            echo "- Chart: \`oci://${{ env.REGISTRY }}/${{ steps.repo_owner.outputs.owner }}/charts/nsw-agency\`"
+            echo "- Chart: \`oci://${{ env.REGISTRY }}/${{ steps.repo_owner.outputs.owner }}/charts/agency\`"
             echo "- Version: ${{ steps.chart.outputs.version }} (appVersion taken from Chart.yaml)"
           } >> "$GITHUB_STEP_SUMMARY"

@@ -15,14 +15,14 @@ override file from the parent `helm/` directory on top of the chart defaults.
 
 ```
 deployments/helm/
-├── nsw-agency/            # this chart (templates + neutral defaults)
+├── agency/            # this chart (templates + neutral defaults)
 └── values-example.yaml    # complete example override (API + portal)
 ```
 
 ## Usage
 
 ```bash
-helm install nsw-agency ./nsw-agency -f ../values-example.yaml
+helm install nsw-agency ./agency -f ../values-example.yaml
 ```
 
 `values.yaml` holds only neutral defaults. The image, port, environment, and
@@ -73,7 +73,7 @@ because they change at different rates. Each has its own tag namespace:
 | Artifact  | Tag            | Workflow                                                            | Publishes                                         |
 |-----------|----------------|---------------------------------------------------------------------|---------------------------------------------------|
 | App image | `v1.2.3`       | [`release.yml`](../../../.github/workflows/release.yml)             | `ghcr.io/opennsw/agency:1.2.3` + a GitHub Release |
-| Chart     | `chart-v0.3.0` | [`release-chart.yml`](../../../.github/workflows/release-chart.yml) | `oci://ghcr.io/opennsw/charts/nsw-agency:0.3.0`   |
+| Chart     | `chart-v0.3.0` | [`release-chart.yml`](../../../.github/workflows/release-chart.yml) | `oci://ghcr.io/opennsw/charts/agency:0.3.0`   |
 
 ### `appVersion` vs `image.tag`
 
@@ -92,7 +92,7 @@ Because chart releases are decoupled, cut them on their own cadence:
 
 ```bash
 # 1. (Only if you want the chart's DEFAULT image to track a new app version)
-#    Edit deployments/helm/nsw-agency/Chart.yaml:
+#    Edit deployments/helm/agency/Chart.yaml:
 #      appVersion: "1.2.3"   # metadata; also bump `version:` if you prefer
 #    …and set a matching image.tag in your example/prod values file.
 #
@@ -100,15 +100,15 @@ Because chart releases are decoupled, cut them on their own cadence:
 #    from Chart.yaml (NOT overridden by the workflow).
 git tag chart-v0.3.0
 git push origin chart-v0.3.0
-# → published to oci://ghcr.io/opennsw/charts/nsw-agency:0.3.0
+# → published to oci://ghcr.io/opennsw/charts/agency:0.3.0
 ```
 
 To publish manually (the workflow does exactly this):
 
 ```bash
 echo "$GITHUB_TOKEN" | helm registry login ghcr.io -u <user> --password-stdin
-helm package deployments/helm/nsw-agency --version 0.3.0
-helm push nsw-agency-0.3.0.tgz oci://ghcr.io/opennsw/charts
+helm package deployments/helm/agency --version 0.3.0
+helm push agency-0.3.0.tgz oci://ghcr.io/opennsw/charts
 ```
 
 ### Development builds
@@ -121,11 +121,11 @@ when asked for explicitly, and you must supply the dev `image.tag` to test
 against:
 
 ```bash
-helm install nsw-agency oci://ghcr.io/opennsw/charts/nsw-agency \
+helm install nsw-agency oci://ghcr.io/opennsw/charts/agency \
   --version 0.0.0-dev.42 \
   --set image.tag=dev-42-<sha> -f your-values.yaml
 # or pull the latest prerelease:
-helm pull oci://ghcr.io/opennsw/charts/nsw-agency --devel
+helm pull oci://ghcr.io/opennsw/charts/agency --devel
 ```
 
 ## Consuming the published chart
@@ -134,7 +134,7 @@ OCI charts need no `helm repo add`. Install directly by reference:
 
 ```bash
 helm install nsw-agency \
-  oci://ghcr.io/opennsw/charts/nsw-agency --version 0.1.0 \
+  oci://ghcr.io/opennsw/charts/agency --version 0.1.0 \
   -f values-example.yaml
 ```
 
@@ -147,7 +147,7 @@ helm install nsw-agency \
 > URLs, client IDs, and OU handles for your environment.
 
 If the GHCR package is private, `helm registry login ghcr.io` first; otherwise
-make the `charts/nsw-agency` package public in the org's package settings.
+make the `charts/agency` package public in the org's package settings.
 
 ## Configuration Reference
 

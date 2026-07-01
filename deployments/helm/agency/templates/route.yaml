@@ -2,20 +2,20 @@
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
-  name: {{ include "nsw-agency.fullname" . }}
+  name: {{ include "agency.fullname" . }}
   labels:
-    {{- include "nsw-agency.labels" . | nindent 4 }}
+    {{- include "agency.labels" . | nindent 4 }}
 spec:
   {{- if .Values.route.host }}
   host: {{ .Values.route.host }}
   {{- end }}
   to:
     kind: Service
-    name: {{ include "nsw-agency.fullname" . }}
+    name: {{ include "agency.fullname" . }}
     weight: 100
   port:
     targetPort: http
-  {{- if .Values.route.tls.enabled }}
+  {{- if and .Values.route.tls .Values.route.tls.enabled }}
   tls:
     termination: {{ .Values.route.tls.termination | default "edge" | quote }}
   {{- end }}
