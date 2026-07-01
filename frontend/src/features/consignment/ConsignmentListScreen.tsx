@@ -1,71 +1,25 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { Badge, Text, TextField, Spinner, IconButton } from '@radix-ui/themes'
 import { MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, ArchiveIcon } from '@radix-ui/react-icons'
-import { type ConsignmentSummary } from './types'
-import { fetchConsignments } from './service'
 import i18n from '@/i18n'
-import { useDebounce } from '@/hooks/useDebounce'
+import { useConsignmentList } from './hooks/useConsignmentList'
 
-const PAGE_SIZE = 20
+const formatDateForTable = (dateString?: string) => {
+  if (!dateString) return '-'
+  return new Date(dateString).toLocaleDateString(i18n.resolvedLanguage || undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
 
 export function ConsignmentListScreen() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [consignments, setConsignments] = useState<ConsignmentSummary[]>([])
-  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const debouncedSearchTerm = useDebounce(searchTerm, 400)
-  const [page, setPage] = useState(1)
-  const [total, setTotal] = useState(0)
-
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
-
-  // Reset page when search term changes
-  const [prevDebouncedSearchTerm, setPrevDebouncedSearchTerm] = useState(debouncedSearchTerm)
-  if (debouncedSearchTerm !== prevDebouncedSearchTerm) {
-    setPrevDebouncedSearchTerm(debouncedSearchTerm)
-    setPage(1)
-  }
-
-  useEffect(() => {
-    async function fetchData(isSilent = false) {
-      try {
-        if (!isSilent) setLoading(true)
-        const result = await fetchConsignments({
-          page,
-          pageSize: PAGE_SIZE,
-          q: debouncedSearchTerm,
-        })
-        setConsignments(result.items || [])
-        setTotal(result.total || 0)
-        // Reset to page 1 if current page is out of bounds
-        const maxPages = Math.max(1, Math.ceil((result.total || 0) / PAGE_SIZE))
-        if (page > maxPages) {
-          setPage(1)
-        }
-      } catch (error) {
-        console.error('Failed to fetch consignments:', error)
-      } finally {
-        if (!isSilent) setLoading(false)
-      }
-    }
-    void fetchData()
-    // Poll for new consignments every 15 seconds
-    const interval = setInterval(() => void fetchData(true), 15000)
-    return () => clearInterval(interval)
-  }, [page, debouncedSearchTerm])
-
-  // Format date: Jan 27, 2026
-  const formatDateForTable = (dateString?: string) => {
-    if (!dateString) return '-'
-    return new Date(dateString).toLocaleDateString(i18n.resolvedLanguage || undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    })
-  }
+  const { consignments, loading, page, setPage, total, totalPages } = useConsignmentList(searchTerm)
 
   return (
     <div className="animate-fade-in max-w-6xl mx-auto">
@@ -82,7 +36,6 @@ export function ConsignmentListScreen() {
       </div>
 
       <div className="space-y-4">
-        {/* Search */}
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="flex-1">
             <TextField.Root
@@ -152,9 +105,7 @@ export function ConsignmentListScreen() {
                       <td className="px-6 py-4 break-all font-mono text-blue-600 font-medium hover:underline">
                         {consignment.consignmentId}
                       </td>
-
                       <td className="px-6 py-4 whitespace-nowrap text-center">{consignment.taskCount}</td>
-
                       <td className="px-6 py-4 whitespace-nowrap">
                         <Badge
                           size="1"
@@ -183,7 +134,6 @@ export function ConsignmentListScreen() {
           )}
         </div>
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between pt-2">
             <Text size="2" color="gray">
