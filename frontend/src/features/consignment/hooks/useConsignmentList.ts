@@ -21,30 +21,34 @@ export function useConsignmentList(searchTerm: string) {
   }
 
   useEffect(() => {
+    const controller = new AbortController()
+
     async function fetchData(isSilent = false) {
       try {
         if (!isSilent) setLoading(true)
-        const result = await fetchConsignments({
-          page,
-          pageSize: PAGE_SIZE,
-          q: debouncedSearchTerm,
-        })
-        setConsignments(result.items || [])
-        setTotal(result.total || 0)
-        const maxPages = Math.max(1, Math.ceil((result.total || 0) / PAGE_SIZE))
-        if (page > maxPages) {
-          setPage(1)
+        const result = await fetchConsignments({ page, pageSize: PAGE_SIZE, q: debouncedSearchTerm }, controller.signal)
+        if (!controller.signal.aborted) {
+          setConsignments(result.items || [])
+          setTotal(result.total || 0)
+          const maxPages = Math.max(1, Math.ceil((result.total || 0) / PAGE_SIZE))
+          if (page > maxPages) setPage(1)
         }
       } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return
         console.error('Failed to fetch consignments:', error)
       } finally {
-        if (!isSilent) setLoading(false)
+        if (!controller.signal.aborted && !isSilent) setLoading(false)
       }
     }
     void fetchData()
     const interval = setInterval(() => void fetchData(true), 15000)
-    return () => clearInterval(interval)
+    return () => {
+      controller.abort()
+      clearInterval(interval)
+    }
   }, [page, debouncedSearchTerm])
 
-  return { consignments, loading, page, setPage, total, totalPages }
+  const isLoading = loading || searchTerm !== debouncedSearchTerm
+
+  return { consignments, loading: isLoading, page, setPage, total, totalPages }
 }
