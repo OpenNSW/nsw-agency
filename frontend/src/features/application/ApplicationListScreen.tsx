@@ -5,7 +5,7 @@ import { Badge, Text, Spinner, IconButton, Button, Flex } from '@radix-ui/themes
 import { ChevronLeftIcon, ChevronRightIcon, ArrowLeftIcon, ArchiveIcon } from '@radix-ui/react-icons'
 import { type AgencyApplication } from './types'
 import { fetchApplications } from './service'
-import i18n from '@/i18n'
+import { formatDateForTable } from '@/utils/date'
 
 const PAGE_SIZE = 20
 
@@ -40,15 +40,6 @@ export function ApplicationListScreen() {
     void fetchData()
     return () => controller.abort()
   }, [consignmentId, page])
-
-  const formatDateForTable = (dateString?: string) => {
-    if (!dateString) return '-'
-    return new Date(dateString).toLocaleDateString(i18n.resolvedLanguage || undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    })
-  }
 
   if (loading && page === 1) {
     return (

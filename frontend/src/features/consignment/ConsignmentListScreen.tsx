@@ -3,23 +3,14 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { Badge, Text, TextField, Spinner, IconButton } from '@radix-ui/themes'
 import { MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, ArchiveIcon } from '@radix-ui/react-icons'
-import i18n from '@/i18n'
 import { useConsignmentList } from './hooks/useConsignmentList'
-
-const formatDateForTable = (dateString?: string) => {
-  if (!dateString) return '-'
-  return new Date(dateString).toLocaleDateString(i18n.resolvedLanguage || undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
+import { formatDateForTable } from '@/utils/date'
 
 export function ConsignmentListScreen() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
-  const { consignments, loading, page, setPage, total, totalPages } = useConsignmentList(searchTerm)
+  const { data, status, pagination } = useConsignmentList(searchTerm)
 
   return (
     <div className="animate-fade-in max-w-6xl mx-auto">
@@ -30,7 +21,7 @@ export function ConsignmentListScreen() {
         </div>
         <div className="flex items-center gap-4">
           <Badge color="blue" variant="soft" size="2">
-            {t('consignments.list.badge', { total })}
+            {t('consignments.list.badge', { total: pagination.total })}
           </Badge>
         </div>
       </div>
@@ -47,14 +38,18 @@ export function ConsignmentListScreen() {
               }}
             >
               <TextField.Slot>
-                {loading && searchTerm !== '' ? <Spinner size="1" /> : <MagnifyingGlassIcon height="16" width="16" />}
+                {status.loading && searchTerm !== '' ? (
+                  <Spinner size="1" />
+                ) : (
+                  <MagnifyingGlassIcon height="16" width="16" />
+                )}
               </TextField.Slot>
             </TextField.Root>
           </div>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative min-h-[400px]">
-          {loading && (
+          {status.loading && (
             <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
               <div className="flex flex-col items-center gap-2">
                 <Spinner size="3" />
@@ -65,7 +60,7 @@ export function ConsignmentListScreen() {
             </div>
           )}
 
-          {consignments.length === 0 && !loading ? (
+          {data.length === 0 && !status.loading ? (
             <div className="p-12 text-center">
               <div className="bg-white w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-gray-100">
                 <ArchiveIcon className="w-8 h-8 text-gray-300" />
@@ -94,7 +89,7 @@ export function ConsignmentListScreen() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
-                  {consignments.map((consignment) => (
+                  {data.map((consignment) => (
                     <tr
                       key={consignment.consignmentId}
                       onClick={() => {
@@ -134,16 +129,30 @@ export function ConsignmentListScreen() {
           )}
         </div>
 
-        {totalPages > 1 && (
+        {pagination.totalPages > 1 && (
           <div className="flex items-center justify-between pt-2">
             <Text size="2" color="gray">
-              {t('common.pagination.info', { page, totalPages, total })}
+              {t('common.pagination.info', {
+                page: pagination.page,
+                totalPages: pagination.totalPages,
+                total: pagination.total,
+              })}
             </Text>
             <div className="flex items-center gap-2">
-              <IconButton size="1" variant="soft" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              <IconButton
+                size="1"
+                variant="soft"
+                disabled={pagination.page <= 1}
+                onClick={() => pagination.setPage((p) => p - 1)}
+              >
                 <ChevronLeftIcon />
               </IconButton>
-              <IconButton size="1" variant="soft" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+              <IconButton
+                size="1"
+                variant="soft"
+                disabled={pagination.page >= pagination.totalPages}
+                onClick={() => pagination.setPage((p) => p + 1)}
+              >
                 <ChevronRightIcon />
               </IconButton>
             </div>

@@ -50,5 +50,9 @@ export function useConsignmentList(searchTerm: string) {
 
   const isLoading = loading || searchTerm !== debouncedSearchTerm
 
-  return { consignments, loading: isLoading, page, setPage, total, totalPages }
+  return {
+    data: consignments,
+    status: { loading: isLoading },
+    pagination: { page, setPage, total, totalPages },
+  }
 }
