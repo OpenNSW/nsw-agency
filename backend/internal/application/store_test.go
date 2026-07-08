@@ -304,6 +304,35 @@ func TestApplicationStore_List_Pagination(t *testing.T) {
 	}
 }
 
+func TestApplicationStore_List_OrderingPriority(t *testing.T) {
+	store := newTestStore(t)
+	ctx := context.Background()
+
+	// Seed records out of order
+	_ = store.CreateOrUpdate(&ApplicationRecord{TaskID: "task-done", TaskCode: "test", ConsignmentID: "wf-order", ServiceURL: "http://test", Status: "DONE"})
+	_ = store.CreateOrUpdate(&ApplicationRecord{TaskID: "task-feedback", TaskCode: "test", ConsignmentID: "wf-order", ServiceURL: "http://test", Status: "FEEDBACK_REQUESTED"})
+	_ = store.CreateOrUpdate(&ApplicationRecord{TaskID: "task-pending", TaskCode: "test", ConsignmentID: "wf-order", ServiceURL: "http://test", Status: "PENDING"})
+
+	apps, _, err := store.List(ctx, "", "wf-order", "", 0, 10)
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+
+	if len(apps) != 3 {
+		t.Fatalf("expected 3 apps, got %d", len(apps))
+	}
+
+	if apps[0].TaskID != "task-pending" {
+		t.Errorf("expected first app to be task-pending, got %s", apps[0].TaskID)
+	}
+	if apps[1].TaskID != "task-feedback" {
+		t.Errorf("expected second app to be task-feedback, got %s", apps[1].TaskID)
+	}
+	if apps[2].TaskID != "task-done" {
+		t.Errorf("expected third app to be task-done, got %s", apps[2].TaskID)
+	}
+}
+
 func TestApplicationStore_List_ConsignmentFilter(t *testing.T) {
 	store := newTestStore(t)
 	ctx := context.Background()
