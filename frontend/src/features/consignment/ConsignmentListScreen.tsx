@@ -1,71 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { Badge, Text, TextField, Spinner, IconButton } from '@radix-ui/themes'
 import { MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, ArchiveIcon } from '@radix-ui/react-icons'
-import { type ConsignmentSummary } from './types'
-import { fetchConsignments } from './service'
-import i18n from '@/i18n'
-import { useDebounce } from '@/hooks/useDebounce'
-
-const PAGE_SIZE = 20
+import { useConsignmentList } from './hooks/useConsignmentList'
+import { formatDateForTable } from '@/utils/date'
 
 export function ConsignmentListScreen() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [consignments, setConsignments] = useState<ConsignmentSummary[]>([])
-  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const debouncedSearchTerm = useDebounce(searchTerm, 400)
-  const [page, setPage] = useState(1)
-  const [total, setTotal] = useState(0)
-
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
-
-  // Reset page when search term changes
-  const [prevDebouncedSearchTerm, setPrevDebouncedSearchTerm] = useState(debouncedSearchTerm)
-  if (debouncedSearchTerm !== prevDebouncedSearchTerm) {
-    setPrevDebouncedSearchTerm(debouncedSearchTerm)
-    setPage(1)
-  }
-
-  useEffect(() => {
-    async function fetchData(isSilent = false) {
-      try {
-        if (!isSilent) setLoading(true)
-        const result = await fetchConsignments({
-          page,
-          pageSize: PAGE_SIZE,
-          q: debouncedSearchTerm,
-        })
-        setConsignments(result.items || [])
-        setTotal(result.total || 0)
-        // Reset to page 1 if current page is out of bounds
-        const maxPages = Math.max(1, Math.ceil((result.total || 0) / PAGE_SIZE))
-        if (page > maxPages) {
-          setPage(1)
-        }
-      } catch (error) {
-        console.error('Failed to fetch consignments:', error)
-      } finally {
-        if (!isSilent) setLoading(false)
-      }
-    }
-    void fetchData()
-    // Poll for new consignments every 15 seconds
-    const interval = setInterval(() => void fetchData(true), 15000)
-    return () => clearInterval(interval)
-  }, [page, debouncedSearchTerm])
-
-  // Format date: Jan 27, 2026
-  const formatDateForTable = (dateString?: string) => {
-    if (!dateString) return '-'
-    return new Date(dateString).toLocaleDateString(i18n.resolvedLanguage || undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    })
-  }
+  const { data, status, pagination } = useConsignmentList(searchTerm)
 
   return (
     <div className="animate-fade-in max-w-6xl mx-auto">
@@ -76,13 +21,12 @@ export function ConsignmentListScreen() {
         </div>
         <div className="flex items-center gap-4">
           <Badge color="blue" variant="soft" size="2">
-            {t('consignments.list.badge', { total })}
+            {t('consignments.list.badge', { total: pagination.total })}
           </Badge>
         </div>
       </div>
 
       <div className="space-y-4">
-        {/* Search */}
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="flex-1">
             <TextField.Root
@@ -94,14 +38,18 @@ export function ConsignmentListScreen() {
               }}
             >
               <TextField.Slot>
-                {loading && searchTerm !== '' ? <Spinner size="1" /> : <MagnifyingGlassIcon height="16" width="16" />}
+                {status.loading && searchTerm !== '' ? (
+                  <Spinner size="1" />
+                ) : (
+                  <MagnifyingGlassIcon height="16" width="16" />
+                )}
               </TextField.Slot>
             </TextField.Root>
           </div>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative min-h-[400px]">
-          {loading && (
+          {status.loading && (
             <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
               <div className="flex flex-col items-center gap-2">
                 <Spinner size="3" />
@@ -112,7 +60,7 @@ export function ConsignmentListScreen() {
             </div>
           )}
 
-          {consignments.length === 0 && !loading ? (
+          {data.length === 0 && !status.loading ? (
             <div className="p-12 text-center">
               <div className="bg-white w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-gray-100">
                 <ArchiveIcon className="w-8 h-8 text-gray-300" />
@@ -141,7 +89,7 @@ export function ConsignmentListScreen() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
-                  {consignments.map((consignment) => (
+                  {data.map((consignment) => (
                     <tr
                       key={consignment.consignmentId}
                       onClick={() => {
@@ -152,9 +100,7 @@ export function ConsignmentListScreen() {
                       <td className="px-6 py-4 break-all font-mono text-blue-600 font-medium hover:underline">
                         {consignment.consignmentId}
                       </td>
-
                       <td className="px-6 py-4 whitespace-nowrap text-center">{consignment.taskCount}</td>
-
                       <td className="px-6 py-4 whitespace-nowrap">
                         <Badge
                           size="1"
@@ -183,17 +129,30 @@ export function ConsignmentListScreen() {
           )}
         </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
+        {pagination.totalPages > 1 && (
           <div className="flex items-center justify-between pt-2">
             <Text size="2" color="gray">
-              {t('common.pagination.info', { page, totalPages, total })}
+              {t('common.pagination.info', {
+                page: pagination.page,
+                totalPages: pagination.totalPages,
+                total: pagination.total,
+              })}
             </Text>
             <div className="flex items-center gap-2">
-              <IconButton size="1" variant="soft" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              <IconButton
+                size="1"
+                variant="soft"
+                disabled={pagination.page <= 1}
+                onClick={() => pagination.setPage((p) => p - 1)}
+              >
                 <ChevronLeftIcon />
               </IconButton>
-              <IconButton size="1" variant="soft" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+              <IconButton
+                size="1"
+                variant="soft"
+                disabled={pagination.page >= pagination.totalPages}
+                onClick={() => pagination.setPage((p) => p + 1)}
+              >
                 <ChevronRightIcon />
               </IconButton>
             </div>
