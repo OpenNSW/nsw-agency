@@ -140,7 +140,7 @@ func (s *ApplicationStore) List(ctx context.Context, status string, consignmentI
 		return nil, 0, err
 	}
 
-	if err := query.Order("created_at DESC").Offset(offset).Limit(limit).Find(&apps).Error; err != nil {
+	if err := query.Order("CASE WHEN status = 'PENDING' THEN 0 WHEN status = 'FEEDBACK_REQUESTED' THEN 1 ELSE 2 END ASC, created_at DESC").Offset(offset).Limit(limit).Find(&apps).Error; err != nil {
 		return nil, 0, err
 	}
 
