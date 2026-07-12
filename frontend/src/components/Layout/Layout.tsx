@@ -32,7 +32,16 @@ export function Layout() {
           className="flex min-h-[calc(100vh-64px)] flex-col transition-all duration-300 mt-16 p-8"
         >
           <Outlet />
-          <footer className="mt-auto pt-8 text-right text-sm text-gray-500">{t('footer.poweredBy')}</footer>
+          <footer className="mt-auto pt-8 text-right text-sm text-gray-500">
+            <a
+              href="https://github.com/OpenNSW"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-gray-700 hover:underline"
+            >
+              {t('footer.poweredBy')}
+            </a>
+          </footer>
         </main>
       </div>
     </div>
