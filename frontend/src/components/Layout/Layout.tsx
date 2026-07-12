@@ -31,10 +31,8 @@ export function Layout() {
           style={{ marginLeft: `${sidebarWidth}px`, width: `calc(100% - ${sidebarWidth}px)` }}
           className="flex min-h-[calc(100vh-64px)] flex-col transition-all duration-300 mt-16 p-8"
         >
-          <div className="flex-1">
-            <Outlet />
-          </div>
-          <footer className="mt-8 text-right text-sm text-gray-500">{t('footer.poweredBy')}</footer>
+          <Outlet />
+          <footer className="mt-auto pt-8 text-right text-sm text-gray-500">{t('footer.poweredBy')}</footer>
         </main>
       </div>
     </div>
