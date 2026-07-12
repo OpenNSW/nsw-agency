@@ -49,6 +49,7 @@ export function LoginScreen() {
               </button>
             </div>
           </div>
+          <p className="hidden lg:block absolute bottom-4 right-6 text-xs text-white/60">{t('footer.poweredBy')}</p>
         </div>
       </div>
 
@@ -79,6 +80,7 @@ export function LoginScreen() {
         <p className="absolute bottom-4 left-8 lg:left-36 text-xs text-gray-400">
           {import.meta.env.VITE_APP_VERSION || 'dev'}
         </p>
+        <p className="lg:hidden absolute bottom-4 right-8 text-xs text-gray-400">{t('footer.poweredBy')}</p>
       </div>
     </div>
   )

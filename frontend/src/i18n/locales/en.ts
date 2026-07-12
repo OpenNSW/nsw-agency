@@ -31,6 +31,11 @@ const en = {
     },
   },
 
+  // Layout.tsx, LoginScreen.tsx
+  footer: {
+    poweredBy: 'Powered by OpenNSW',
+  },
+
   // TopBar.tsx
   topbar: {
     search: {
