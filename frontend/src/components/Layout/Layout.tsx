@@ -31,7 +31,11 @@ export function Layout() {
           style={{ marginLeft: `${sidebarWidth}px`, width: `calc(100% - ${sidebarWidth}px)` }}
           className="flex min-h-[calc(100vh-64px)] flex-col transition-all duration-300 mt-16 p-8"
         >
-          <Outlet />
+          {/* Plain block wrapper: flex items with mx-auto stop stretching, which
+              would shrink pages using max-w-* mx-auto to fit-content width. */}
+          <div className="w-full">
+            <Outlet />
+          </div>
           <footer className="mt-auto pt-8 text-right text-sm text-gray-500">
             <a
               href="https://github.com/OpenNSW"
