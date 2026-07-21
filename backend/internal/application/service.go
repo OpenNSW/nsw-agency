@@ -271,6 +271,14 @@ func (s *service) GetApplication(ctx context.Context, taskID string) (*Applicati
 	// Attach task configuration
 	config, err := taskconfigart.Load(ctx, s.artifactRegistry, record.TaskCode)
 	if err != nil {
+		if !errors.Is(err, artifact.ErrNotFound) {
+			// A genuine load failure (network, credentials, malformed config)
+			// must not fall back to nil permissions, which would grant full
+			// access to any authenticated user. Fail closed.
+			return nil, fmt.Errorf("failed to load task config for task %s: %w", record.TaskCode, err)
+		}
+		// Config genuinely absent — omit metadata/forms and fall back to the
+		// default access resolution (preserves prior behaviour).
 		slog.WarnContext(ctx, "task config not found for application", "taskID", taskID, "taskCode", record.TaskCode)
 		_, app.AllowedActions = resolveAccess(roles, nil)
 	} else {

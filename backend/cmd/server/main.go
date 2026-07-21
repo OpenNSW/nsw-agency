@@ -79,15 +79,19 @@ func main() {
 		WithTLS(&httpclient.TLSConfig{InsecureSkipVerify: cfg.NSW.TokenInsecureSkipVerify}).
 		Build()
 
-	artifactLoader, err := loaders.New(context.Background(), cfg.ArtifactLoader)
+	// Bound startup on the remote artifact store: a slow or unreachable backend
+	// (GitHub / S3) must fail fast with a clear error rather than hang the boot.
+	initCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	artifactLoader, err := loaders.New(initCtx, cfg.ArtifactLoader)
 	if err != nil {
 		log.Fatalf("failed to initialize artifact loader: %v", err)
 	}
 
 	artifactRegistry := artifact.NewRegistry(artifactLoader)
 
-	manifestCfg, err := artifact.LoadManifest(context.Background(), artifactLoader)
-
+	manifestCfg, err := artifact.LoadManifest(initCtx, artifactLoader)
 	if err != nil {
 		log.Fatalf("failed to load artifact manifest: %v", err)
 	}

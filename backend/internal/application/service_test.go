@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -523,6 +524,46 @@ func TestGetApplication_MissingFormRef_OmitsForms(t *testing.T) {
 	if app.DataForm != nil || app.AgencyForm != nil {
 		t.Errorf("expected forms to be omitted when referenced forms are missing, got dataForm=%v agencyForm=%v",
 			app.DataForm, app.AgencyForm)
+	}
+}
+
+// failingLoader is an artifact.Loader that returns a non-ErrNotFound I/O error
+// for every path, simulating a transient remote-store failure.
+type failingLoader struct{}
+
+func (failingLoader) Load(_ context.Context, _ string) ([]byte, error) {
+	return nil, fmt.Errorf("simulated remote store failure")
+}
+
+func TestGetApplication_ConfigLoadError_FailsClosed(t *testing.T) {
+	store := newTestStore(t)
+	if err := store.CreateOrUpdate(&ApplicationRecord{
+		TaskID:        "t-load-fail",
+		TaskCode:      "alpha",
+		ConsignmentID: "wf-test",
+		ServiceURL:    "http://unused.example",
+		Data:          JSONB{"field": "value"},
+		Status:        "PENDING",
+	}); err != nil {
+		t.Fatalf("failed to seed record: %v", err)
+	}
+
+	// Config is registered but its bytes fail to load with a real I/O error
+	// (not ErrNotFound). GetApplication must surface the error rather than fall
+	// back to nil permissions, which would grant full access to any user.
+	reg := artifact.NewRegistry(failingLoader{})
+	reg.RegisterArtifact("alpha", taskconfigart.Kind, "", "alpha.json")
+
+	hc := httpclient.NewClientBuilder().Build()
+	svc := NewService(store, reg, hc, rbac.NewRoleService(store.db))
+	t.Cleanup(func() { _ = svc.Close() })
+
+	app, err := svc.GetApplication(context.Background(), "t-load-fail")
+	if err == nil {
+		t.Fatalf("expected an error when the task config fails to load, got app=%+v", app)
+	}
+	if app != nil {
+		t.Errorf("expected no application on load error, got %+v", app)
 	}
 }
 

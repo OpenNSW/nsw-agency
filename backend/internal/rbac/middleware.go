@@ -2,6 +2,7 @@ package rbac
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -55,8 +56,22 @@ func (m *Middleware) RequireAction(action string) func(http.Handler) http.Handle
 			}
 
 			cfg, err := taskconfigart.Load(ctx, m.artifactRegistry, taskCode)
-			if err != nil || len(cfg.Permissions) == 0 {
-				// No permissions defined — preserve current behaviour, allow all authenticated users.
+			if err != nil {
+				if errors.Is(err, artifact.ErrNotFound) {
+					// No task config for this code — preserve current behaviour,
+					// allow all authenticated users.
+					next.ServeHTTP(w, r)
+					return
+				}
+				// A genuine load failure (network, credentials, malformed config)
+				// must fail closed: allowing the request through on a transient
+				// loader error would silently bypass RBAC.
+				slog.ErrorContext(ctx, "rbac: failed to load task config", "taskCode", taskCode, "error", err)
+				httputil.WriteJSONError(w, http.StatusInternalServerError, "failed to load task configuration")
+				return
+			}
+			if len(cfg.Permissions) == 0 {
+				// No permissions defined — allow all authenticated users.
 				next.ServeHTTP(w, r)
 				return
 			}

@@ -38,5 +38,8 @@ func (l *loadable) Parse(raw []byte) error {
 // Load fetches and parses the newest version of the task config with the given id.
 func Load(ctx context.Context, reg *artifact.Registry, id string) (taskconfig.TaskConfig, error) {
 	w, err := artifact.Latest[loadable](ctx, reg, id)
-	return w.TaskConfig, err
+	if err != nil {
+		return taskconfig.TaskConfig{}, err
+	}
+	return w.TaskConfig, nil
 }
