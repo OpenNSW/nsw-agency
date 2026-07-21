@@ -1,4 +1,4 @@
-name: Release - Build and Publish Agency Images
+name: Release - Build and Publish Agency Image
 
 on:
   push:
@@ -12,37 +12,25 @@ on:
 
 env:
   REGISTRY: ghcr.io
+  # The whole app ships as ONE image (root Dockerfile): the Go server serves the
+  # API and the officer-portal SPA from one process.
+  IMAGE_NAME: agency
 
 jobs:
   build-and-publish:
-    name: Build and Publish - ${{ matrix.service_name }}
+    name: Build and Publish
     runs-on: ubuntu-latest
     permissions:
       packages: write
       security-events: write
       id-token: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - service_name: Agency Backend
-            image_name: nsw-agency-backend
-            context: ./backend
-            dockerfile: ./backend/Dockerfile
-            description: Agency Backend Service
-
-          - service_name: Agency Portal
-            image_name: nsw-agency-app
-            context: ./frontend
-            dockerfile: ./frontend/Dockerfile
-            description: Agency Officer Portal Frontend
-
     env:
       GIT_COMMIT: ${{ github.sha }}
-
     outputs:
       release_enabled: ${{ steps.release-mode.outputs.enabled }}
-
+      version: ${{ steps.version.outputs.tag }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+      digest: ${{ steps.build.outputs.digest }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -89,6 +77,11 @@ jobs:
           fi
           VERSION="${VERSION#v}"
           echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+          if [[ "${VERSION}" == *-* ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Convert repository owner to lowercase
         id: repo_owner
@@ -98,7 +91,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ steps.repo_owner.outputs.owner }}/${{ matrix.image_name }}
+          images: ${{ env.REGISTRY }}/${{ steps.repo_owner.outputs.owner }}/${{ env.IMAGE_NAME }}
           tags: |
             type=semver,pattern={{version}},enable=${{ github.event_name == 'push' }}
             type=semver,pattern={{major}}.{{minor}},enable=${{ github.event_name == 'push' }}
@@ -108,7 +101,7 @@ jobs:
             type=sha,format=long
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.description=${{ matrix.description }}
+            org.opencontainers.image.description=NSW Agency service (backend API + officer portal)
             org.opencontainers.image.licenses=Apache-2.0
             org.opencontainers.image.version=${{ steps.version.outputs.tag }}
             org.opencontainers.image.revision=${{ env.GIT_COMMIT }}
@@ -118,8 +111,8 @@ jobs:
         id: build
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
+          context: .
+          file: ./Dockerfile
           push: ${{ steps.release-mode.outputs.enabled == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -130,19 +123,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Save image digest
-        if: steps.release-mode.outputs.enabled == 'true' && steps.build.outputs.digest != ''
-        run: |
-          mkdir -p /tmp/digests
-          echo '${{ steps.build.outputs.digest }}' > /tmp/digests/${{ matrix.image_name }}.txt
-
-      - name: Upload digest artifact
-        if: steps.release-mode.outputs.enabled == 'true' && steps.build.outputs.digest != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: digest-${{ matrix.image_name }}
-          path: /tmp/digests/${{ matrix.image_name }}.txt
-          retention-days: 1
+      - name: Resolve primary image ref
+        id: image
+        run: echo "ref=${{ fromJSON(steps.meta.outputs.json).tags[0] }}" >> "$GITHUB_OUTPUT"
 
       - name: Setup Trivy
         if: steps.release-mode.outputs.enabled == 'true'
@@ -159,15 +142,15 @@ jobs:
             --severity HIGH,CRITICAL \
             --ignore-unfixed \
             --format sarif \
-            --output "trivy-${{ matrix.image_name }}.sarif" \
+            --output "trivy-${{ env.IMAGE_NAME }}.sarif" \
             --exit-code 0 \
-            "${{ fromJSON(steps.meta.outputs.json).tags[0] }}"
+            "${{ steps.image.outputs.ref }}"
 
       - name: Upload Trivy results
         if: always() && steps.trivy-scan.outcome != 'skipped'
         uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: trivy-${{ matrix.image_name }}.sarif
+          sarif_file: trivy-${{ env.IMAGE_NAME }}.sarif
 
       - name: Print Trivy findings
         if: always() && steps.trivy-scan.outcome != 'skipped'
@@ -178,81 +161,25 @@ jobs:
             --ignore-unfixed \
             --format table \
             --exit-code 0 \
-            "${{ fromJSON(steps.meta.outputs.json).tags[0] }}"
+            "${{ steps.image.outputs.ref }}"
 
-      - name: Generate service summary
+      - name: Generate build summary
         if: always()
         run: |
-          echo "## Service: ${{ matrix.service_name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "## NSW Agency Image" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "- Mode: ${{ steps.release-mode.outputs.enabled == 'true' && 'Release' || 'Dry Run' }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Version: ${{ steps.version.outputs.tag }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Dockerfile: ${{ matrix.dockerfile }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Context: ${{ matrix.context }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Image: ${{ env.REGISTRY }}/${{ steps.repo_owner.outputs.owner }}/${{ matrix.image_name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Image: ${{ env.REGISTRY }}/${{ steps.repo_owner.outputs.owner }}/${{ env.IMAGE_NAME }}" >> "$GITHUB_STEP_SUMMARY"
           if [ -n "${{ steps.build.outputs.digest }}" ]; then
             echo "- Digest: ${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
           fi
 
-  collate-digests:
-    name: Collate Image Digests
-    runs-on: ubuntu-latest
-    needs: build-and-publish
-    if: needs.build-and-publish.outputs.release_enabled == 'true'
-    outputs:
-      version: ${{ steps.version.outputs.tag }}
-      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
-    steps:
-      - name: Determine version
-        id: version
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-          else
-            VERSION="${GITHUB_REF#refs/tags/}"
-          fi
-          VERSION="${VERSION#v}"
-          echo "tag=${VERSION}" >> "$GITHUB_OUTPUT"
-          if [[ "${VERSION}" == *-* ]]; then
-            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Download all digest artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: digest-*
-          path: /tmp/digests
-          merge-multiple: true
-
-      - name: Build release-digests.json
-        run: |
-          echo "{" > release-digests.json
-          FIRST=true
-          for FILE in /tmp/digests/*.txt; do
-            IMAGE_NAME=$(basename "$FILE" .txt)
-            DIGEST=$(cat "$FILE")
-            if [ "$FIRST" = true ]; then
-              FIRST=false
-            else
-              echo "," >> release-digests.json
-            fi
-            echo "  \"${IMAGE_NAME}\": \"${DIGEST}\"" >> release-digests.json
-          done
-          echo "}" >> release-digests.json
-
-      - name: Upload collated digests
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-digests
-          path: release-digests.json
-          retention-days: 1
-
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: collate-digests
+    needs: build-and-publish
+    if: needs.build-and-publish.outputs.release_enabled == 'true'
     permissions:
       contents: write
     steps:
@@ -261,42 +188,28 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Download collated digests
-        uses: actions/download-artifact@v4
-        with:
-          name: release-digests
-          path: .
+      - name: Convert repository owner to lowercase
+        id: repo_owner
+        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
-      - name: Generate service summary
+      - name: Generate release summary
         run: |
-          echo "## Release Summary" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Service | Mode | Version | Dockerfile | Context | Image Target | Digest |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| --- | --- | --- | --- | --- | --- | --- |" >> "$GITHUB_STEP_SUMMARY"
-          
-          OWNER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')
-          VERSION="${{ needs.collate-digests.outputs.version }}"
-          REGISTRY="${{ env.REGISTRY }}"
-          
-          SERVICES='[
-            {"service_name": "Agency Backend", "image_name": "nsw-agency-backend", "dockerfile": "./backend/Dockerfile", "context": "./backend"},
-            {"service_name": "Agency Portal", "image_name": "nsw-agency-app", "dockerfile": "./frontend/Dockerfile", "context": "./frontend"}
-          ]'
-          
-          echo "$SERVICES" | jq -c '.[]' | while read -r item; do
-            NAME=$(echo "$item" | jq -r '.service_name')
-            IMG=$(echo "$item" | jq -r '.image_name')
-            DF=$(echo "$item" | jq -r '.dockerfile')
-            CTX=$(echo "$item" | jq -r '.context')
-            DIGEST=$(jq -r ".\"$IMG\"" release-digests.json)
-            
-            echo "| $NAME | Release | v$VERSION | $DF | $CTX | $REGISTRY/$OWNER/$IMG:$VERSION | \`$DIGEST\` |" >> "$GITHUB_STEP_SUMMARY"
-          done
+          OWNER="${{ steps.repo_owner.outputs.owner }}"
+          VERSION="${{ needs.build-and-publish.outputs.version }}"
+          IMAGE="${{ env.REGISTRY }}/$OWNER/${{ env.IMAGE_NAME }}"
+          DIGEST="${{ needs.build-and-publish.outputs.digest }}"
+          {
+            echo "## Release Summary"
+            echo ""
+            echo "| Image | Version | Image Target | Digest |"
+            echo "| --- | --- | --- | --- |"
+            echo "| NSW Agency | $VERSION | $IMAGE:${VERSION#v} | \`$DIGEST\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Create git tag (workflow_dispatch only)
         if: github.event_name == 'workflow_dispatch'
         run: |
-          TAG="v${{ needs.collate-digests.outputs.version }}"
+          TAG="${{ needs.build-and-publish.outputs.version }}"
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           if ! git rev-parse "$TAG" >/dev/null 2>&1; then
@@ -307,17 +220,15 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', needs.collate-digests.outputs.version) || github.ref }}
-          name: Release ${{ needs.collate-digests.outputs.version }}
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && needs.build-and-publish.outputs.version || github.ref }}
+          name: Release ${{ needs.build-and-publish.outputs.version }}
           body: |
-            ## Release ${{ needs.collate-digests.outputs.version }}
+            ## Release ${{ needs.build-and-publish.outputs.version }}
 
-            ### Published Image Targets
-            - `${{ env.REGISTRY }}/${{ github.repository }}/nsw-agency-backend:${{ needs.collate-digests.outputs.version }}`
-            - `${{ env.REGISTRY }}/${{ github.repository }}/nsw-agency-app:${{ needs.collate-digests.outputs.version }}`
+            ### Published Image
+            - `${{ env.REGISTRY }}/${{ steps.repo_owner.outputs.owner }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-publish.outputs.version }}`
 
-            ### Image Digests
-            See `release-digests.json` attached to this release.
+            ### Image Digest
+            `${{ needs.build-and-publish.outputs.digest }}`
           draft: false
-          prerelease: ${{ needs.collate-digests.outputs.is_prerelease == 'true' }}
-          files: release-digests.json
+          prerelease: ${{ needs.build-and-publish.outputs.is_prerelease == 'true' }}

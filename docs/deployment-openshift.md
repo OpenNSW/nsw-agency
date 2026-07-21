@@ -1,8 +1,11 @@
 # Deploying NSW Agency on OpenShift
 
-This guide describes how to deploy the NSW Agency backend and frontend to OpenShift,
+This guide describes how to deploy the NSW Agency service to OpenShift,
 including the **database migration** flow (baked into the image) and the **user/role seed**
 flow (mounted dynamically at deploy time).
+
+The whole app ships as a **single image**: one Go server serves both the API and the
+officer-portal SPA from the same process and port. There is no separate frontend workload.
 
 It is written for a per-agency deployment model (NPQS, FCAU, IRD, CDA) backed by PostgreSQL.
 
@@ -10,51 +13,58 @@ It is written for a per-agency deployment model (NPQS, FCAU, IRD, CDA) backed by
 
 ## 1. Architecture overview
 
-Each agency runs two workloads:
+Each agency runs **one** workload:
 
-| Workload             | Image                                                 | Container port                | Exposed via         |
-|----------------------|-------------------------------------------------------|-------------------------------|---------------------|
-| Backend (Go)         | `ghcr.io/opennsw/nsw-agency/nsw-agency-backend:<tag>` | `8081` (override with `PORT`) | `Service` + `Route` |
-| Frontend (Nginx SPA) | `ghcr.io/opennsw/nsw-agency/nsw-agency-app:<tag>`     | `8080`                        | `Service` + `Route` |
+| Workload                      | Image                          | Container port                | Exposed via         |
+|-------------------------------|--------------------------------|-------------------------------|---------------------|
+| Agency (Go server: API + SPA) | `ghcr.io/opennsw/agency:<tag>` | `8081` (override with `PORT`) | `Service` + `Route` |
 
-The backend image is OpenShift-friendly out of the box:
+The server emits the SPA's runtime config (`VITE_*`) at `/runtime-env.js` from its
+environment, so the same image is reconfigurable per environment/agency without a rebuild.
 
-- Backend runs as UID `1001` (`appuser`); frontend runs as the unprivileged nginx user
-  (UID `101`, group `0`) so it tolerates OpenShift's random UID.
-- No privileged mode or root is required.
+The image is OpenShift-friendly out of the box:
+
+- Runs as UID `1001` (`appuser`); no privileged mode or root is required, so it tolerates
+  OpenShift's random UID policy.
 
 ### What ships in the image vs. what is supplied at deploy time
 
 | Artifact                    | Source                                        | How it reaches the pod                                                           |
 |-----------------------------|-----------------------------------------------|----------------------------------------------------------------------------------|
-| `agency` server binary      | `backend/Dockerfile`                          | Baked into image (`/app/agency`)                                                 |
-| `migrate` CLI binary        | `backend/Dockerfile`                          | Baked into image (`/app/migrate`)                                                |
+| `agency` server binary      | root `Dockerfile`                             | Baked into image (`/app/agency`)                                                 |
+| `migrate` CLI binary        | root `Dockerfile`                             | Baked into image (`/app/migrate`)                                                |
+| `nswac` CLI binary          | root `Dockerfile`                             | Baked into image (`/usr/local/bin/nswac`)                                        |
+| Officer-portal SPA          | `frontend/` (built in the image)              | Baked into image (`/app/web`, served by the server when `WEB_DIR` resolves)      |
 | SQL migrations              | `backend/migrations/`                         | **Baked into image** (`/app/migrations`)                                         |
 | Task configs                | `backend/data/task-configs/`                  | Baked into image (`/app/data/task-configs`, set via `TASK_CONFIGS_DIR` env)      |
 | Form templates              | `OpenNSW/nsw-srilanka` repo (cloned at build) | Baked into image (`/app/nsw-srilanka-configs`, set via `FORM_TEMPLATES_DIR` env) |
-| `seed` CLI binary           | `backend/cmd/seed`                            | Baked into image (`/app/seed`)                                                   |
 | User/role seed JSON         | `backend/data/seed/<agency>_users.json`       | **Mounted at deploy time** via ConfigMap (see §5)                                |
 | All configuration / secrets | env vars                                      | `Secret` + `ConfigMap` (see §4)                                                  |
 
 ---
 
-## 2. Build and push the backend image
+## 2. Build and push the image
 
-The backend image bakes in three binaries (`agency`, `migrate`, `seed`), the SQL
-migrations, the task configs, and the form templates (cloned from `OpenNSW/nsw-srilanka`
-at build time). The seed **binary** is in the image; the seed **data** is supplied
-dynamically (§5), so you can re-seed without rebuilding.
+The image is built from the **repo root** (the build context needs both `backend/` and
+`frontend/`). It bakes in the server binary, the `migrate` and `nswac` CLIs, the built SPA,
+the SQL migrations, the task configs, and the form templates (cloned from
+`OpenNSW/nsw-srilanka` at build time). The `nswac` **binary** is in the image; the seed
+**data** is supplied dynamically (§5), so you can re-seed without rebuilding.
 
 ```bash
-docker build -t ghcr.io/opennsw/nsw-agency/nsw-agency-backend:<tag> ./backend
-docker push   ghcr.io/opennsw/nsw-agency/nsw-agency-backend:<tag>
+docker build -t ghcr.io/opennsw/agency:<tag> .
+docker push   ghcr.io/opennsw/agency:<tag>
 ```
+
+> Tagged releases (`vX.Y.Z`) are built and published automatically by
+> [.github/workflows/release.yml](../.github/workflows/release.yml); the commands above are
+> for ad-hoc/local builds.
 
 ---
 
 ## 3. Provision PostgreSQL
 
-The backend supports `sqlite` and `postgres`. For OpenShift use PostgreSQL — pods are
+The server supports `sqlite` and `postgres`. For OpenShift use PostgreSQL — pods are
 ephemeral and SQLite on an emptyDir would be lost on restart.
 
 Provision a Postgres instance (OpenShift template, operator, or an external managed DB) and
@@ -71,26 +81,29 @@ database — the migrations and seed are idempotent per database.
 apiVersion: v1
 kind: Secret
 metadata:
-  name: agency-backend-secret
-  labels: { app: agency-backend }
+  name: agency-secret
+  labels: { app: agency }
 type: Opaque
 stringData:
   DB_PASSWORD: "<postgres-password>"
   NSW_CLIENT_SECRET: "<m2m-client-secret>"
 ```
 
-### 4.2 ConfigMap — backend non-secret config
+### 4.2 ConfigMap — non-secret config
+
+A single ConfigMap holds all non-secret config for the one workload — server, database,
+inbound/outbound auth, and the `VITE_*` values the server serves to the browser.
 
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: agency-backend-config
-  labels: { app: agency-backend }
+  name: agency-config
+  labels: { app: agency }
 data:
   # Server
   PORT: "8081"
-  ALLOWED_ORIGINS: "https://agency-frontend.apps.example.com"
+  ALLOWED_ORIGINS: "https://agency.apps.example.com"
 
   # Database (PostgreSQL)
   DB_DRIVER: "postgres"
@@ -119,32 +132,21 @@ data:
   NSW_CLIENT_ID: "<M2M_AGENCY_TO_NSW>"
   NSW_TOKEN_URL: "https://idp.example.com/oauth2/token"
   NSW_SCOPES: "nsw:task:write,nsw:consignment:read"
+
+  # Browser runtime config (served at /runtime-env.js). The API and SPA share one
+  # origin now, so VITE_API_BASE_URL and VITE_APP_URL both point at this route.
+  VITE_BRANDING_NAME: "fcau"
+  VITE_API_BASE_URL: "https://agency.apps.example.com"
+  VITE_APP_URL: "https://agency.apps.example.com"
+  VITE_IDP_BASE_URL: "https://idp.example.com"
+  VITE_IDP_CLIENT_ID: "<AGENCY_PORTAL_CLIENT_ID>"
+  VITE_IDP_SCOPES: "openid,profile,email,ou,role"
+  VITE_IDP_EXPECTED_OU_HANDLE: "fcau"
 ```
 
 > Do **not** set `AUTH_JWKS_INSECURE_SKIP_VERIFY` / `NSW_TOKEN_INSECURE_SKIP_VERIFY` in
 > production — those are dev-only TLS-skip flags. Make sure the cluster trusts the IdP/NSW
 > certificate chain instead.
-
-### 4.3 ConfigMap — frontend runtime config
-
-The frontend image injects env vars into `runtime-env.js` at container start, so the same
-image is reconfigurable per environment/agency without a rebuild.
-
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: agency-frontend-config
-  labels: { app: agency-frontend }
-data:
-  VITE_BRANDING_NAME: "fcau"
-  VITE_API_BASE_URL: "https://agency-backend.apps.example.com"
-  VITE_IDP_BASE_URL: "https://idp.example.com"
-  VITE_IDP_CLIENT_ID: "<AGENCY_PORTAL_CLIENT_ID>"
-  VITE_APP_URL: "https://agency-frontend.apps.example.com"
-  VITE_IDP_SCOPES: "openid,profile,email,ou,role"
-  VITE_EXPECTED_OU_HANDLE: "fcau"
-```
 
 ---
 
@@ -156,7 +158,7 @@ Migrations are baked into the image at `/app/migrations` and applied by the `mig
 command. Run it as an **init container** so the schema is up to date before the server
 starts on every rollout. `migrate up` is idempotent — already-applied migrations are skipped.
 
-This init container is defined inside the backend Deployment in §6.
+This init container is defined inside the Deployment in §6.
 
 ### 5.2 Seed data — mount dynamically via ConfigMap
 
@@ -168,7 +170,7 @@ oc create configmap agency-seed-data \
   --from-file=fcau_users.json=backend/data/seed/fcau_users.json
 ```
 
-The file format (see `backend/cmd/seed`):
+The file format (see `backend/cmd/cli`):
 
 ```json
 {
@@ -189,7 +191,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: agency-seed
-  labels: { app: agency-backend }
+  labels: { app: agency }
 spec:
   backoffLimit: 3
   template:
@@ -197,11 +199,11 @@ spec:
       restartPolicy: Never
       containers:
         - name: seed
-          image: ghcr.io/opennsw/nsw-agency/nsw-agency-backend:<tag>
-          command: ["/app/seed", "user", "add", "--file", "/seed/fcau_users.json"]
+          image: ghcr.io/opennsw/agency:<tag>
+          command: ["nswac", "user", "add", "--file", "/seed/fcau_users.json"]
           envFrom:
-            - configMapRef: { name: agency-backend-config }
-            - secretRef:    { name: agency-backend-secret }
+            - configMapRef: { name: agency-config }
+            - secretRef:    { name: agency-secret }
           volumeMounts:
             - name: seed-data
               mountPath: /seed
@@ -220,44 +222,47 @@ oc delete job agency-seed --ignore-not-found && oc apply -f seed-job.yaml   # to
 oc logs -f job/agency-seed
 ```
 
-> The seed Job depends on the schema existing. Run it **after** the first backend rollout
+> The seed Job depends on the schema existing. Run it **after** the first rollout
 > (whose init container applies the migrations), or add a matching `migrate up` init
 > container to the Job if you want it fully standalone.
 
 ---
 
-## 6. Backend Deployment, Service, Route
+## 6. Deployment, Service, Route
+
+A single Deployment runs the server, which serves both the API and the officer-portal SPA
+on port `8081`.
 
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: agency-backend
-  labels: { app: agency-backend }
+  name: agency
+  labels: { app: agency }
 spec:
   replicas: 2
   selector:
-    matchLabels: { app: agency-backend }
+    matchLabels: { app: agency }
   template:
     metadata:
-      labels: { app: agency-backend }
+      labels: { app: agency }
     spec:
       # Apply pending migrations before the server starts. Idempotent.
       initContainers:
         - name: migrate
-          image: ghcr.io/opennsw/nsw-agency/nsw-agency-backend:<tag>
+          image: ghcr.io/opennsw/agency:<tag>
           command: ["/app/migrate", "up"]
           envFrom:
-            - configMapRef: { name: agency-backend-config }
-            - secretRef:    { name: agency-backend-secret }
+            - configMapRef: { name: agency-config }
+            - secretRef:    { name: agency-secret }
       containers:
         - name: agency
-          image: ghcr.io/opennsw/nsw-agency/nsw-agency-backend:<tag>
+          image: ghcr.io/opennsw/agency:<tag>
           ports:
             - containerPort: 8081
           envFrom:
-            - configMapRef: { name: agency-backend-config }
-            - secretRef:    { name: agency-backend-secret }
+            - configMapRef: { name: agency-config }
+            - secretRef:    { name: agency-secret }
           readinessProbe:
             httpGet: { path: /health, port: 8081 }
             initialDelaySeconds: 5
@@ -270,10 +275,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: agency-backend
-  labels: { app: agency-backend }
+  name: agency
+  labels: { app: agency }
 spec:
-  selector: { app: agency-backend }
+  selector: { app: agency }
   ports:
     - port: 8081
       targetPort: 8081
@@ -281,144 +286,88 @@ spec:
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
-  name: agency-backend
-  labels: { app: agency-backend }
+  name: agency
+  labels: { app: agency }
 spec:
-  to: { kind: Service, name: agency-backend }
+  to: { kind: Service, name: agency }
   port: { targetPort: 8081 }
   tls: { termination: edge }
 ```
 
 > **Form templates** are baked into the image (cloned from `OpenNSW/nsw-srilanka` at build
 > time into `/app/nsw-srilanka-configs`, with `FORM_TEMPLATES_DIR` set as an image `ENV`
-> default), so no volume mount is needed. The backend loads them at startup and **fails
+> default), so no volume mount is needed. The server loads them at startup and **fails
 > fast** if the directory is empty — pin a known-good `nsw-srilanka` revision in the
 > Dockerfile clone if you need build reproducibility.
 
 ---
 
-## 7. Frontend Deployment, Service, Route
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: agency-frontend
-  labels: { app: agency-frontend }
-spec:
-  replicas: 2
-  selector:
-    matchLabels: { app: agency-frontend }
-  template:
-    metadata:
-      labels: { app: agency-frontend }
-    spec:
-      containers:
-        - name: app
-          image: ghcr.io/opennsw/nsw-agency/nsw-agency-app:<tag>
-          ports:
-            - containerPort: 8080
-          envFrom:
-            - configMapRef: { name: agency-frontend-config }
-          readinessProbe:
-            httpGet: { path: /, port: 8080 }
-            initialDelaySeconds: 5
-            periodSeconds: 10
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: agency-frontend
-  labels: { app: agency-frontend }
-spec:
-  selector: { app: agency-frontend }
-  ports:
-    - port: 8080
-      targetPort: 8080
----
-apiVersion: route.openshift.io/v1
-kind: Route
-metadata:
-  name: agency-frontend
-  labels: { app: agency-frontend }
-spec:
-  to: { kind: Service, name: agency-frontend }
-  port: { targetPort: 8080 }
-  tls: { termination: edge }
-```
-
----
-
-## 8. Deployment order
+## 7. Deployment order
 
 ```bash
 # 1. Config + secrets
 oc apply -f secret.yaml
-oc apply -f backend-config.yaml
-oc apply -f frontend-config.yaml
+oc apply -f config.yaml
 
 # 2. Seed ConfigMap (from repo file; form templates are already baked into the image)
 oc create configmap agency-seed-data \
   --from-file=fcau_users.json=backend/data/seed/fcau_users.json
 
-# 3. Backend (init container runs `migrate up` automatically)
-oc apply -f backend.yaml
-oc rollout status deploy/agency-backend
+# 3. Deploy (init container runs `migrate up` automatically)
+oc apply -f agency.yaml
+oc rollout status deploy/agency
 
 # 4. Seed users/roles (after schema exists)
 oc apply -f seed-job.yaml
 oc logs -f job/agency-seed
-
-# 5. Frontend
-oc apply -f frontend.yaml
-oc rollout status deploy/agency-frontend
 ```
 
 ---
 
-## 9. Per-agency matrix
+## 8. Per-agency matrix
 
-Deploy the same images per agency, changing only configuration:
+Deploy the same image per agency, changing only configuration:
 
 | Setting | NPQS | FCAU | CDA | SLPA |
 | --- | --- | --- | --- | --- |
-| `AUTH_EXPECTED_OU` / `VITE_EXPECTED_OU_HANDLE` | `npqs` | `fcau` | `cda` | `slpa` |
+| `AUTH_EXPECTED_OU` / `VITE_IDP_EXPECTED_OU_HANDLE` | `npqs` | `fcau` | `cda` | `slpa` |
 | `VITE_BRANDING_NAME` | `npqs` | `fcau` | `cda` | `slpa` |
 | Seed file | `npqs_users.json` | `fcau_users.json` | `cda_users.json` | `slpa_users.json` |
 | `NSW_CLIENT_ID` / `VITE_IDP_CLIENT_ID` | agency-specific | agency-specific | agency-specific | agency-specific |
 
-Use a separate namespace (or a name suffix) per agency, e.g. `agency-backend-fcau`.
+Use a separate namespace (or a name suffix) per agency, e.g. `agency-fcau`.
 
 ---
 
-## 10. Verification
+## 9. Verification
 
 ```bash
 # Migrations applied
-oc logs deploy/agency-backend -c migrate
+oc logs deploy/agency -c migrate
 
-# Backend health
-oc exec deploy/agency-backend -- wget -qO- localhost:8081/health
+# Health — the runtime image is slim (no curl/wget inside the pod), so probe
+# the endpoint through the Route from your machine instead.
+curl -k "https://$(oc get route agency -o jsonpath='{.spec.host}')/health"
 
 # Seeded users (check Job output)
-oc logs job/agency-seed   # → "seed: successfully seeded N user(s)"
+oc logs job/agency-seed   # → "nswac: successfully imported N user(s)"
 
-# Routes
-oc get route agency-backend agency-frontend
+# Route (serves both the portal and the API)
+oc get route agency
 ```
 
 ---
 
-## 11. Operational notes
+## 10. Operational notes
 
-- **Re-running migrations:** every backend rollout runs `migrate up` via the init
-  container; it is a no-op when there is nothing pending. Roll back the last migration
-  manually with a one-off pod: `oc run migrate-down --rm -it --restart=Never
-  --image=<backend-image> --command -- /app/migrate down` (wire in the same env).
+- **Re-running migrations:** every rollout runs `migrate up` via the init container; it is a
+  no-op when there is nothing pending. Roll back the last migration manually with a one-off
+  pod: `oc run migrate-down --rm -it --restart=Never --image=<image> --command --
+  /app/migrate down` (wire in the same env).
 - **Re-seeding:** update `agency-seed-data` ConfigMap, then delete and re-apply the seed
   Job. Existing users are skipped, so it is safe to re-run.
 - **Secrets:** keep `DB_PASSWORD` and `NSW_CLIENT_SECRET` only in the `Secret`. Never put
   them in the ConfigMap or image.
-- **Scaling:** the backend is stateless when using PostgreSQL, so `replicas` can be raised
+- **Scaling:** the server is stateless when using PostgreSQL, so `replicas` can be raised
   freely. Avoid SQLite (`DB_DRIVER=sqlite`) on OpenShift — it does not survive pod restarts
   and cannot be shared across replicas.

@@ -318,6 +318,11 @@ start_backend() {
     # ${VAR:-…} preserves a parent-shell override.
     # Final precedence: parent env > script per-agency > .env > Go-side fallback.
     export PORT="${PORT:-$BE_PORT}"
+    # Native dev serves the frontend via Vite (start_frontend), so the backend
+    # must stay API-only. Point WEB_DIR at a path that won't exist so a stray
+    # backend/web/ (e.g. from a `pnpm build --outDir ../backend/web` test) can't
+    # make the server serve the SPA and then fatal on missing VITE_* config.
+    export WEB_DIR="${WEB_DIR:-/nonexistent}"
     export DB_DRIVER="${DB_DRIVER:-sqlite}"
     export DB_PATH="${DB_PATH:-./${agency}_applications.db}"
     export TASK_CONFIGS_DIR="${TASK_CONFIGS_DIR:-./data/task-configs/${agency}}"

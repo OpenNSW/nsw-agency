@@ -1,0 +1,125 @@
+# Override values for the NSW Agency app (single image: API + officer portal).
+#   helm install nsw-agency ./agency -f values-example.yaml
+#
+# One image now serves both the API and the SPA from one process and one port,
+# so this is a single release (there is no separate frontend deployment).
+#
+# Mirrors backend/.env.example AND frontend/.env.example. NON-secret config lives
+# here in plain text; SECRETS (DB_PASSWORD, NSW_CLIENT_SECRET) are referenced from
+# a Kubernetes Secret and must NEVER be written here. Create the Secret
+# out-of-band, e.g.:
+#   kubectl create secret generic nsw-agency-secrets \
+#     --from-literal=db-password=... \
+#     --from-literal=nsw-client-secret=...
+#
+# The https:// URLs and *_CLIENT_ID / *_OU values below are placeholders —
+# replace them with your environment's real IdP and NSW API endpoints.
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/opennsw/agency
+  # Required — pick the app version to deploy. There is no default; the chart
+  # fails to render if this is unset (appVersion is metadata, not the image tag).
+  tag: "0.1.0"
+
+# The server listens here (matches PORT below and EXPOSE in the root Dockerfile).
+# It serves both the API and the officer portal on this single port.
+containerPort: 8081
+
+service:
+  type: ClusterIP
+  port: 80
+
+env:
+  PORT: "8081"
+
+  # --- Database (PostgreSQL) ---
+  DB_DRIVER: "postgres"
+  DB_HOST: "nsw-db"            # Postgres Service name in the cluster
+  DB_PORT: "5432"
+  DB_USER: "postgres"
+  DB_NAME: "nsw_agency_db"
+  DB_SSLMODE: "disable"        # set to "require" when the DB enforces TLS
+  # SECRET — pulled from a Kubernetes Secret, never inlined.
+  DB_PASSWORD:
+    valueFrom:
+      secretKeyRef:
+        name: nsw-agency-secrets
+        key: db-password
+
+  MIGRATION_DIR: "/app/migrations"
+  # The portal and API share one origin now, so browser→API calls are
+  # same-origin (no CORS preflight). Keep this scoped to the public host.
+  ALLOWED_ORIGINS: "https://agency.example.com"
+
+  # --- Inbound auth: tokens this backend accepts ---
+  AUTH_JWKS_URL: "https://idp.example.com/oauth2/jwks"
+  AUTH_ISSUER: "https://idp.example.com"
+  AUTH_AUDIENCE: "AGENCY_API"
+  AUTH_CLIENT_IDS: "<SPA_AGENCY_PORTAL>,<M2M_NSW_TO_AGENCY>"
+  AUTH_EXPECTED_OU: "<AGENCY_OU_HANDLE>"
+  AUTH_JWKS_INSECURE_SKIP_VERIFY: "false"   # DEV-ONLY true; keep false in prod
+
+  # --- Outbound auth: this backend calling the NSW API ---
+  NSW_API_BASE_URL: "https://nsw-api.example.com/api/v1"
+  NSW_CLIENT_ID: "<M2M_AGENCY_TO_NSW>"
+  # SECRET — pulled from a Kubernetes Secret, never inlined.
+  NSW_CLIENT_SECRET:
+    valueFrom:
+      secretKeyRef:
+        name: nsw-agency-secrets
+        key: nsw-client-secret
+  NSW_TOKEN_URL: "https://idp.example.com/oauth2/token"
+  NSW_SCOPES: "nsw:task:write,nsw:consignment:read,nsw:storage:read,nsw:storage:write"
+  NSW_TOKEN_INSECURE_SKIP_VERIFY: "false"   # DEV-ONLY true; keep false in prod
+
+  # --- Officer portal runtime config ---
+  # The server emits these to the browser at /runtime-env.js (no entrypoint
+  # script). All public SPA config — no secrets. WEB_DIR is omitted: it defaults
+  # to "web", which is where the root Dockerfile copies the built SPA (/app/web).
+  VITE_BRANDING_NAME: "default"
+  # Browser-facing API base URL. Same origin as the portal now, so it is just the
+  # public host below (NOT the in-cluster Service name).
+  VITE_API_BASE_URL: "https://agency.example.com"
+  VITE_IDP_BASE_URL: "https://idp.example.com"
+  VITE_IDP_CLIENT_ID: "<AGENCY_PORTAL_CLIENT_ID>"
+  VITE_APP_URL: "https://agency.example.com"
+  VITE_IDP_SCOPES: "openid,profile,email,ou,role,agency:application:read,agency:application:review,agency:application:feedback,agency:consignment:read,agency:storage:read,agency:storage:write"
+  # Org/OU handle for this portal instance — must match AUTH_EXPECTED_OU above.
+  VITE_IDP_EXPECTED_OU_HANDLE: "<AGENCY_OU_HANDLE>"
+
+# Run database migrations as a pre-upgrade hook before the server rolls out.
+# Reuses the env above (same DB) and the same image, running /app/migrate up.
+migration:
+  enabled: true
+
+# Expose the single app (portal + API on the same host). Enable the one that
+# matches your platform.
+#
+# OpenShift Route (default):
+route:
+  enabled: true
+  host: "agency.example.com"
+  tls:
+    enabled: true
+    termination: edge
+
+# Standard Kubernetes Ingress (use instead of route on non-OpenShift clusters):
+ingress:
+  enabled: false
+  className: "nginx"
+  hosts:
+    - host: "agency.example.com"
+      paths:
+        - path: "/"
+          pathType: Prefix
+  # TLS termination at the ingress. The portal needs HTTPS for the OIDC PKCE
+  # flow (a secure context — see the chart README), so enable this on
+  # non-OpenShift clusters. secretName must reference a kubernetes.io/tls Secret
+  # you create out-of-band, e.g.:
+  #   kubectl create secret tls nsw-agency-tls --cert=tls.crt --key=tls.key
+  tls: []
+  #  - secretName: nsw-agency-tls
+  #    hosts:
+  #      - agency.example.com

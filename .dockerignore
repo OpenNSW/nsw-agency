@@ -1,0 +1,50 @@
+# Build context for the single root Dockerfile is the repo root. Keep it small
+# and avoid leaking local state into the image.
+
+# VCS / tooling
+.git
+.gitignore
+.gitattributes
+.github
+.idea
+.vscode
+.agents
+docs
+
+# Node
+**/node_modules
+**/dist
+**/.pnpm-store
+**/*.tsbuildinfo
+
+# Go build artifacts
+**/bin/
+**/*.exe
+**/*.test
+**/*.out
+coverage.out
+results.sarif
+
+# Local SQLite databases (created by dev scripts)
+**/*.db
+**/*.db-journal
+**/*.db-wal
+**/*.db-shm
+**/*.sqlite
+**/*.sqlite3
+
+# Local env / secrets
+**/.env
+**/.env.local
+**/.env.*.local
+.env
+.env.example
+
+# Compose / dev helpers / deploy manifests not needed inside the image
+compose.yaml
+start-dev.sh
+start-dev.ps1
+deployments
+README.md
+**/*.log
+.DS_Store

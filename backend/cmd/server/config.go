@@ -8,6 +8,7 @@ import (
 
 	"github.com/OpenNSW/nsw-agency/backend/internal/auth"
 	"github.com/OpenNSW/nsw-agency/backend/internal/database"
+	"github.com/OpenNSW/nsw-agency/backend/internal/web"
 )
 
 type NSWConfig struct {
@@ -27,6 +28,7 @@ type Config struct {
 	AllowedOrigins   []string
 	NSW              NSWConfig
 	Auth             auth.Config
+	Web              web.Config
 	MaxRequestBytes  int64
 }
 
@@ -84,6 +86,22 @@ func LoadConfig() (Config, error) {
 			Audience:   os.Getenv("AUTH_AUDIENCE"),
 			ClientIDs:  parseCommaSeparated(os.Getenv("AUTH_CLIENT_IDS")),
 			ExpectedOU: os.Getenv("AUTH_EXPECTED_OU"),
+		},
+		// Officer-portal SPA. WEB_DIR defaults to "web" (relative to the working
+		// dir; /app/web in the image). The runtime config is served via
+		// /runtime-env.js and validated only when the frontend is actually served
+		// (see cmd/server/main.go), so API-only runs don't require these.
+		Web: web.Config{
+			Dir: envOrDefault("WEB_DIR", "web"),
+			Runtime: web.RuntimeConfig{
+				BrandingName:  os.Getenv("VITE_BRANDING_NAME"),
+				APIBaseURL:    os.Getenv("VITE_API_BASE_URL"),
+				IDPBaseURL:    os.Getenv("VITE_IDP_BASE_URL"),
+				IDPClientID:   os.Getenv("VITE_IDP_CLIENT_ID"),
+				IDPExpectedOU: os.Getenv("VITE_IDP_EXPECTED_OU_HANDLE"),
+				AppURL:        os.Getenv("VITE_APP_URL"),
+				IDPScopes:     os.Getenv("VITE_IDP_SCOPES"),
+			},
 		},
 	}
 	maxRequestBytes, err := parseInt64Env("MAX_REQUEST_BYTES", 32<<20)

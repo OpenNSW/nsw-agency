@@ -100,9 +100,8 @@ For details see [backend/docs/architecture.md](backend/docs/architecture.md).
 
 ## Releases
 
-Tagging `vX.Y.Z` triggers [.github/workflows/release.yml](.github/workflows/release.yml), which builds and publishes:
+Tagging `vX.Y.Z` triggers [.github/workflows/release.yml](.github/workflows/release.yml), which builds and publishes the single consolidated image (the Go server serves both the API and the officer-portal SPA from one process):
 
-- `ghcr.io/opennsw/nsw-agency/nsw-agency-backend:X.Y.Z`
-- `ghcr.io/opennsw/nsw-agency/nsw-agency-app:X.Y.Z`
+- `ghcr.io/opennsw/agency:X.Y.Z`
 
-Image digests are bundled into a `release-digests.json` artifact attached to the GitHub Release.
+The image digest is included in the GitHub Release notes.

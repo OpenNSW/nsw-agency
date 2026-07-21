@@ -1,0 +1,88 @@
+# Neutral defaults for the NSW Agency app.
+#
+# One image serves both the API and the officer portal, so this chart deploys a
+# single release. Layer the example override file on top of these defaults:
+#
+#   helm install nsw-agency ./agency -f values-example.yaml
+#
+# The image, containerPort, env, and ingress/route settings are intentionally
+# left as neutral defaults here and are filled in by the override file.
+
+replicaCount: 1
+
+image:
+  # Published image. Override for local builds (see values-test.yaml).
+  repository: ghcr.io/opennsw/agency
+  # REQUIRED — no default. Set the app version to deploy per environment or at
+  # install (--set image.tag=1.4.0). Chart rendering fails if this is empty.
+  # appVersion is metadata only and is deliberately NOT used as the tag.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Pod-level security context (applies to the server and migration pods), e.g.
+#   runAsNonRoot: true
+#   runAsUser: 1000
+#   fsGroup: 1000
+podSecurityContext: {}
+
+# Container-level security context (applies to the server and migration
+# containers), e.g.
+#   allowPrivilegeEscalation: false
+#   readOnlyRootFilesystem: true
+#   capabilities:
+#     drop: ["ALL"]
+securityContext: {}
+
+# Port the application container listens on (set per component).
+containerPort: 8080
+
+service:
+  type: ClusterIP
+  port: 80
+
+# Environment variables (key-value map). Supports raw values and valueFrom maps.
+env: {}
+
+# Load environments from existing ConfigMaps or Secrets
+envFrom: []
+
+# Database migration Job. Runs the /app/migrate binary from the SAME image as
+# the server, as a Helm pre-install/pre-upgrade hook, so the schema is migrated
+# before the new server rolls out. It reuses the env above for DB config.
+# Off by default; enabled via the example override file.
+migration:
+  enabled: false
+  command: ["/app/migrate", "up"]
+  backoffLimit: 1
+
+# Configuration for OpenShift Routes (enable per component)
+route:
+  enabled: false
+  host: ""
+  tls:
+    enabled: true
+    termination: edge
+
+# Configuration for standard Kubernetes Ingress (enable per component)
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+  # TLS termination at the ingress. Each entry: {secretName, hosts: []}. The
+  # secretName must reference a kubernetes.io/tls Secret you create out-of-band.
+  # Leave empty to serve HTTP only (or rely on the controller's default cert).
+  tls: []
+
+resources: {}
+
+livenessProbe: {}
+readinessProbe: {}
+
+# Volumes and mounts
+volumes: []
+volumeMounts: []

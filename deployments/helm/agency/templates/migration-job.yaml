@@ -1,0 +1,67 @@
+{{- if .Values.migration.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ printf "%s-migrate" (include "agency.fullname" .) | trunc 63 | trimSuffix "-" }}
+  labels:
+    {{- include "agency.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrate
+  annotations:
+    # Run as a Helm hook BEFORE the Deployment rolls out, on every install and
+    # upgrade. The release only proceeds if this Job succeeds; a failed
+    # migration aborts the upgrade and leaves the running server untouched.
+    "helm.sh/hook": pre-install,pre-upgrade
+    # Negative weight => runs earlier than other hooks.
+    "helm.sh/hook-weight": "-5"
+    # Delete the previous migration Job just before creating a new one, so the
+    # last attempt's logs stick around for debugging.
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  # Number of retries before the Job is marked failed (and the upgrade aborts).
+  backoffLimit: {{ .Values.migration.backoffLimit | default 1 }}
+  template:
+    metadata:
+      labels:
+        {{- include "agency.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migrate
+    spec:
+      # A Job pod must not be restarted forever; run once and stop.
+      restartPolicy: Never
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: migrate
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          # Same image as the server; only the command differs.
+          image: "{{ .Values.image.repository }}:{{ required "image.tag is required — set it per environment or at install (e.g. --set image.tag=1.4.0)" .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: {{ .Values.migration.command | toJson }}
+          {{- if .Values.env }}
+          env:
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              {{- if kindIs "map" $value }}
+              {{- toYaml $value | nindent 14 }}
+              {{- else }}
+              value: {{ $value | quote }}
+              {{- end }}
+            {{- end }}
+          {{- end }}
+          {{- if .Values.envFrom }}
+          envFrom:
+            {{- toYaml .Values.envFrom | nindent 12 }}
+          {{- end }}
+          {{- if .Values.resources }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- end }}
+{{- end }}
