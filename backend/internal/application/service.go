@@ -11,11 +11,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/OpenNSW/core/artifact"
+	"github.com/OpenNSW/core/artifact/adapter/generictemplate"
 	"github.com/OpenNSW/nsw-agency/backend/internal/auth"
 	"github.com/OpenNSW/nsw-agency/backend/internal/feedback"
 	"github.com/OpenNSW/nsw-agency/backend/internal/rbac"
 	"github.com/OpenNSW/nsw-agency/backend/internal/taskconfig"
-	"github.com/OpenNSW/nsw-agency/backend/internal/template"
+	"github.com/OpenNSW/nsw-agency/backend/internal/taskconfig/taskconfigart"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 	"gorm.io/gorm"
 )
@@ -99,19 +101,19 @@ type TaskResponse struct {
 
 type service struct {
 	store            *ApplicationStore
-	templateProvider template.Provider
+	artifactRegistry *artifact.Registry
 	httpClient       *httpclient.Client
 	roleService      *rbac.RoleService
 }
 
 // NewService creates a new Agency service instance with database storage
-func NewService(store *ApplicationStore, templateProvider template.Provider, httpClient *httpclient.Client, roleService *rbac.RoleService) Service {
-	if store == nil || templateProvider == nil || httpClient == nil || roleService == nil {
+func NewService(store *ApplicationStore, artifactRegistry *artifact.Registry, httpClient *httpclient.Client, roleService *rbac.RoleService) Service {
+	if store == nil || artifactRegistry == nil || httpClient == nil || roleService == nil {
 		panic("NewService: all dependencies must be non-nil")
 	}
 	return &service{
 		store:            store,
-		templateProvider: templateProvider,
+		artifactRegistry: artifactRegistry,
 		httpClient:       httpClient,
 		roleService:      roleService,
 	}
@@ -186,7 +188,7 @@ func (s *service) GetApplications(ctx context.Context, status string, consignmen
 			UpdatedAt:     record.UpdatedAt,
 		}
 
-		if config, err := s.templateProvider.GetTaskConfig(record.TaskCode); err == nil {
+		if config, err := taskconfigart.Load(ctx, s.artifactRegistry, record.TaskCode); err == nil {
 			app.Title = config.Meta.Title
 			app.Category = config.Meta.Category
 			app.Icon = config.Meta.Icon
@@ -267,7 +269,7 @@ func (s *service) GetApplication(ctx context.Context, taskID string) (*Applicati
 	}
 
 	// Attach task configuration
-	config, err := s.templateProvider.GetTaskConfig(record.TaskCode)
+	config, err := taskconfigart.Load(ctx, s.artifactRegistry, record.TaskCode)
 	if err != nil {
 		slog.WarnContext(ctx, "task config not found for application", "taskID", taskID, "taskCode", record.TaskCode)
 		_, app.AllowedActions = resolveAccess(roles, nil)
@@ -280,14 +282,14 @@ func (s *service) GetApplication(ctx context.Context, taskID string) (*Applicati
 		_, app.AllowedActions = resolveAccess(roles, config.Permissions)
 
 		if config.Forms.View != "" {
-			if form, ok := s.templateProvider.GetForm(config.Forms.View); ok {
+			if form, err := generictemplate.Load(ctx, s.artifactRegistry, config.Forms.View); err == nil {
 				app.DataForm = form
 			} else {
 				slog.WarnContext(ctx, "view form not found", "taskCode", record.TaskCode, "formID", config.Forms.View)
 			}
 		}
 		if config.Forms.Review != "" {
-			if form, ok := s.templateProvider.GetForm(config.Forms.Review); ok {
+			if form, err := generictemplate.Load(ctx, s.artifactRegistry, config.Forms.Review); err == nil {
 				app.AgencyForm = form
 			} else {
 				slog.WarnContext(ctx, "review form not found", "taskCode", record.TaskCode, "formID", config.Forms.Review)
@@ -320,7 +322,7 @@ func (s *service) ReviewApplication(ctx context.Context, taskID string, reviewer
 	}
 
 	command := "approve"
-	if config, err := s.templateProvider.GetTaskConfig(app.TaskCode); err == nil && config.Behavior != nil {
+	if config, err := taskconfigart.Load(ctx, s.artifactRegistry, app.TaskCode); err == nil && config.Behavior != nil {
 		outcomeField := config.Behavior.OutcomeField
 		if outcomeField == "" {
 			outcomeField = taskconfig.DefaultOutcomeField
@@ -347,7 +349,7 @@ func (s *service) ReviewApplication(ctx context.Context, taskID string, reviewer
 	}
 
 	status := "DONE"
-	if config, err := s.templateProvider.GetTaskConfig(app.TaskCode); err == nil && config.Behavior != nil && config.Behavior.StatusMap != nil {
+	if config, err := taskconfigart.Load(ctx, s.artifactRegistry, app.TaskCode); err == nil && config.Behavior != nil && config.Behavior.StatusMap != nil {
 		outcomeField := config.Behavior.OutcomeField
 		if outcomeField == "" {
 			outcomeField = taskconfig.DefaultOutcomeField

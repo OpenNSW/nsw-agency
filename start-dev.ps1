@@ -322,7 +322,13 @@ function Start-Backend {
     if (-not $envBlock.Contains('NSW_CLIENT_ID'))    { $envBlock['NSW_CLIENT_ID']    = $nswClientId                               }
     if (-not $envBlock.Contains('AUTH_EXPECTED_OU')) { $envBlock['AUTH_EXPECTED_OU'] = $cfg.OU_HANDLE                             }
     if (-not $envBlock.Contains('ALLOWED_ORIGINS'))  { $envBlock['ALLOWED_ORIGINS']  = "http://localhost:$($cfg.FE_PORT)"         }
-    if (-not $envBlock.Contains('TASK_CONFIGS_DIR')) { $envBlock['TASK_CONFIGS_DIR'] = "./data/task-configs/${AgencyName}"        }
+    # Artifacts (task configs + forms + manifest.json) live OUTSIDE this repo,
+    # per agency. Default to a sibling checkout of the one-trade-artifacts repo
+    # (…/one-trade-artifacts/<agency>, relative to backend/). Override
+    # ARTIFACT_LOCAL_ROOT to point elsewhere, or set ARTIFACT_LOADER_TYPE=github|s3
+    # to load from a remote source instead.
+    if (-not $envBlock.Contains('ARTIFACT_LOADER_TYPE')) { $envBlock['ARTIFACT_LOADER_TYPE'] = 'local'                                    }
+    if (-not $envBlock.Contains('ARTIFACT_LOCAL_ROOT'))  { $envBlock['ARTIFACT_LOCAL_ROOT']  = "../../one-trade-artifacts/${AgencyName}" }
 
     $clientIds = $cfg.IDP_CLIENT_ID
     if ($cfg.Contains('NSW_INBOUND_CLIENT_ID') -and $cfg.NSW_INBOUND_CLIENT_ID -ne '') {

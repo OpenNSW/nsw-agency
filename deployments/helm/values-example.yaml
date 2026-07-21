@@ -8,9 +8,14 @@
 # here in plain text; SECRETS (DB_PASSWORD, NSW_CLIENT_SECRET) are referenced from
 # a Kubernetes Secret and must NEVER be written here. Create the Secret
 # out-of-band, e.g.:
-#   kubectl create secret generic nsw-agency-secrets \
+#   kubectl create secret generic agency-secrets \
 #     --from-literal=db-password=... \
-#     --from-literal=nsw-client-secret=...
+#     --from-literal=nsw-client-secret=... \
+#     --from-literal=artifact-s3-access-key=... \
+#     --from-literal=artifact-s3-secret-key=...
+#
+# The artifact-s3-* keys are only needed when the artifact loader uses S3/R2 with
+# static credentials (see the ARTIFACT_* env below).
 #
 # The https:// URLs and *_CLIENT_ID / *_OU values below are placeholders —
 # replace them with your environment's real IdP and NSW API endpoints.
@@ -45,13 +50,52 @@ env:
   DB_PASSWORD:
     valueFrom:
       secretKeyRef:
-        name: nsw-agency-secrets
+        name: agency-secrets
         key: db-password
 
   MIGRATION_DIR: "/app/migrations"
   # The portal and API share one origin now, so browser→API calls are
   # same-origin (no CORS preflight). Keep this scoped to the public host.
   ALLOWED_ORIGINS: "https://agency.example.com"
+
+  # --- Artifact loader: task configs, forms, and manifest.json ---
+  # These are NO LONGER baked into the image; they are fetched at runtime from an
+  # external source. ARTIFACT_LOADER_TYPE picks the backend (local | github | s3)
+  # and only the selected backend's vars are read. Use "github" (pinned to an
+  # immutable ref) or "s3" (e.g. Cloudflare R2) in a cluster — "local" only works
+  # with a mounted volume. See backend/.env.example for the complete set.
+  ARTIFACT_LOADER_TYPE: "s3"
+  ARTIFACT_S3_BUCKET: "one-trade-artifacts"
+  ARTIFACT_S3_REGION: "auto"                # "auto" for R2
+  ARTIFACT_S3_ENDPOINT: "https://<accountid>.r2.cloudflarestorage.com"
+  ARTIFACT_S3_PREFIX: "fcau"                # in-bucket key prefix (empty = root)
+  # Static S3/R2 credentials — SECRETS, pulled from the Kubernetes Secret. Set
+  # both or neither; omit both to fall back to the pod's default AWS credential
+  # chain (IRSA / instance profile). R2 requires static keys, so keep these.
+  ARTIFACT_S3_ACCESS_KEY:
+    valueFrom:
+      secretKeyRef:
+        name: agency-secrets
+        key: artifact-s3-access-key
+  ARTIFACT_S3_SECRET_KEY:
+    valueFrom:
+      secretKeyRef:
+        name: agency-secrets
+        key: artifact-s3-secret-key
+  # For a GitHub source instead of S3, comment out the ARTIFACT_S3_* block above
+  # and use:
+  #   ARTIFACT_LOADER_TYPE: "github"
+  #   ARTIFACT_GITHUB_OWNER: "OpenNSW"
+  #   ARTIFACT_GITHUB_REPO: "one-trade-artifacts"
+  #   ARTIFACT_GITHUB_REF: "<tag-or-sha>"      # prefer an immutable tag/SHA
+  #   ARTIFACT_GITHUB_BASE_PATH: "fcau"        # optional in-repo prefix
+  # For a private repo (or to lift the unauthenticated rate limit), the token is
+  # a SECRET — pull it from the Kubernetes Secret rather than inlining it:
+  #   ARTIFACT_GITHUB_TOKEN:
+  #     valueFrom:
+  #       secretKeyRef:
+  #         name: agency-secrets
+  #         key: artifact-github-token
 
   # --- Inbound auth: tokens this backend accepts ---
   AUTH_JWKS_URL: "https://idp.example.com/oauth2/jwks"
@@ -68,7 +112,7 @@ env:
   NSW_CLIENT_SECRET:
     valueFrom:
       secretKeyRef:
-        name: nsw-agency-secrets
+        name: agency-secrets
         key: nsw-client-secret
   NSW_TOKEN_URL: "https://idp.example.com/oauth2/token"
   NSW_SCOPES: "nsw:task:write,nsw:consignment:read,nsw:storage:read,nsw:storage:write"

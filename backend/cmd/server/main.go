@@ -11,12 +11,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/OpenNSW/core/artifact"
+	"github.com/OpenNSW/core/artifact/loaders"
 	"github.com/OpenNSW/nsw-agency/backend/internal/application"
 	"github.com/OpenNSW/nsw-agency/backend/internal/auth"
 	"github.com/OpenNSW/nsw-agency/backend/internal/feedback"
 	"github.com/OpenNSW/nsw-agency/backend/internal/rbac"
 	"github.com/OpenNSW/nsw-agency/backend/internal/storage"
-	"github.com/OpenNSW/nsw-agency/backend/internal/template"
 	"github.com/OpenNSW/nsw-agency/backend/internal/user"
 	"github.com/OpenNSW/nsw-agency/backend/internal/web"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
@@ -32,8 +33,6 @@ func main() {
 		"db_driver", cfg.DB.Driver,
 		"db_path", cfg.DB.Path,
 		"port", cfg.Port,
-		"task_configs_dir", cfg.TaskConfigsDir,
-		"form_templates_dir", cfg.FormTemplatesDir,
 	)
 
 	// Initialize database store
@@ -64,15 +63,6 @@ func main() {
 		}
 	}()
 
-	// Initialize templates loader
-	templateLoader := template.NewFileLoader(
-		cfg.TaskConfigsDir,
-		cfg.FormTemplatesDir,
-	)
-	if err := templateLoader.Load(); err != nil {
-		log.Fatalf("failed to load templates: %v", err)
-	}
-
 	// Create OAuth2 Authenticator for NSW API
 	nswOAuth2Client := httpclient.NewOAuth2Authenticator(
 		cfg.NSW.ClientID,
@@ -89,12 +79,28 @@ func main() {
 		WithTLS(&httpclient.TLSConfig{InsecureSkipVerify: cfg.NSW.TokenInsecureSkipVerify}).
 		Build()
 
+	artifactLoader, err := loaders.New(context.Background(), cfg.ArtifactLoader)
+	if err != nil {
+		log.Fatalf("failed to initialize artifact loader: %v", err)
+	}
+
+	artifactRegistry := artifact.NewRegistry(artifactLoader)
+
+	manifestCfg, err := artifact.LoadManifest(context.Background(), artifactLoader)
+
+	if err != nil {
+		log.Fatalf("failed to load artifact manifest: %v", err)
+	}
+	if err := artifact.RegisterFromConfig(artifactRegistry, manifestCfg); err != nil {
+		log.Fatalf("failed to register artifacts from manifest: %v", err)
+	}
+
 	// Initialize RBAC Service and Middleware
 	roleService := rbac.NewRoleService(store.DB())
-	rbacMiddleware := rbac.NewMiddleware(roleService, store, templateLoader)
+	rbacMiddleware := rbac.NewMiddleware(roleService, store, artifactRegistry)
 
 	// Initialize Agency service
-	service := application.NewService(store, templateLoader, nswHttpClient, roleService)
+	service := application.NewService(store, artifactRegistry, nswHttpClient, roleService)
 	defer func() {
 		if err := service.Close(); err != nil {
 			slog.Error("failed to close service", "error", err)

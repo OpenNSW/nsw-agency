@@ -5,8 +5,10 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/OpenNSW/core/artifact"
 	"github.com/OpenNSW/nsw-agency/backend/internal/auth"
 	"github.com/OpenNSW/nsw-agency/backend/internal/taskconfig"
+	"github.com/OpenNSW/nsw-agency/backend/internal/taskconfig/taskconfigart"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httputil"
 )
 
@@ -15,24 +17,19 @@ type TaskCodeResolver interface {
 	GetTaskCode(ctx context.Context, taskID string) (string, error)
 }
 
-// TaskConfigProvider retrieves a TaskConfig by task_code.
-type TaskConfigProvider interface {
-	GetTaskConfig(taskCode string) (*taskconfig.TaskConfig, error)
-}
-
 // Middleware enforces role-based access control on task routes.
 type Middleware struct {
 	roleService      *RoleService
 	taskCodeResolver TaskCodeResolver
-	configProvider   TaskConfigProvider
+	artifactRegistry *artifact.Registry
 }
 
 // NewMiddleware creates a new RBAC Middleware.
-func NewMiddleware(roleService *RoleService, taskCodeResolver TaskCodeResolver, configProvider TaskConfigProvider) *Middleware {
+func NewMiddleware(roleService *RoleService, taskCodeResolver TaskCodeResolver, artifactRegistry *artifact.Registry) *Middleware {
 	return &Middleware{
 		roleService:      roleService,
 		taskCodeResolver: taskCodeResolver,
-		configProvider:   configProvider,
+		artifactRegistry: artifactRegistry,
 	}
 }
 
@@ -57,8 +54,8 @@ func (m *Middleware) RequireAction(action string) func(http.Handler) http.Handle
 				return
 			}
 
-			cfg, err := m.configProvider.GetTaskConfig(taskCode)
-			if err != nil || cfg == nil || len(cfg.Permissions) == 0 {
+			cfg, err := taskconfigart.Load(ctx, m.artifactRegistry, taskCode)
+			if err != nil || len(cfg.Permissions) == 0 {
 				// No permissions defined — preserve current behaviour, allow all authenticated users.
 				next.ServeHTTP(w, r)
 				return

@@ -29,17 +29,16 @@ The image is OpenShift-friendly out of the box:
 
 ### What ships in the image vs. what is supplied at deploy time
 
-| Artifact                    | Source                                        | How it reaches the pod                                                           |
-|-----------------------------|-----------------------------------------------|----------------------------------------------------------------------------------|
-| `agency` server binary      | root `Dockerfile`                             | Baked into image (`/app/agency`)                                                 |
-| `migrate` CLI binary        | root `Dockerfile`                             | Baked into image (`/app/migrate`)                                                |
-| `nswac` CLI binary          | root `Dockerfile`                             | Baked into image (`/usr/local/bin/nswac`)                                        |
-| Officer-portal SPA          | `frontend/` (built in the image)              | Baked into image (`/app/web`, served by the server when `WEB_DIR` resolves)      |
-| SQL migrations              | `backend/migrations/`                         | **Baked into image** (`/app/migrations`)                                         |
-| Task configs                | `backend/data/task-configs/`                  | Baked into image (`/app/data/task-configs`, set via `TASK_CONFIGS_DIR` env)      |
-| Form templates              | `OpenNSW/nsw-srilanka` repo (cloned at build) | Baked into image (`/app/nsw-srilanka-configs`, set via `FORM_TEMPLATES_DIR` env) |
-| User/role seed JSON         | `backend/data/seed/<agency>_users.json`       | **Mounted at deploy time** via ConfigMap (see §5)                                |
-| All configuration / secrets | env vars                                      | `Secret` + `ConfigMap` (see §4)                                                  |
+| Artifact                            | Source                                                 | How it reaches the pod                                                               |
+|-------------------------------------|--------------------------------------------------------|--------------------------------------------------------------------------------------|
+| `agency` server binary              | root `Dockerfile`                                      | Baked into image (`/app/agency`)                                                     |
+| `migrate` CLI binary                | root `Dockerfile`                                      | Baked into image (`/app/migrate`)                                                    |
+| `nswac` CLI binary                  | root `Dockerfile`                                      | Baked into image (`/usr/local/bin/nswac`)                                            |
+| Officer-portal SPA                  | `frontend/` (built in the image)                       | Baked into image (`/app/web`, served by the server when `WEB_DIR` resolves)          |
+| SQL migrations                      | `backend/migrations/`                                  | **Baked into image** (`/app/migrations`)                                             |
+| Task configs                & forms | External artifact source (GitHub repo or S3/R2 bucket) | **Fetched at runtime** via the artifact loader — not baked into the image (see §4.2) |
+| User/role seed JSON                 | `backend/data/seed/<agency>_users.json`                | **Mounted at deploy time** via ConfigMap (see §5)                                    |
+| All configuration / secrets         | env vars                                               | `Secret` + `ConfigMap` (see §4)                                                      |
 
 ---
 
@@ -47,9 +46,9 @@ The image is OpenShift-friendly out of the box:
 
 The image is built from the **repo root** (the build context needs both `backend/` and
 `frontend/`). It bakes in the server binary, the `migrate` and `nswac` CLIs, the built SPA,
-the SQL migrations, the task configs, and the form templates (cloned from
-`OpenNSW/nsw-srilanka` at build time). The `nswac` **binary** is in the image; the seed
-**data** is supplied dynamically (§5), so you can re-seed without rebuilding.
+and the SQL migrations. Task configs and form templates are **not** baked in — they are
+fetched at runtime by the artifact loader (§4.2). The `nswac` **binary** is in the image;
+the seed **data** is supplied dynamically (§5), so you can re-seed without rebuilding.
 
 ```bash
 docker build -t ghcr.io/opennsw/agency:<tag> .
@@ -81,12 +80,17 @@ database — the migrations and seed are idempotent per database.
 apiVersion: v1
 kind: Secret
 metadata:
-  name: agency-secret
+  name: agency-secrets
   labels: { app: agency }
 type: Opaque
 stringData:
   DB_PASSWORD: "<postgres-password>"
   NSW_CLIENT_SECRET: "<m2m-client-secret>"
+  # Only when ARTIFACT_LOADER_TYPE=s3 with static credentials (must be set
+  # together). Omit to use the pod's default AWS credential chain. For a private
+  # GitHub source use ARTIFACT_GITHUB_TOKEN here instead.
+  ARTIFACT_S3_ACCESS_KEY: "<r2-access-key>"
+  ARTIFACT_S3_SECRET_KEY: "<r2-secret-key>"
 ```
 
 ### 4.2 ConfigMap — non-secret config
@@ -114,11 +118,21 @@ data:
   DB_SSLMODE: "require"
   MIGRATION_DIR: "/app/migrations"
 
-  # Data directories — the image already sets these as ENV defaults
-  # (TASK_CONFIGS_DIR=/app/data/task-configs, FORM_TEMPLATES_DIR=/app/nsw-srilanka-configs).
-  # Override only if you mount alternative content.
-  # TASK_CONFIGS_DIR: "/app/data/task-configs"
-  # FORM_TEMPLATES_DIR: "/app/nsw-srilanka-configs"
+  # Artifact loader — where task configs, forms, and manifest.json are fetched
+  # from at runtime. Use "github" (pin an immutable ref) or "s3" (e.g. R2) in
+  # production; "local" only fits a mounted volume. Only the selected backend's
+  # vars are read. See backend/.env.example for the full set.
+  ARTIFACT_LOADER_TYPE: "s3"
+  ARTIFACT_S3_BUCKET: "one-trade-artifacts"
+  ARTIFACT_S3_REGION: "auto"
+  ARTIFACT_S3_ENDPOINT: "https://<accountid>.r2.cloudflarestorage.com"
+  ARTIFACT_S3_PREFIX: "fcau"
+  # For github instead:
+  # ARTIFACT_LOADER_TYPE: "github"
+  # ARTIFACT_GITHUB_OWNER: "OpenNSW"
+  # ARTIFACT_GITHUB_REPO: "one-trade-artifacts"
+  # ARTIFACT_GITHUB_REF: "<tag-or-sha>"
+  # ARTIFACT_GITHUB_BASE_PATH: "fcau"
 
   # Inbound auth (validate JWTs from SPA / NSW)
   AUTH_JWKS_URL: "https://idp.example.com/oauth2/jwks"
@@ -203,7 +217,7 @@ spec:
           command: ["nswac", "user", "add", "--file", "/seed/fcau_users.json"]
           envFrom:
             - configMapRef: { name: agency-config }
-            - secretRef:    { name: agency-secret }
+            - secretRef:    { name: agency-secrets }
           volumeMounts:
             - name: seed-data
               mountPath: /seed
@@ -254,7 +268,7 @@ spec:
           command: ["/app/migrate", "up"]
           envFrom:
             - configMapRef: { name: agency-config }
-            - secretRef:    { name: agency-secret }
+            - secretRef:    { name: agency-secrets }
       containers:
         - name: agency
           image: ghcr.io/opennsw/agency:<tag>
@@ -262,7 +276,7 @@ spec:
             - containerPort: 8081
           envFrom:
             - configMapRef: { name: agency-config }
-            - secretRef:    { name: agency-secret }
+            - secretRef:    { name: agency-secrets }
           readinessProbe:
             httpGet: { path: /health, port: 8081 }
             initialDelaySeconds: 5
@@ -294,11 +308,12 @@ spec:
   tls: { termination: edge }
 ```
 
-> **Form templates** are baked into the image (cloned from `OpenNSW/nsw-srilanka` at build
-> time into `/app/nsw-srilanka-configs`, with `FORM_TEMPLATES_DIR` set as an image `ENV`
-> default), so no volume mount is needed. The server loads them at startup and **fails
-> fast** if the directory is empty — pin a known-good `nsw-srilanka` revision in the
-> Dockerfile clone if you need build reproducibility.
+> **Task configs and form templates** are fetched at runtime by the artifact loader from the
+> source configured in §4.2 (`ARTIFACT_LOADER_TYPE`), so no volume mount or baked-in content
+> is needed. The server reads `manifest.json` from that source at startup and **fails fast**
+> if it is unreachable, then fetches individual artifacts on demand. For reproducibility, pin
+> the source to an immutable ref (a GitHub tag/SHA, or a versioned S3/R2 prefix) rather than a
+> moving branch.
 
 ---
 
@@ -309,7 +324,7 @@ spec:
 oc apply -f secret.yaml
 oc apply -f config.yaml
 
-# 2. Seed ConfigMap (from repo file; form templates are already baked into the image)
+# 2. Seed ConfigMap (from repo file; task configs & forms are fetched at runtime via the artifact loader)
 oc create configmap agency-seed-data \
   --from-file=fcau_users.json=backend/data/seed/fcau_users.json
 
