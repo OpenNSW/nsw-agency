@@ -5,10 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/url"
-	"strings"
 	"time"
 
 	"github.com/OpenNSW/core/artifact"
@@ -18,7 +15,6 @@ import (
 	"github.com/OpenNSW/nsw-agency/backend/internal/rbac"
 	"github.com/OpenNSW/nsw-agency/backend/internal/taskconfig"
 	"github.com/OpenNSW/nsw-agency/backend/internal/taskconfig/taskconfigart"
-	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 	"gorm.io/gorm"
 )
 
@@ -93,28 +89,32 @@ type PagedResponse[T any] struct {
 	PageSize int   `json:"pageSize"`
 }
 
-// TaskResponse represents the Style B callback envelope sent back to the NSW service
-type TaskResponse struct {
-	Command string `json:"command"`
-	Payload any    `json:"payload"`
+// NSWClient sends task outcomes and amendment requests back to the originating
+// NSW service. It is the consumer-side view of internal/nswclient, keeping the
+// NSW wire protocol out of the domain service.
+type NSWClient interface {
+	// SendOutcome sends a review outcome (command + payload) for a task.
+	SendOutcome(ctx context.Context, serviceURL, taskID, command string, payload any) error
+	// RequestAmendment asks the trader to amend a submission.
+	RequestAmendment(ctx context.Context, serviceURL, taskID string, payload any) error
 }
 
 type service struct {
 	store            *ApplicationStore
 	artifactRegistry *artifact.Registry
-	httpClient       *httpclient.Client
+	nsw              NSWClient
 	roleService      *rbac.RoleService
 }
 
 // NewService creates a new Agency service instance with database storage
-func NewService(store *ApplicationStore, artifactRegistry *artifact.Registry, httpClient *httpclient.Client, roleService *rbac.RoleService) Service {
-	if store == nil || artifactRegistry == nil || httpClient == nil || roleService == nil {
+func NewService(store *ApplicationStore, artifactRegistry *artifact.Registry, nsw NSWClient, roleService *rbac.RoleService) Service {
+	if store == nil || artifactRegistry == nil || nsw == nil || roleService == nil {
 		panic("NewService: all dependencies must be non-nil")
 	}
 	return &service{
 		store:            store,
 		artifactRegistry: artifactRegistry,
-		httpClient:       httpClient,
+		nsw:              nsw,
 		roleService:      roleService,
 	}
 }
@@ -308,20 +308,6 @@ func (s *service) GetApplication(ctx context.Context, taskID string) (*Applicati
 	return app, nil
 }
 
-// buildCallbackURL constructs the callback URL target.
-func buildCallbackURL(serviceURL, taskID string) string {
-	if strings.Contains(serviceURL, "{id}") {
-		return strings.ReplaceAll(serviceURL, "{id}", url.PathEscape(taskID))
-	}
-	u, err := url.Parse(serviceURL)
-	if err != nil {
-		return fmt.Sprintf("%s/%s", strings.TrimSuffix(serviceURL, "/"), url.PathEscape(taskID))
-	}
-	u.Path = strings.TrimSuffix(u.Path, "/") + "/" + taskID
-	u.RawPath = ""
-	return u.String()
-}
-
 // ReviewApplication approves or rejects an application
 func (s *service) ReviewApplication(ctx context.Context, taskID string, reviewerResponse map[string]any) error {
 	app, err := s.GetApplication(ctx, taskID)
@@ -344,15 +330,7 @@ func (s *service) ReviewApplication(ctx context.Context, taskID string, reviewer
 		}
 	}
 
-	// Build Style B payload: envelope containing "command" and nested "payload"
-	response := TaskResponse{
-		Command: command,
-		Payload: reviewerResponse,
-	}
-
-	callbackURL := buildCallbackURL(app.ServiceURL, app.TaskID)
-
-	if err := s.sendToService(ctx, callbackURL, response); err != nil {
+	if err := s.nsw.SendOutcome(ctx, app.ServiceURL, app.TaskID, command, reviewerResponse); err != nil {
 		return fmt.Errorf("failed to send response to service: %w", err)
 	}
 
@@ -385,44 +363,11 @@ func (s *service) FeedbackApplication(ctx context.Context, taskID string, conten
 		Round:     len(app.FeedbackHistory) + 1,
 	}
 
-	// Build Style B payload for feedback/amendment
-	response := TaskResponse{
-		Command: "request-amendment",
-		Payload: content,
-	}
-
-	callbackURL := buildCallbackURL(app.ServiceURL, app.TaskID)
-
-	if err := s.sendToService(ctx, callbackURL, response); err != nil {
+	if err := s.nsw.RequestAmendment(ctx, app.ServiceURL, app.TaskID, content); err != nil {
 		return fmt.Errorf("failed to send feedback to service: %w", err)
 	}
 
 	return s.store.AppendFeedback(taskID, entry)
-}
-
-func (s *service) sendToService(ctx context.Context, callbackURL string, response TaskResponse) error {
-	jsonData, err := json.Marshal(response)
-	if err != nil {
-		return fmt.Errorf("failed to marshal response: %w", err)
-	}
-
-	// log the jsonData
-	slog.Log(ctx, slog.LevelDebug, "sending response to service", "url", callbackURL, "payload", string(jsonData))
-
-	resp, err := s.httpClient.Post(callbackURL, "application/json", jsonData)
-	if err != nil {
-		return err
-	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to close response body", "error", err)
-		}
-	}(resp.Body)
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("service returned status %d", resp.StatusCode)
-	}
-	return nil
 }
 
 func resolveAccess(roles []rbac.RoleRecord, permissions []taskconfig.Permission) (bool, []string) {

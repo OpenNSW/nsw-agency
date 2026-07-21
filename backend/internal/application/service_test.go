@@ -17,6 +17,7 @@ import (
 	"github.com/OpenNSW/core/artifact/adapter/generictemplate"
 	"github.com/OpenNSW/core/artifact/loaders/local"
 	"github.com/OpenNSW/nsw-agency/backend/internal/auth"
+	"github.com/OpenNSW/nsw-agency/backend/internal/nswclient"
 	"github.com/OpenNSW/nsw-agency/backend/internal/rbac"
 	"github.com/OpenNSW/nsw-agency/backend/internal/taskconfig/taskconfigart"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
@@ -189,7 +190,7 @@ func newServiceHarness(t *testing.T, writeFn func(root string)) *serviceHarness 
 	hc := httpclient.NewClientBuilder().Build()
 
 	roleService := rbac.NewRoleService(store.db)
-	svc := NewService(store, reg, hc, roleService)
+	svc := NewService(store, reg, nswclient.NewWithClient(hc), roleService)
 	t.Cleanup(func() { _ = svc.Close() })
 
 	return &serviceHarness{
@@ -675,60 +676,5 @@ func TestGetApplication_NoConfig_EmptyAllowedActions(t *testing.T) {
 	// No config → falls back to full access.
 	if len(app.AllowedActions) != 3 {
 		t.Errorf("expected 3 default allowed actions, got %v", app.AllowedActions)
-	}
-}
-
-func TestBuildCallbackURL(t *testing.T) {
-	tests := []struct {
-		name       string
-		serviceURL string
-		taskID     string
-		want       string
-	}{
-		{
-			name:       "simple URL",
-			serviceURL: "http://example.com/callback",
-			taskID:     "task-123",
-			want:       "http://example.com/callback/task-123",
-		},
-		{
-			name:       "simple URL with trailing slash",
-			serviceURL: "http://example.com/callback/",
-			taskID:     "task-123",
-			want:       "http://example.com/callback/task-123",
-		},
-		{
-			name:       "URL with placeholder",
-			serviceURL: "http://example.com/callback/{id}/submit",
-			taskID:     "task-123",
-			want:       "http://example.com/callback/task-123/submit",
-		},
-		{
-			name:       "URL with query parameters",
-			serviceURL: "http://example.com/callback?token=xyz",
-			taskID:     "task-123",
-			want:       "http://example.com/callback/task-123?token=xyz",
-		},
-		{
-			name:       "URL with query parameters and trailing slash in path",
-			serviceURL: "http://example.com/callback/?token=xyz",
-			taskID:     "task-123",
-			want:       "http://example.com/callback/task-123?token=xyz",
-		},
-		{
-			name:       "invalid URL fallback",
-			serviceURL: ":invalid-url",
-			taskID:     "task-123",
-			want:       ":invalid-url/task-123",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := buildCallbackURL(tt.serviceURL, tt.taskID)
-			if got != tt.want {
-				t.Errorf("buildCallbackURL(%q, %q) = %q, want %q", tt.serviceURL, tt.taskID, got, tt.want)
-			}
-		})
 	}
 }
