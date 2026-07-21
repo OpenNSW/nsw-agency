@@ -41,7 +41,8 @@ func TestHandleCreateUpload(t *testing.T) {
 				}, nil
 			},
 		}
-		handler := NewHandler(mockSvc, 32<<20)
+		kv := &mockKeyValidator{}
+		handler := NewHandler(mockSvc, 32<<20).WithKeyValidator(kv)
 
 		body := []byte(`{"filename":"test.txt","mime_type":"text/plain","size":123}`)
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/storage", bytes.NewBuffer(body))
@@ -72,7 +73,8 @@ func TestHandleCreateUpload(t *testing.T) {
 				return nil, errors.New("upstream error")
 			},
 		}
-		handler := NewHandler(mockSvc, 32<<20)
+		kv := &mockKeyValidator{}
+		handler := NewHandler(mockSvc, 32<<20).WithKeyValidator(kv)
 
 		body := []byte(`{"filename":"test.txt","mime_type":"text/plain","size":123}`)
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/storage", bytes.NewBuffer(body))
@@ -96,7 +98,12 @@ func TestHandleGetUploadURL(t *testing.T) {
 				}, nil
 			},
 		}
-		handler := NewHandler(mockSvc, 32<<20)
+		kv := &mockKeyValidator{
+			existsFunc: func(ctx context.Context, key string) (bool, error) {
+				return true, nil
+			},
+		}
+		handler := NewHandler(mockSvc, 32<<20).WithKeyValidator(kv)
 
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/storage/550e8400-e29b-41d4-a716-446655440000.pdf", nil)
 		req.SetPathValue("key", "550e8400-e29b-41d4-a716-446655440000.pdf") // Set the mux path value
@@ -120,4 +127,50 @@ func TestHandleGetUploadURL(t *testing.T) {
 			t.Errorf("expected expires_at 1234567890, got %v", resp.ExpiresAt)
 		}
 	})
+}
+
+type mockKeyValidator struct {
+	existsFunc func(ctx context.Context, key string) (bool, error)
+	trackFunc  func(ctx context.Context, key string) error
+}
+
+func (m *mockKeyValidator) KeyExists(ctx context.Context, key string) (bool, error) {
+	if m.existsFunc != nil {
+		return m.existsFunc(ctx, key)
+	}
+	return false, nil
+}
+
+func (m *mockKeyValidator) TrackUpload(ctx context.Context, key string) error {
+	if m.trackFunc != nil {
+		return m.trackFunc(ctx, key)
+	}
+	return nil
+}
+
+func TestHandleGetUploadURL_KeyValidator_Deny(t *testing.T) {
+	mockSvc := &mockService{
+		mockGetDownloadURL: func(ctx context.Context, key string) (*DownloadMetadata, error) {
+			return &DownloadMetadata{
+				DownloadURL: "http://test/download",
+				ExpiresAt:   1234567890,
+			}, nil
+		},
+	}
+	kv := &mockKeyValidator{
+		existsFunc: func(ctx context.Context, key string) (bool, error) {
+			return false, nil
+		},
+	}
+	handler := NewHandler(mockSvc, 32<<20).WithKeyValidator(kv)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/storage/550e8400-e29b-41d4-a716-446655440000.pdf", nil)
+	req.SetPathValue("key", "550e8400-e29b-41d4-a716-446655440000.pdf")
+	rec := httptest.NewRecorder()
+
+	handler.HandleGetUploadURL(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("expected status %d, got %d. Body: %s", http.StatusForbidden, rec.Code, rec.Body.String())
+	}
 }

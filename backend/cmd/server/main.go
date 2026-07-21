@@ -112,7 +112,7 @@ func main() {
 
 	// Initialize storage service and handler
 	storageService := storage.NewService(nswHttpClient)
-	storageHandler := storage.NewHandler(storageService, cfg.MaxRequestBytes)
+	storageHandler := storage.NewHandler(storageService, cfg.MaxRequestBytes).WithKeyValidator(service)
 
 	feedbackHandler := feedback.NewHandler(service)
 

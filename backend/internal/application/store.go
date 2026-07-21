@@ -10,6 +10,7 @@ import (
 	"github.com/OpenNSW/nsw-agency/backend/internal/database"
 	"github.com/OpenNSW/nsw-agency/backend/internal/feedback"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // JSONB is a custom type for storing JSON data in SQLite
@@ -78,6 +79,29 @@ func (ApplicationRecord) TableName() string {
 	return "applications"
 }
 
+// UploadedFile tracks files uploaded by the agency before they are associated with an application.
+type UploadedFile struct {
+	Key        string    `gorm:"primaryKey;type:varchar(255)"`
+	UploadedBy string    `gorm:"type:varchar(255);not null"`
+	CreatedAt  time.Time `gorm:"autoCreateTime"`
+}
+
+// TableName returns the table name for UploadedFile
+func (UploadedFile) TableName() string {
+	return "uploaded_files"
+}
+
+// ApplicationFile maps an application to its associated file keys for indexing.
+type ApplicationFile struct {
+	ApplicationID string `gorm:"primaryKey;type:varchar(255)"`
+	FileKey       string `gorm:"primaryKey;type:varchar(255);index"`
+}
+
+// TableName returns the table name for ApplicationFile
+func (ApplicationFile) TableName() string {
+	return "application_files"
+}
+
 // ApplicationStore handles database operations for Agency applications
 type ApplicationStore struct {
 	db *gorm.DB
@@ -96,6 +120,11 @@ func NewApplicationStore(cfg database.Config) (*ApplicationStore, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
+	// Auto-migrate tracking tables
+	if err := db.AutoMigrate(&UploadedFile{}, &ApplicationFile{}); err != nil {
+		return nil, fmt.Errorf("failed to auto-migrate tracking tables: %w", err)
+	}
+
 	return &ApplicationStore{db: db}, nil
 }
 
@@ -107,7 +136,10 @@ func (s *ApplicationStore) CreateOrUpdate(app *ApplicationRecord) error {
 		if err := tx.Save(&consignment).Error; err != nil {
 			return fmt.Errorf("failed to upsert consignment: %w", err)
 		}
-		return tx.Save(app).Error
+		if err := tx.Save(app).Error; err != nil {
+			return err
+		}
+		return s.syncApplicationFiles(tx, app.TaskID)
 	})
 }
 
@@ -217,12 +249,16 @@ func (s *ApplicationStore) UpdateStatus(taskID string, status string, reviewerRe
 			return fmt.Errorf("failed to fetch consignment_id: %w", err)
 		}
 
-		return tx.Model(&ConsignmentRecord{}).
+		if err := tx.Model(&ConsignmentRecord{}).
 			Where("id = ?", app.ConsignmentID).
 			Updates(map[string]any{
 				"status":     status,
 				"updated_at": now,
-			}).Error
+			}).Error; err != nil {
+			return err
+		}
+
+		return s.syncApplicationFiles(tx, taskID)
 	})
 }
 
@@ -252,12 +288,16 @@ func (s *ApplicationStore) AppendFeedback(taskID string, entry feedback.Entry) e
 			return err
 		}
 
-		return tx.Model(&ConsignmentRecord{}).
+		if err := tx.Model(&ConsignmentRecord{}).
 			Where("id = ?", app.ConsignmentID).
 			Updates(map[string]any{
 				"status":     "FEEDBACK_REQUESTED",
 				"updated_at": now,
-			}).Error
+			}).Error; err != nil {
+			return err
+		}
+
+		return s.syncApplicationFiles(tx, taskID)
 	})
 }
 
@@ -287,12 +327,16 @@ func (s *ApplicationStore) UpdateDataAndResetStatus(taskID string, data map[stri
 			return err
 		}
 
-		return tx.Model(&ConsignmentRecord{}).
+		if err := tx.Model(&ConsignmentRecord{}).
 			Where("id = ?", app.ConsignmentID).
 			Updates(map[string]any{
 				"status":     "PENDING",
 				"updated_at": now,
-			}).Error
+			}).Error; err != nil {
+			return err
+		}
+
+		return s.syncApplicationFiles(tx, taskID)
 	})
 }
 
@@ -322,4 +366,128 @@ func (s *ApplicationStore) GetTaskCode(ctx context.Context, taskID string) (stri
 		return "", err
 	}
 	return app.TaskCode, nil
+}
+
+// extractFileKeys recursively finds all string values in a nested JSON structure (map, slice, etc.)
+func extractFileKeys(val any) []string {
+	var keys []string
+	switch v := val.(type) {
+	case string:
+		if len(v) > 0 {
+			keys = append(keys, v)
+		}
+	case map[string]any:
+		for _, item := range v {
+			keys = append(keys, extractFileKeys(item)...)
+		}
+	case []any:
+		for _, item := range v {
+			keys = append(keys, extractFileKeys(item)...)
+		}
+	}
+	return keys
+}
+
+func extractKeysFromJSONB(j JSONB) []string {
+	if len(j) == 0 {
+		return nil
+	}
+	bytes, err := json.Marshal(j)
+	if err != nil {
+		return nil
+	}
+	var val any
+	if json.Unmarshal(bytes, &val) != nil {
+		return nil
+	}
+	return extractFileKeys(val)
+}
+
+// syncApplicationFiles extracts file keys from JSON fields of the application and syncs them to application_files
+func (s *ApplicationStore) syncApplicationFiles(tx *gorm.DB, taskID string) error {
+	var app ApplicationRecord
+	if err := tx.First(&app, "task_id = ?", taskID).Error; err != nil {
+		return fmt.Errorf("failed to fetch application for sync: %w", err)
+	}
+
+	uniqueKeys := make(map[string]struct{})
+
+	// Extract from Data (JSONB)
+	for _, key := range extractKeysFromJSONB(app.Data) {
+		uniqueKeys[key] = struct{}{}
+	}
+
+	// Extract from ReviewerResponse (JSONB)
+	for _, key := range extractKeysFromJSONB(app.ReviewerResponse) {
+		uniqueKeys[key] = struct{}{}
+	}
+
+	// Extract from AgencyFeedbackHistory
+	if len(app.AgencyFeedbackHistory) > 0 {
+		historyBytes, err := json.Marshal(app.AgencyFeedbackHistory)
+		if err == nil {
+			var parsedHistory any
+			if json.Unmarshal(historyBytes, &parsedHistory) == nil {
+				for _, key := range extractFileKeys(parsedHistory) {
+					uniqueKeys[key] = struct{}{}
+				}
+			}
+		}
+	}
+
+	// Delete old mappings
+	if err := tx.Where("application_id = ?", taskID).Delete(&ApplicationFile{}).Error; err != nil {
+		return fmt.Errorf("failed to clear old application files: %w", err)
+	}
+
+	// Insert new mappings
+	if len(uniqueKeys) > 0 {
+		var mappings []ApplicationFile
+		for key := range uniqueKeys {
+			if len(key) >= 10 {
+				mappings = append(mappings, ApplicationFile{
+					ApplicationID: taskID,
+					FileKey:       key,
+				})
+			}
+		}
+		if len(mappings) > 0 {
+			if err := tx.Create(&mappings).Error; err != nil {
+				return fmt.Errorf("failed to insert application files mapping: %w", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// GetUploadedFile retrieves an UploadedFile record by its key.
+func (s *ApplicationStore) GetUploadedFile(ctx context.Context, key string) (*UploadedFile, error) {
+	var upload UploadedFile
+	if err := s.db.WithContext(ctx).First(&upload, "key = ?", key).Error; err != nil {
+		return nil, err
+	}
+	return &upload, nil
+}
+
+// FindApplicationsByFileKey finds all applications referencing the given file key in application_files.
+func (s *ApplicationStore) FindApplicationsByFileKey(ctx context.Context, key string) ([]ApplicationRecord, error) {
+	var apps []ApplicationRecord
+	err := s.db.WithContext(ctx).
+		Joins("JOIN application_files ON application_files.application_id = applications.task_id").
+		Where("application_files.file_key = ?", key).
+		Find(&apps).Error
+	if err != nil {
+		return nil, err
+	}
+	return apps, nil
+}
+
+// TrackUpload tracks a newly uploaded file key by inserting it into uploaded_files.
+func (s *ApplicationStore) TrackUpload(ctx context.Context, key string, uploadedBy string) error {
+	upload := UploadedFile{
+		Key:        key,
+		UploadedBy: uploadedBy,
+	}
+	return s.db.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(&upload).Error
 }

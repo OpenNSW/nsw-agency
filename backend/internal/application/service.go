@@ -44,6 +44,12 @@ type Service interface {
 	// and updates the application status to FEEDBACK_REQUESTED.
 	FeedbackApplication(ctx context.Context, taskID string, content map[string]any) error
 
+	// KeyExists checks if the key exists and the current authenticated user has permission to access it.
+	KeyExists(ctx context.Context, key string) (bool, error)
+
+	// TrackUpload registers a newly uploaded file key associated with the current user.
+	TrackUpload(ctx context.Context, key string) error
+
 	// Close closes the service and releases resources
 	Close() error
 }
@@ -427,4 +433,74 @@ func (s *service) Close() error {
 		return s.store.Close()
 	}
 	return nil
+}
+
+func hasAction(actions []string, action string) bool {
+	for _, a := range actions {
+		if a == action {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *service) KeyExists(ctx context.Context, key string) (bool, error) {
+	authCtx := auth.GetAuthContext(ctx)
+	if authCtx == nil {
+		return false, nil
+	}
+
+	// 1. Machine client check (M2M bypass)
+	if authCtx.Client != nil {
+		return true, nil
+	}
+
+	if authCtx.User == nil {
+		return false, nil
+	}
+
+	// 2. Check uploaded_files first (ownership authorization)
+	uploadedFile, err := s.store.GetUploadedFile(ctx, key)
+	if err == nil {
+		if uploadedFile.UploadedBy == authCtx.User.ID {
+			return true, nil
+		}
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return false, err
+	}
+
+	// 3. Fallback to checking applications (rbac / access control check)
+	records, err := s.store.FindApplicationsByFileKey(ctx, key)
+	if err != nil {
+		return false, err
+	}
+	if len(records) == 0 {
+		return false, nil
+	}
+
+	roles, err := s.roleService.GetRolesForUser(authCtx.User.ID)
+	if err != nil {
+		return false, fmt.Errorf("failed to get user roles: %w", err)
+	}
+
+	for _, record := range records {
+		var permissions []taskconfig.Permission
+		if config, err := s.templateProvider.GetTaskConfig(record.TaskCode); err == nil {
+			permissions = config.Permissions
+		}
+		accessible, allowedActions := resolveAccess(roles, permissions)
+		if accessible && hasAction(allowedActions, "VIEW") {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func (s *service) TrackUpload(ctx context.Context, key string) error {
+	authCtx := auth.GetAuthContext(ctx)
+	if authCtx == nil || authCtx.User == nil {
+		return fmt.Errorf("unauthorized upload: user context not found")
+	}
+	return s.store.TrackUpload(ctx, key, authCtx.User.ID)
 }

@@ -1,0 +1,11 @@
+-- Created at: 2026-07-21T12:00:00Z
+
+-- @UP
+CREATE TABLE IF NOT EXISTS uploaded_files (
+    key         VARCHAR(255) PRIMARY KEY,
+    uploaded_by VARCHAR(255) NOT NULL,
+    created_at  TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+-- @DOWN
+DROP TABLE IF EXISTS uploaded_files;

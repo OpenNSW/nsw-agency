@@ -52,7 +52,7 @@ func newTestStore(t *testing.T) *ApplicationStore {
 		t.Fatalf("failed to create store (driver=%s): %v", dbCfg.Driver, err)
 	}
 
-	if err := store.db.AutoMigrate(&ConsignmentRecord{}, &ApplicationRecord{}, &rbac.RoleRecord{}, &rbac.UserRoleRecord{}); err != nil {
+	if err := store.db.AutoMigrate(&ConsignmentRecord{}, &ApplicationRecord{}, &rbac.RoleRecord{}, &rbac.UserRoleRecord{}, &UploadedFile{}); err != nil {
 		t.Fatalf("failed to migrate schema: %v", err)
 	}
 
@@ -555,5 +555,86 @@ func TestApplicationStore_UpdateStatus_PropagatesConsignment(t *testing.T) {
 	}
 	if cr.Status != "APPROVED" {
 		t.Errorf("expected consignment status 'APPROVED', got %q", cr.Status)
+	}
+}
+
+func TestApplicationStore_FindApplicationsByFileKey(t *testing.T) {
+	store := newTestStore(t)
+	ctx := context.Background()
+
+	key := "550e8400-e29b-41d4-a716-446655440000.pdf"
+
+	// Seed application record with the key in the data JSON.
+	// CreateOrUpdate triggers syncApplicationFiles, populating application_files.
+	app := &ApplicationRecord{
+		TaskID:        "key-test-task",
+		TaskCode:      "test",
+		ConsignmentID: "key-test-consignment",
+		ServiceURL:    "http://test",
+		Status:        "PENDING",
+		Data:          JSONB{"file_key": key},
+	}
+	if err := store.CreateOrUpdate(app); err != nil {
+		t.Fatalf("failed to create app record: %v", err)
+	}
+
+	// Exact key should find the application
+	apps, err := store.FindApplicationsByFileKey(ctx, key)
+	if err != nil {
+		t.Fatalf("FindApplicationsByFileKey failed: %v", err)
+	}
+	if len(apps) != 1 {
+		t.Fatalf("expected 1 application, got %d", len(apps))
+	}
+	if apps[0].TaskID != "key-test-task" {
+		t.Errorf("expected task ID 'key-test-task', got %s", apps[0].TaskID)
+	}
+
+	// Substring key should not match (prevents partial key bypass)
+	apps, err = store.FindApplicationsByFileKey(ctx, "550e8400")
+	if err != nil {
+		t.Fatalf("FindApplicationsByFileKey failed: %v", err)
+	}
+	if len(apps) != 0 {
+		t.Error("expected substring of key to not match any applications")
+	}
+
+	// Random key should not match
+	apps, err = store.FindApplicationsByFileKey(ctx, "non-existent-key")
+	if err != nil {
+		t.Fatalf("FindApplicationsByFileKey failed: %v", err)
+	}
+	if len(apps) != 0 {
+		t.Error("expected random key to not match any applications")
+	}
+}
+
+func TestApplicationStore_TrackUpload(t *testing.T) {
+	store := newTestStore(t)
+	ctx := context.Background()
+
+	key := "550e8400-e29b-41d4-a716-446655440001.pdf"
+	userID := "test-user-123"
+
+	// Track the key with uploader identity
+	if err := store.TrackUpload(ctx, key, userID); err != nil {
+		t.Fatalf("TrackUpload failed: %v", err)
+	}
+
+	// Uploaded file should be retrievable
+	upload, err := store.GetUploadedFile(ctx, key)
+	if err != nil {
+		t.Fatalf("GetUploadedFile failed: %v", err)
+	}
+	if upload.Key != key {
+		t.Errorf("expected key %q, got %q", key, upload.Key)
+	}
+	if upload.UploadedBy != userID {
+		t.Errorf("expected uploaded_by %q, got %q", userID, upload.UploadedBy)
+	}
+
+	// Duplicate insert should not error (OnConflict DoNothing)
+	if err := store.TrackUpload(ctx, key, userID); err != nil {
+		t.Fatalf("duplicate TrackUpload should not error: %v", err)
 	}
 }
