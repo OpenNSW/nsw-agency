@@ -9,6 +9,7 @@ package web
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"path"
@@ -29,8 +30,12 @@ type Handler struct {
 // error if cfg.Dir is missing (the caller can then serve API-only) — see
 // cmd/server/main.go. cfg.Runtime should already be validated.
 func NewHandler(cfg Config) (*Handler, error) {
-	if _, err := os.Stat(cfg.Dir); err != nil {
+	fi, err := os.Stat(cfg.Dir)
+	if err != nil {
 		return nil, err
+	}
+	if !fi.IsDir() {
+		return nil, fmt.Errorf("web: configured dir %q is not a directory", cfg.Dir)
 	}
 	// json.Marshal handles JS string escaping safely (replacing the old
 	// hand-rolled awk escaper); omitempty drops unset optional keys.

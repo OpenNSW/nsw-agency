@@ -22,7 +22,8 @@ runs:
         set -euo pipefail
         CHART_FILE="${CHART_DIR}/Chart.yaml"
 
-        app_ver="$(grep -E '^appVersion:' "$CHART_FILE" | head -1 | awk '{print $2}' | tr -d '"')"
+        # Strip both double and single quotes (appVersion may be "0.1.0" or '0.1.0').
+        app_ver="$(grep -E '^appVersion:' "$CHART_FILE" | head -1 | awk '{print $2}' | tr -d "\"'")"
         # Latest app release = highest final v X.Y.Z tag (excludes prereleases
         # like v1.2.3-rc.1 and the chart-v* tags).
         latest="$(git tag -l 'v*.*.*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sed 's/^v//' | sort -V | tail -1)"
