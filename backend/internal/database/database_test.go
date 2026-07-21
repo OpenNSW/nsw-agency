@@ -16,7 +16,7 @@ func TestNewConnector(t *testing.T) {
 	}{
 		{
 			name:         "valid sqlite",
-			cfg:          Config{Driver: "sqlite", Path: ":memory:"},
+			cfg:          Config{Driver: "sqlite", SQLite: SQLiteConfig{Path: ":memory:"}},
 			wantErr:      false,
 			expectedType: "*database.SQLiteConnector",
 		},
@@ -68,16 +68,48 @@ func TestNewConnector_ErrorMessage(t *testing.T) {
 	}
 }
 
+func TestConfig_Validate(t *testing.T) {
+	tests := []struct {
+		name    string
+		cfg     Config
+		wantErr bool
+	}{
+		{name: "sqlite ok", cfg: Config{Driver: "sqlite"}, wantErr: false},
+		{
+			name:    "postgres with password ok",
+			cfg:     Config{Driver: "postgres", Postgres: PostgresConfig{Password: "secret"}},
+			wantErr: false,
+		},
+		{
+			name:    "postgres missing password",
+			cfg:     Config{Driver: "postgres"},
+			wantErr: true,
+		},
+		{name: "unsupported driver", cfg: Config{Driver: "mysql"}, wantErr: true},
+		{name: "empty driver", cfg: Config{}, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.cfg.Validate(); (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 // TestPostgresDSN verifies postgres connector fields match config.
 func TestPostgresDSN(t *testing.T) {
 	cfg := Config{
-		Driver:   "postgres",
-		Host:     "localhost",
-		Port:     "5432",
-		User:     "testuser",
-		Password: "testpassword",
-		Name:     "testdb",
-		SSLMode:  "disable",
+		Driver: "postgres",
+		Postgres: PostgresConfig{
+			Host:     "localhost",
+			Port:     "5432",
+			User:     "testuser",
+			Password: "testpassword",
+			Name:     "testdb",
+			SSLMode:  "disable",
+		},
 	}
 
 	connector, err := NewConnector(cfg)

@@ -37,39 +37,27 @@ type Config struct {
 
 // LoadConfig loads configuration from environment variables
 func LoadConfig() (Config, error) {
-	driver := envOrDefault("DB_DRIVER", "sqlite")
-	var dbConfig database.Config
-
-	switch driver {
-	case "postgres":
-		password := os.Getenv("DB_PASSWORD")
-		if password == "" {
-			return Config{}, fmt.Errorf("database password secret is missing: DB_PASSWORD is required for postgres driver")
-		}
-
-		dbConfig = database.Config{
-			Driver:   driver,
-			Host:     envOrDefault("DB_HOST", "localhost"),
-			Port:     envOrDefault("DB_PORT", "5432"),
-			User:     envOrDefault("DB_USER", "postgres"),
-			Password: password, // Uses the strictly validated password
-			Name:     envOrDefault("DB_NAME", "nsw_agency_db"),
-			SSLMode:  envOrDefault("DB_SSLMODE", "disable"),
-		}
-
-	case "sqlite":
-		dbConfig = database.Config{
-			Driver: driver,
-			Path:   envOrDefault("DB_PATH", "./agency_applications.db"),
-		}
-
-	default:
-		return Config{}, fmt.Errorf("unsupported database driver configured: %s", driver)
-	}
 
 	cfg := Config{
 		Port: envOrDefault("PORT", "8081"),
-		DB:   dbConfig,
+		// Populate every driver's settings from the environment; database.Config
+		// reads only the selected driver's sub-config, and cfg.DB.Validate()
+		// (below) enforces its requirements. This mirrors how the artifact loader
+		// config is populated and validated, so there is no per-driver switch here.
+		DB: database.Config{
+			Driver: envOrDefault("DB_DRIVER", "sqlite"),
+			SQLite: database.SQLiteConfig{
+				Path: envOrDefault("DB_PATH", "./agency_applications.db"),
+			},
+			Postgres: database.PostgresConfig{
+				Host:     envOrDefault("DB_HOST", "localhost"),
+				Port:     envOrDefault("DB_PORT", "5432"),
+				User:     envOrDefault("DB_USER", "postgres"),
+				Password: os.Getenv("DB_PASSWORD"),
+				Name:     envOrDefault("DB_NAME", "nsw_agency_db"),
+				SSLMode:  envOrDefault("DB_SSLMODE", "disable"),
+			},
+		},
 		ArtifactLoader: loaders.Config{
 			Type: envOrDefault("ARTIFACT_LOADER_TYPE", loaders.TypeLocal),
 			Local: local.Config{
@@ -97,7 +85,7 @@ func LoadConfig() (Config, error) {
 				Prefix:    envOrDefault("ARTIFACT_S3_PREFIX", ""),
 			},
 		},
-		AllowedOrigins: parseCommaSeparated(envOrDefault("ALLOWED_ORIGINS", "*")),
+		AllowedOrigins:   parseCommaSeparated(envOrDefault("ALLOWED_ORIGINS", "*")),
 		NSW: NSWConfig{
 			BaseURL:      os.Getenv("NSW_API_BASE_URL"),
 			ClientID:     os.Getenv("NSW_CLIENT_ID"),
@@ -148,6 +136,9 @@ func LoadConfig() (Config, error) {
 	cfg.Auth.InsecureSkipTLSVerify = authInsecureSkipTLSVerify
 
 	if err := cfg.ArtifactLoader.Validate(); err != nil {
+		return Config{}, err
+	}
+	if err := cfg.DB.Validate(); err != nil {
 		return Config{}, err
 	}
 	if err := cfg.validateNSWOAuth2Config(); err != nil {

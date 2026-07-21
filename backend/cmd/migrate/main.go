@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 
@@ -80,14 +81,15 @@ func openDB(cfg database.Config) (*sql.DB, error) {
 	)
 	switch cfg.Driver {
 	case "sqlite":
-		db, err = sql.Open("sqlite3", cfg.Path)
+		db, err = sql.Open("sqlite3", cfg.SQLite.Path)
 	case "postgres":
+		pg := cfg.Postgres
 		u := &url.URL{
 			Scheme:   "postgres",
-			User:     url.UserPassword(cfg.User, cfg.Password),
-			Host:     cfg.Host + ":" + cfg.Port,
-			Path:     "/" + cfg.Name,
-			RawQuery: "sslmode=" + url.QueryEscape(cfg.SSLMode),
+			User:     url.UserPassword(pg.User, pg.Password),
+			Host:     net.JoinHostPort(pg.Host, pg.Port),
+			Path:     "/" + pg.Name,
+			RawQuery: "sslmode=" + url.QueryEscape(pg.SSLMode),
 		}
 		db, err = sql.Open("pgx", u.String())
 	default:

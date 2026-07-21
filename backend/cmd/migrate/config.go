@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/OpenNSW/nsw-agency/backend/internal/database"
@@ -15,39 +14,30 @@ type Config struct {
 
 // LoadConfig loads configuration from environment variables.
 func LoadConfig() (Config, error) {
-	driver := envOrDefault("DB_DRIVER", "sqlite")
-	var dbConfig database.Config
-
-	switch driver {
-	case "postgres":
-		password := os.Getenv("DB_PASSWORD")
-		if password == "" {
-			return Config{}, fmt.Errorf("DB_PASSWORD is required for postgres driver")
-		}
-		dbConfig = database.Config{
-			Driver:   driver,
-			Host:     envOrDefault("DB_HOST", "localhost"),
-			Port:     envOrDefault("DB_PORT", "5432"),
-			User:     envOrDefault("DB_USER", "postgres"),
-			Password: password,
-			Name:     envOrDefault("DB_NAME", "nsw_agency_db"),
-			SSLMode:  envOrDefault("DB_SSLMODE", "disable"),
-		}
-
-	case "sqlite":
-		dbConfig = database.Config{
-			Driver: driver,
-			Path:   envOrDefault("DB_PATH", "./agency_applications.db"),
-		}
-
-	default:
-		return Config{}, fmt.Errorf("unsupported database driver: %q", driver)
-	}
-
-	return Config{
-		DB:  dbConfig,
+	cfg := Config{
+		// Populate every driver's settings; database.Config reads only the
+		// selected driver's sub-config and cfg.DB.Validate() enforces its
+		// requirements, so there is no per-driver switch here.
+		DB: database.Config{
+			Driver: envOrDefault("DB_DRIVER", "sqlite"),
+			SQLite: database.SQLiteConfig{
+				Path: envOrDefault("DB_PATH", "./agency_applications.db"),
+			},
+			Postgres: database.PostgresConfig{
+				Host:     envOrDefault("DB_HOST", "localhost"),
+				Port:     envOrDefault("DB_PORT", "5432"),
+				User:     envOrDefault("DB_USER", "postgres"),
+				Password: os.Getenv("DB_PASSWORD"),
+				Name:     envOrDefault("DB_NAME", "nsw_agency_db"),
+				SSLMode:  envOrDefault("DB_SSLMODE", "disable"),
+			},
+		},
 		Dir: envOrDefault("MIGRATION_DIR", "./migrations"),
-	}, nil
+	}
+	if err := cfg.DB.Validate(); err != nil {
+		return Config{}, err
+	}
+	return cfg, nil
 }
 
 func envOrDefault(key, defaultValue string) string {

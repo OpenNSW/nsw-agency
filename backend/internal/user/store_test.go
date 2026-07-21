@@ -12,7 +12,7 @@ import (
 // newTestStore creates an in-memory SQLite UserStore for testing.
 func newTestStore(t *testing.T, agency string) *UserStore {
 	t.Helper()
-	store, err := NewUserStore(database.Config{Driver: "sqlite", Path: ":memory:"}, agency)
+	store, err := NewUserStore(database.Config{Driver: "sqlite", SQLite: database.SQLiteConfig{Path: ":memory:"}}, agency)
 	if err != nil {
 		t.Fatalf("failed to create user store: %v", err)
 	}
@@ -39,7 +39,7 @@ func insertUser(t *testing.T, store *UserStore, email, name string) *UserRecord 
 func TestUserStore_SQLite_FileCreated(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "test_users.db")
 
-	store, err := NewUserStore(database.Config{Driver: "sqlite", Path: dbPath}, "fcau")
+	store, err := NewUserStore(database.Config{Driver: "sqlite", SQLite: database.SQLiteConfig{Path: dbPath}}, "fcau")
 	if err != nil {
 		t.Fatalf("NewUserStore failed: %v", err)
 	}
