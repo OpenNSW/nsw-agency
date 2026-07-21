@@ -6,7 +6,7 @@ name: Docker Validation CI
 
 on:
   pull_request:
-    branches: [main, 'migration/*']
+    branches: [ main ]
     # Run only when files that affect the image build context change,
     # or when this workflow file itself changes.
     paths:

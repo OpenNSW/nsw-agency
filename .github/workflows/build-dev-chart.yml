@@ -6,7 +6,7 @@ name: Build and Push Development Helm Chart
 
 on:
   push:
-    branches: [ main, 'migration/*' ]
+    branches: [ main ]
     paths:
       - 'deployments/helm/**'
       - '.github/workflows/build-dev-chart.yml'
