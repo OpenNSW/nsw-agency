@@ -1,0 +1,42 @@
+name: Chart appVersion check
+description: >-
+  Fail if the chart's Chart.yaml `appVersion` does not match the latest app
+  release (the highest `v*.*.*` git tag). Run this before publishing a chart
+  release so the chart always ships pointing at the current app version. The
+  calling workflow MUST check out the repository with tags available
+  (actions/checkout with fetch-depth: 0).
+
+inputs:
+  chart-dir:
+    description: Path to the chart directory (the one containing Chart.yaml).
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Check appVersion matches latest app release
+      shell: bash
+      env:
+        CHART_DIR: ${{ inputs.chart-dir }}
+      run: |
+        set -euo pipefail
+        CHART_FILE="${CHART_DIR}/Chart.yaml"
+
+        app_ver="$(grep -E '^appVersion:' "$CHART_FILE" | head -1 | awk '{print $2}' | tr -d '"')"
+        # Latest app release = highest final v X.Y.Z tag (excludes prereleases
+        # like v1.2.3-rc.1 and the chart-v* tags).
+        latest="$(git tag -l 'v*.*.*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sed 's/^v//' | sort -V | tail -1)"
+
+        if [ -z "$latest" ]; then
+          echo "::warning file=${CHART_FILE}::no app release tags (v*.*.*) found; skipping appVersion check."
+          exit 0
+        fi
+        if [ -z "$app_ver" ]; then
+          echo "::error file=${CHART_FILE}::Chart.yaml has no 'appVersion' field."
+          exit 1
+        fi
+        if [ "$app_ver" != "$latest" ]; then
+          echo "::error file=${CHART_FILE}::appVersion (${app_ver}) does not match the latest app release (${latest}). Bump appVersion to ${latest} before releasing the chart."
+          exit 1
+        fi
+        echo "OK: appVersion ${app_ver} matches the latest app release ${latest}."

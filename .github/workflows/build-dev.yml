@@ -3,6 +3,13 @@ name: Build and Push Development Image
 on:
   push:
     branches: [ main, 'migration/*' ]
+    # Only rebuild the dev image when something that affects the image build
+    # context changes. Docs/CI-only changes don't produce a new image.
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'Dockerfile'
+      - '.github/workflows/build-dev.yml'
   workflow_dispatch:
 
 # Cancel in-progress runs for the same branch when a new commit arrives.

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: agency
+description: Helm chart for the NSW Agency application (single image serving the API and officer portal)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
