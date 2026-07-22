@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"path/filepath"
+	"strings"
 
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 )
@@ -88,10 +90,86 @@ func (s *service) GetDownloadURL(ctx context.Context, key string) (*DownloadMeta
 	return &metadata, nil
 }
 
+// Allowed MIME types whitelist for customs documents and attachments.
+var allowedMimeTypes = map[string]bool{
+	"application/pdf":    true,
+	"image/jpeg":         true,
+	"image/jpg":          true,
+	"image/png":          true,
+	"image/tiff":         true,
+	"text/csv":           true,
+	"text/plain":         true,
+	"application/json":   true,
+	"application/msword": true,
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": true,
+	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":       true,
+	"application/octet-stream": true,
+}
+
+// Blocked dangerous and executable extensions.
+var blockedExtensions = map[string]bool{
+	".exe":  true,
+	".sh":   true,
+	".php":  true,
+	".js":   true,
+	".html": true,
+	".htm":  true,
+	".svg":  true,
+	".bat":  true,
+	".cmd":  true,
+	".py":   true,
+	".rb":   true,
+	".jar":  true,
+	".jsp":  true,
+	".asp":  true,
+	".aspx": true,
+	".vbs":  true,
+	".ps1":  true,
+}
+
+// validateUploadRequest performs multi-layered security validation on upload requests.
+func validateUploadRequest(req *UploadRequest) error {
+	if req.Filename == "" || req.MimeType == "" || req.Size <= 0 {
+		return fmt.Errorf("invalid upload request: missing required fields")
+	}
+
+	if strings.Contains(req.Filename, "\x00") {
+		return fmt.Errorf("invalid upload request: filename contains null byte")
+	}
+
+	// Sanitize filename to prevent path traversal
+	req.Filename = filepath.Base(filepath.Clean(req.Filename))
+	if req.Filename == "." || req.Filename == "/" || req.Filename == "\\" || req.Filename == "" {
+		return fmt.Errorf("invalid upload request: unsafe filename")
+	}
+
+	// Maximum single file size limit: 50MB
+	const maxFileSize int64 = 50 << 20
+	if req.Size > maxFileSize {
+		return fmt.Errorf("file size exceeds maximum allowed limit of %d bytes", maxFileSize)
+	}
+
+	ext := strings.ToLower(filepath.Ext(req.Filename))
+	if ext == "" {
+		return fmt.Errorf("file extension required")
+	}
+
+	if blockedExtensions[ext] {
+		return fmt.Errorf("disallowed file extension: %s", ext)
+	}
+
+	mimeClean := strings.ToLower(strings.TrimSpace(strings.Split(req.MimeType, ";")[0]))
+	if !allowedMimeTypes[mimeClean] {
+		return fmt.Errorf("disallowed MIME type: %s", req.MimeType)
+	}
+
+	return nil
+}
+
 // CreateUploadURL proxies an upload initialization request to the main backend.
 func (s *service) CreateUploadURL(ctx context.Context, req UploadRequest) (*FileMetadata, error) {
-	if req.Filename == "" || req.MimeType == "" || req.Size <= 0 {
-		return nil, fmt.Errorf("invalid upload request: missing required fields")
+	if err := validateUploadRequest(&req); err != nil {
+		return nil, err
 	}
 
 	payload, err := json.Marshal(req)
