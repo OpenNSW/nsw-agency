@@ -50,6 +50,105 @@ func TestService_CreateUploadURL(t *testing.T) {
 	}
 }
 
+func TestValidateUploadRequest(t *testing.T) {
+	tests := []struct {
+		name    string
+		req     UploadRequest
+		wantErr bool
+	}{
+		{
+			name: "valid PDF upload",
+			req: UploadRequest{
+				Filename: "document.pdf",
+				MimeType: "application/pdf",
+				Size:     1024,
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid PNG image upload",
+			req: UploadRequest{
+				Filename: "image.png",
+				MimeType: "image/png",
+				Size:     2048,
+			},
+			wantErr: false,
+		},
+		{
+			name: "disallowed executable extension .exe",
+			req: UploadRequest{
+				Filename: "malware.exe",
+				MimeType: "application/octet-stream",
+				Size:     1024,
+			},
+			wantErr: true,
+		},
+		{
+			name: "disallowed script extension .php",
+			req: UploadRequest{
+				Filename: "shell.php",
+				MimeType: "text/plain",
+				Size:     512,
+			},
+			wantErr: true,
+		},
+		{
+			name: "disallowed script extension .sh",
+			req: UploadRequest{
+				Filename: "script.sh",
+				MimeType: "text/plain",
+				Size:     256,
+			},
+			wantErr: true,
+		},
+		{
+			name: "disallowed HTML extension",
+			req: UploadRequest{
+				Filename: "phish.html",
+				MimeType: "text/plain",
+				Size:     1024,
+			},
+			wantErr: true,
+		},
+		{
+			name: "disallowed MIME type",
+			req: UploadRequest{
+				Filename: "audio.mp3",
+				MimeType: "audio/mpeg",
+				Size:     1024,
+			},
+			wantErr: true,
+		},
+		{
+			name: "exceeds maximum size limit",
+			req: UploadRequest{
+				Filename: "huge.pdf",
+				MimeType: "application/pdf",
+				Size:     100 << 20, // 100MB > 50MB
+			},
+			wantErr: true,
+		},
+		{
+			name: "missing filename",
+			req: UploadRequest{
+				Filename: "",
+				MimeType: "application/pdf",
+				Size:     1024,
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateUploadRequest(&tt.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateUploadRequest() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestService_GetDownloadURL(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/storage/550e8400-e29b-41d4-a716-446655440000.pdf", func(w http.ResponseWriter, r *http.Request) {
