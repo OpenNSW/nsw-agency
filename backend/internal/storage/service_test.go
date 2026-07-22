@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -50,11 +51,40 @@ func TestService_CreateUploadURL(t *testing.T) {
 	}
 }
 
+func TestCleanFilename(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+		wantErr  bool
+	}{
+		{"document.pdf", "document.pdf", false},
+		{"../../etc/passwd.pdf", "passwd.pdf", false},
+		{"malware.exe", "", true},
+		{"script.sh", "", true},
+		{"shell.php", "", true},
+		{"page.html", "", true},
+		{"vector.svg", "", true},
+		{"macro.xls", "", true},
+		{"file\x00name.pdf", "", true},
+	}
+
+	for _, tt := range tests {
+		res, err := CleanFilename(tt.input)
+		if (err != nil) != tt.wantErr {
+			t.Errorf("CleanFilename(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+		}
+		if !tt.wantErr && res != tt.expected {
+			t.Errorf("CleanFilename(%q) = %q, expected %q", tt.input, res, tt.expected)
+		}
+	}
+}
+
 func TestValidateUploadRequest(t *testing.T) {
 	tests := []struct {
-		name    string
-		req     UploadRequest
-		wantErr bool
+		name      string
+		req       UploadRequest
+		targetErr error
+		wantErr   bool
 	}{
 		{
 			name: "valid PDF upload",
@@ -81,7 +111,8 @@ func TestValidateUploadRequest(t *testing.T) {
 				MimeType: "application/octet-stream",
 				Size:     1024,
 			},
-			wantErr: true,
+			targetErr: ErrProhibitedFileType,
+			wantErr:   true,
 		},
 		{
 			name: "disallowed script extension .php",
@@ -90,7 +121,8 @@ func TestValidateUploadRequest(t *testing.T) {
 				MimeType: "text/plain",
 				Size:     512,
 			},
-			wantErr: true,
+			targetErr: ErrProhibitedFileType,
+			wantErr:   true,
 		},
 		{
 			name: "disallowed script extension .sh",
@@ -99,7 +131,8 @@ func TestValidateUploadRequest(t *testing.T) {
 				MimeType: "text/plain",
 				Size:     256,
 			},
-			wantErr: true,
+			targetErr: ErrProhibitedFileType,
+			wantErr:   true,
 		},
 		{
 			name: "disallowed HTML extension",
@@ -108,7 +141,8 @@ func TestValidateUploadRequest(t *testing.T) {
 				MimeType: "text/plain",
 				Size:     1024,
 			},
-			wantErr: true,
+			targetErr: ErrProhibitedFileType,
+			wantErr:   true,
 		},
 		{
 			name: "disallowed MIME type",
@@ -117,7 +151,8 @@ func TestValidateUploadRequest(t *testing.T) {
 				MimeType: "audio/mpeg",
 				Size:     1024,
 			},
-			wantErr: true,
+			targetErr: ErrDisallowedMimeType,
+			wantErr:   true,
 		},
 		{
 			name: "exceeds maximum size limit",
@@ -126,7 +161,8 @@ func TestValidateUploadRequest(t *testing.T) {
 				MimeType: "application/pdf",
 				Size:     100 << 20, // 100MB > 50MB
 			},
-			wantErr: true,
+			targetErr: ErrFileSizeExceeded,
+			wantErr:   true,
 		},
 		{
 			name: "missing filename",
@@ -144,6 +180,9 @@ func TestValidateUploadRequest(t *testing.T) {
 			err := validateUploadRequest(&tt.req)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("validateUploadRequest() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.targetErr != nil && !errors.Is(err, tt.targetErr) {
+				t.Errorf("validateUploadRequest() error = %v, expected target error %v", err, tt.targetErr)
 			}
 		})
 	}
