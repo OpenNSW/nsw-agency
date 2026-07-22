@@ -111,9 +111,10 @@ func main() {
 	profileSvc := user.NewProfileService(roleService)
 	profileHandler := user.NewProfileHandler(profileSvc)
 
-	// Initialize storage service and handler
+	// Initialize storage service and handler with key ownership validator
 	storageService := storage.NewService(nswHttpClient)
-	storageHandler := storage.NewHandler(storageService, cfg.MaxRequestBytes)
+	keyValidator := storage.NewMemoryAndStoreKeyValidator(store, 2*time.Hour)
+	storageHandler := storage.NewHandler(storageService, cfg.MaxRequestBytes).WithKeyValidator(keyValidator)
 
 	feedbackHandler := feedback.NewHandler(service)
 

@@ -323,3 +323,16 @@ func (s *ApplicationStore) GetTaskCode(ctx context.Context, taskID string) (stri
 	}
 	return app.TaskCode, nil
 }
+
+// HasStorageKey checks if the given storage key exists within any application's data, reviewer response, or feedback history.
+func (s *ApplicationStore) HasStorageKey(ctx context.Context, key string) (bool, error) {
+	var count int64
+	searchPattern := "%" + key + "%"
+	err := s.db.WithContext(ctx).Model(&ApplicationRecord{}).
+		Where("data LIKE ? OR reviewer_response LIKE ? OR agency_feedback_history LIKE ?", searchPattern, searchPattern, searchPattern).
+		Count(&count).Error
+	if err != nil {
+		return false, fmt.Errorf("failed to check storage key existence: %w", err)
+	}
+	return count > 0, nil
+}

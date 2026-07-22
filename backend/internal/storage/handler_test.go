@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 // mockService is a mock implementation of Service for testing
@@ -118,6 +119,25 @@ func TestHandleGetUploadURL(t *testing.T) {
 		}
 		if resp.ExpiresAt != 1234567890 {
 			t.Errorf("expected expires_at 1234567890, got %v", resp.ExpiresAt)
+		}
+	})
+
+	t.Run("unauthorized key rejected with 403", func(t *testing.T) {
+		mockSvc := &mockService{
+			mockGetDownloadURL: func(ctx context.Context, key string) (*DownloadMetadata, error) {
+				return &DownloadMetadata{DownloadURL: "http://test/download"}, nil
+			},
+		}
+		validator := NewMemoryAndStoreKeyValidator(nil, 1*time.Hour)
+		handler := NewHandler(mockSvc, 32<<20).WithKeyValidator(validator)
+
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/storage/unknown-key.pdf", nil)
+		req.SetPathValue("key", "unknown-key.pdf")
+		rec := httptest.NewRecorder()
+
+		handler.HandleGetUploadURL(rec, req)
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("expected status %d Forbidden, got %d", http.StatusForbidden, rec.Code)
 		}
 	})
 }
