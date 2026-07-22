@@ -4,6 +4,7 @@ package storage
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -90,41 +91,66 @@ func (s *service) GetDownloadURL(ctx context.Context, key string) (*DownloadMeta
 	return &metadata, nil
 }
 
+var (
+	ErrProhibitedFileType = errors.New("prohibited file type or extension")
+	ErrDisallowedMimeType = errors.New("disallowed MIME type")
+	ErrInvalidFilename    = errors.New("invalid or unsafe filename")
+	ErrFileSizeExceeded   = errors.New("file size exceeds maximum allowed limit")
+)
+
 // Allowed MIME types whitelist for customs documents and attachments.
-var allowedMimeTypes = map[string]bool{
-	"application/pdf":    true,
-	"image/jpeg":         true,
-	"image/jpg":          true,
-	"image/png":          true,
-	"image/tiff":         true,
-	"text/csv":           true,
-	"text/plain":         true,
-	"application/json":   true,
-	"application/msword": true,
-	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": true,
-	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":       true,
-	"application/octet-stream": true,
+var allowedMimeTypes = map[string]struct{}{
+	"application/pdf":    {},
+	"image/jpeg":         {},
+	"image/jpg":          {},
+	"image/png":          {},
+	"image/tiff":         {},
+	"text/csv":           {},
+	"text/plain":         {},
+	"application/json":   {},
+	"application/msword": {},
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": {},
+	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":       {},
 }
 
-// Blocked dangerous and executable extensions.
-var blockedExtensions = map[string]bool{
-	".exe":  true,
-	".sh":   true,
-	".php":  true,
-	".js":   true,
-	".html": true,
-	".htm":  true,
-	".svg":  true,
-	".bat":  true,
-	".cmd":  true,
-	".py":   true,
-	".rb":   true,
-	".jar":  true,
-	".jsp":  true,
-	".asp":  true,
-	".aspx": true,
-	".vbs":  true,
-	".ps1":  true,
+// Allowed extensions whitelist for customs documents and attachments.
+var allowedExtensions = map[string]struct{}{
+	".pdf":  {},
+	".jpg":  {},
+	".jpeg": {},
+	".png":  {},
+	".tiff": {},
+	".tif":  {},
+	".csv":  {},
+	".txt":  {},
+	".json": {},
+	".doc":  {},
+	".docx": {},
+	".xls":  {},
+	".xlsx": {},
+}
+
+// CleanFilename sanitizes input filename and validates its extension against allowed types.
+func CleanFilename(filename string) (string, error) {
+	if strings.Contains(filename, "\x00") {
+		return "", fmt.Errorf("%w: filename contains null byte", ErrInvalidFilename)
+	}
+
+	cleanName := filepath.Base(filepath.Clean(filename))
+	if cleanName == "." || cleanName == "/" || cleanName == "\\" || cleanName == "" {
+		return "", fmt.Errorf("%w: unsafe or empty filename", ErrInvalidFilename)
+	}
+
+	ext := strings.ToLower(filepath.Ext(cleanName))
+	if ext == "" {
+		return "", fmt.Errorf("%w: file extension required", ErrInvalidFilename)
+	}
+
+	if _, allowed := allowedExtensions[ext]; !allowed {
+		return "", fmt.Errorf("%w: extension %s is not permitted", ErrProhibitedFileType, ext)
+	}
+
+	return cleanName, nil
 }
 
 // validateUploadRequest performs multi-layered security validation on upload requests.
@@ -133,34 +159,21 @@ func validateUploadRequest(req *UploadRequest) error {
 		return fmt.Errorf("invalid upload request: missing required fields")
 	}
 
-	if strings.Contains(req.Filename, "\x00") {
-		return fmt.Errorf("invalid upload request: filename contains null byte")
+	cleanName, err := CleanFilename(req.Filename)
+	if err != nil {
+		return err
 	}
-
-	// Sanitize filename to prevent path traversal
-	req.Filename = filepath.Base(filepath.Clean(req.Filename))
-	if req.Filename == "." || req.Filename == "/" || req.Filename == "\\" || req.Filename == "" {
-		return fmt.Errorf("invalid upload request: unsafe filename")
-	}
+	req.Filename = cleanName
 
 	// Maximum single file size limit: 50MB
 	const maxFileSize int64 = 50 << 20
 	if req.Size > maxFileSize {
-		return fmt.Errorf("file size exceeds maximum allowed limit of %d bytes", maxFileSize)
-	}
-
-	ext := strings.ToLower(filepath.Ext(req.Filename))
-	if ext == "" {
-		return fmt.Errorf("file extension required")
-	}
-
-	if blockedExtensions[ext] {
-		return fmt.Errorf("disallowed file extension: %s", ext)
+		return fmt.Errorf("%w: %d bytes (max %d bytes)", ErrFileSizeExceeded, req.Size, maxFileSize)
 	}
 
 	mimeClean := strings.ToLower(strings.TrimSpace(strings.Split(req.MimeType, ";")[0]))
-	if !allowedMimeTypes[mimeClean] {
-		return fmt.Errorf("disallowed MIME type: %s", req.MimeType)
+	if _, allowed := allowedMimeTypes[mimeClean]; !allowed {
+		return fmt.Errorf("%w: %s", ErrDisallowedMimeType, req.MimeType)
 	}
 
 	return nil
