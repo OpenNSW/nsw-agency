@@ -49,6 +49,16 @@ export function LoginScreen() {
               </button>
             </div>
           </div>
+          <p className="hidden lg:block absolute bottom-4 right-6 text-xs text-white/60">
+            <a
+              href="https://github.com/OpenNSW"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-white/90 hover:underline"
+            >
+              {t('footer.poweredBy')}
+            </a>
+          </p>
         </div>
       </div>
 
@@ -78,6 +88,16 @@ export function LoginScreen() {
         </div>
         <p className="absolute bottom-4 left-8 lg:left-36 text-xs text-gray-400">
           {import.meta.env.VITE_APP_VERSION || 'dev'}
+        </p>
+        <p className="lg:hidden absolute bottom-4 right-8 text-xs text-gray-400">
+          <a
+            href="https://github.com/OpenNSW"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-gray-600 hover:underline"
+          >
+            {t('footer.poweredBy')}
+          </a>
         </p>
       </div>
     </div>
