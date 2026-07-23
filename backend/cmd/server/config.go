@@ -85,7 +85,7 @@ func LoadConfig() (Config, error) {
 				Prefix:    envOrDefault("ARTIFACT_S3_PREFIX", ""),
 			},
 		},
-		AllowedOrigins:   parseCommaSeparated(envOrDefault("ALLOWED_ORIGINS", "*")),
+		AllowedOrigins: parseCommaSeparated(envOrDefault("ALLOWED_ORIGINS", "*")),
 		NSW: NSWConfig{
 			BaseURL:      os.Getenv("NSW_API_BASE_URL"),
 			ClientID:     os.Getenv("NSW_CLIENT_ID"),
