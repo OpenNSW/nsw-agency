@@ -325,7 +325,13 @@ start_backend() {
     export WEB_DIR="${WEB_DIR:-/nonexistent}"
     export DB_DRIVER="${DB_DRIVER:-sqlite}"
     export DB_PATH="${DB_PATH:-./${agency}_applications.db}"
-    export TASK_CONFIGS_DIR="${TASK_CONFIGS_DIR:-./data/task-configs/${agency}}"
+    # Artifacts (task configs + forms + manifest.json) live OUTSIDE this repo,
+    # per agency. Default to a sibling checkout of the one-trade-artifacts repo
+    # (…/one-trade-artifacts/<agency>, relative to backend/). Override
+    # ARTIFACT_LOCAL_ROOT to point elsewhere, or set ARTIFACT_LOADER_TYPE=github|s3
+    # to load from a remote source instead.
+    export ARTIFACT_LOADER_TYPE="${ARTIFACT_LOADER_TYPE:-local}"
+    export ARTIFACT_LOCAL_ROOT="${ARTIFACT_LOCAL_ROOT:-../../one-trade-artifacts/${agency}}"
     export AUTH_EXPECTED_OU="${AUTH_EXPECTED_OU:-$OU_HANDLE}"
     export ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-http://localhost:$FE_PORT}"
     export NSW_CLIENT_ID

@@ -37,10 +37,18 @@ Secrets are **not** stored in the values files — they are referenced from a
 Kubernetes Secret that you create out-of-band before installing:
 
 ```bash
-kubectl create secret generic nsw-agency-secrets \
+kubectl create secret generic agency-secrets \
   --from-literal=db-password=... \
-  --from-literal=nsw-client-secret=...
+  --from-literal=nsw-client-secret=... \
+  --from-literal=artifact-s3-access-key=... \
+  --from-literal=artifact-s3-secret-key=...
 ```
+
+The `artifact-s3-*` keys are only required when the artifact loader uses S3/R2
+with static credentials (`ARTIFACT_LOADER_TYPE=s3`). Omit them for the `github`
+loader or when relying on the pod's default AWS credential chain. For a private
+GitHub source, add an `artifact-github-token` key instead and reference it the
+same way.
 
 ## Accessing the portal (secure context required)
 

@@ -3,17 +3,22 @@ package application
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
+	"github.com/OpenNSW/core/artifact"
+	"github.com/OpenNSW/core/artifact/adapter/generictemplate"
+	"github.com/OpenNSW/core/artifact/loaders/local"
 	"github.com/OpenNSW/nsw-agency/backend/internal/auth"
 	"github.com/OpenNSW/nsw-agency/backend/internal/rbac"
-	"github.com/OpenNSW/nsw-agency/backend/internal/template"
+	"github.com/OpenNSW/nsw-agency/backend/internal/taskconfig/taskconfigart"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 )
 
@@ -88,13 +93,74 @@ func newCallbackServer(t *testing.T) (*httptest.Server, *callbackCapture) {
 // serviceHarness wires the in-memory dependencies required to exercise
 // Service end-to-end against a stub callback server.
 type serviceHarness struct {
-	t                *testing.T
-	store            *ApplicationStore
-	templateProvider template.Provider
-	httpClient       *httpclient.Client
-	callbackURL      string
-	capture          *callbackCapture
-	service          Service
+	t           *testing.T
+	store       *ApplicationStore
+	httpClient  *httpclient.Client
+	callbackURL string
+	capture     *callbackCapture
+	service     Service
+}
+
+// newTestRegistry builds an artifact registry backed by a local loader rooted at
+// root, registering every JSON file under root/task-configs as a task_config
+// artifact and every file under root/forms as a generic_template artifact. Ids
+// are derived the same way the production loader does: the task config's
+// taskCode (or filename) and the form's top-level "id" (or filename).
+func newTestRegistry(t *testing.T, root string) *artifact.Registry {
+	t.Helper()
+	loader, err := local.New(local.Config{Root: root})
+	if err != nil {
+		t.Fatalf("failed to create local loader: %v", err)
+	}
+	reg := artifact.NewRegistry(loader)
+
+	register := func(dir string, idFrom func(data []byte, name string) string, kind artifact.Kind) {
+		walkErr := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() || !strings.HasSuffix(d.Name(), ".json") {
+				return nil
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			rel, err := filepath.Rel(root, path)
+			if err != nil {
+				return err
+			}
+			reg.RegisterArtifact(idFrom(data, d.Name()), kind, "", rel)
+			return nil
+		})
+		if walkErr != nil {
+			t.Fatalf("failed to register artifacts in %s: %v", dir, walkErr)
+		}
+	}
+
+	register(filepath.Join(root, "task-configs"), func(data []byte, name string) string {
+		var cfg struct {
+			TaskCode string `json:"taskCode"`
+		}
+		_ = json.Unmarshal(data, &cfg)
+		if cfg.TaskCode != "" {
+			return cfg.TaskCode
+		}
+		return strings.TrimSuffix(name, ".json")
+	}, taskconfigart.Kind)
+
+	register(filepath.Join(root, "forms"), func(data []byte, name string) string {
+		var doc struct {
+			ID string `json:"id"`
+		}
+		_ = json.Unmarshal(data, &doc)
+		if doc.ID != "" {
+			return doc.ID
+		}
+		return strings.TrimSuffix(name, ".json")
+	}, generictemplate.Kind)
+
+	return reg
 }
 
 // newServiceHarness constructs the harness with config and form files placed
@@ -117,26 +183,22 @@ func newServiceHarness(t *testing.T, writeFn func(root string)) *serviceHarness 
 
 	store := newTestStore(t)
 
-	loader := template.NewFileLoader(filepath.Join(root, "task-configs"), filepath.Join(root, "forms"))
-	if err := loader.Load(); err != nil {
-		t.Fatalf("FileLoader.Load failed: %v", err)
-	}
+	reg := newTestRegistry(t, root)
 
 	srv, capture := newCallbackServer(t)
 	hc := httpclient.NewClientBuilder().Build()
 
 	roleService := rbac.NewRoleService(store.db)
-	svc := NewService(store, loader, hc, roleService)
+	svc := NewService(store, reg, hc, roleService)
 	t.Cleanup(func() { _ = svc.Close() })
 
 	return &serviceHarness{
-		t:                t,
-		store:            store,
-		templateProvider: loader,
-		httpClient:       hc,
-		callbackURL:      srv.URL,
-		capture:          capture,
-		service:          svc,
+		t:           t,
+		store:       store,
+		httpClient:  hc,
+		callbackURL: srv.URL,
+		capture:     capture,
+		service:     svc,
 	}
 }
 
@@ -443,21 +505,65 @@ func TestGetApplication_ResolvesFormReferences(t *testing.T) {
 	}
 }
 
-func TestGetApplication_MissingFormRef_FailsLoader(t *testing.T) {
-	root := t.TempDir()
-	for _, sub := range []string{"task-configs", "forms"} {
-		if err := os.MkdirAll(filepath.Join(root, sub), 0o755); err != nil {
-			t.Fatalf("failed to create %s dir: %v", sub, err)
-		}
-	}
-	writeTaskConfigFile(t, root, "alpha.json", `{
-		"meta": {"title": "Alpha"},
-		"forms": {"view": "missing_view", "review": "missing_review"}
-	}`)
+func TestGetApplication_MissingFormRef_OmitsForms(t *testing.T) {
+	h := newServiceHarness(t, func(root string) {
+		writeTaskConfigFile(t, root, "alpha.json", `{
+			"meta": {"title": "Alpha"},
+			"forms": {"view": "missing_view", "review": "missing_review"}
+		}`)
+	})
+	h.seed("t-missing-forms", "alpha", nil)
 
-	loader := template.NewFileLoader(filepath.Join(root, "task-configs"), filepath.Join(root, "forms"))
-	if err := loader.Load(); err == nil {
-		t.Errorf("expected Loader.Load to fail due to missing form references, but got nil")
+	app, err := h.service.GetApplication(context.Background(), "t-missing-forms")
+	if err != nil {
+		t.Fatalf("GetApplication failed: %v", err)
+	}
+	if app.Title != "Alpha" {
+		t.Errorf("Title: got %q, want %q", app.Title, "Alpha")
+	}
+	if app.DataForm != nil || app.AgencyForm != nil {
+		t.Errorf("expected forms to be omitted when referenced forms are missing, got dataForm=%v agencyForm=%v",
+			app.DataForm, app.AgencyForm)
+	}
+}
+
+// failingLoader is an artifact.Loader that returns a non-ErrNotFound I/O error
+// for every path, simulating a transient remote-store failure.
+type failingLoader struct{}
+
+func (failingLoader) Load(_ context.Context, _ string) ([]byte, error) {
+	return nil, fmt.Errorf("simulated remote store failure")
+}
+
+func TestGetApplication_ConfigLoadError_FailsClosed(t *testing.T) {
+	store := newTestStore(t)
+	if err := store.CreateOrUpdate(&ApplicationRecord{
+		TaskID:        "t-load-fail",
+		TaskCode:      "alpha",
+		ConsignmentID: "wf-test",
+		ServiceURL:    "http://unused.example",
+		Data:          JSONB{"field": "value"},
+		Status:        "PENDING",
+	}); err != nil {
+		t.Fatalf("failed to seed record: %v", err)
+	}
+
+	// Config is registered but its bytes fail to load with a real I/O error
+	// (not ErrNotFound). GetApplication must surface the error rather than fall
+	// back to nil permissions, which would grant full access to any user.
+	reg := artifact.NewRegistry(failingLoader{})
+	reg.RegisterArtifact("alpha", taskconfigart.Kind, "", "alpha.json")
+
+	hc := httpclient.NewClientBuilder().Build()
+	svc := NewService(store, reg, hc, rbac.NewRoleService(store.db))
+	t.Cleanup(func() { _ = svc.Close() })
+
+	app, err := svc.GetApplication(context.Background(), "t-load-fail")
+	if err == nil {
+		t.Fatalf("expected an error when the task config fails to load, got app=%+v", app)
+	}
+	if app != nil {
+		t.Errorf("expected no application on load error, got %+v", app)
 	}
 }
 

@@ -6,6 +6,9 @@ func setBaseConfigEnv(t *testing.T) {
 	t.Helper()
 	t.Setenv("DB_DRIVER", "sqlite")
 	t.Setenv("DB_PATH", "./test.db")
+	// Point the artifact loader at a valid directory so its startup validation
+	// passes and does not mask the config errors these tests assert on.
+	t.Setenv("ARTIFACT_LOCAL_ROOT", t.TempDir())
 }
 
 func setRequiredNSWOAuth2Env(t *testing.T) {

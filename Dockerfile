@@ -28,7 +28,7 @@ COPY frontend/ .
 RUN pnpm build
 
 # ---- Stage 2: build the Go binaries ------------------------------------------
-FROM golang:1.25-bookworm AS backend-builder
+FROM golang:1.26.4-bookworm AS backend-builder
 
 WORKDIR /app
 
@@ -43,9 +43,6 @@ COPY backend/ .
 RUN go build -ldflags="-s -w" -o /out/agency ./cmd/server \
   && go build -ldflags="-s -w" -o /out/migrate ./cmd/migrate \
   && go build -ldflags="-s -w" -o /out/nswac ./cmd/cli
-
-ARG NSW_SRILANKA_REF=main
-RUN git clone --depth 1 --branch ${NSW_SRILANKA_REF} https://github.com/OpenNSW/nsw-srilanka /out/nsw-srilanka
 
 # ---- Stage 3: runtime --------------------------------------------------------
 FROM debian:bookworm-slim
@@ -67,17 +64,16 @@ COPY --from=backend-builder --chown=appuser:appuser /out/agency /app/agency
 COPY --from=backend-builder --chown=appuser:appuser /out/migrate /app/migrate
 COPY --from=backend-builder /out/nswac /usr/local/bin/nswac
 COPY --from=backend-builder --chown=appuser:appuser /app/migrations /app/migrations
-COPY --from=backend-builder --chown=appuser:appuser /app/data/task-configs /app/data/task-configs
-COPY --from=backend-builder --chown=appuser:appuser /out/nsw-srilanka/configs /app/nsw-srilanka-configs
+
+# Task configs and forms are NOT baked into the image. They are fetched at
+# runtime by the artifact loader from an external source (local mount, GitHub,
+# or S3/R2), selected via ARTIFACT_LOADER_TYPE. See backend/.env.example.
 
 # Built frontend, served (read-only) by the Go binary. The server resolves its
 # asset dir as "web" relative to WORKDIR (/app), so it must land at /app/web.
 # /runtime-env.js is generated dynamically from the environment, so nothing is
 # written into this directory at runtime.
 COPY --from=frontend-builder --chown=appuser:appuser /app/dist /app/web
-
-ENV TASK_CONFIGS_DIR=/app/data/task-configs
-ENV FORM_TEMPLATES_DIR=/app/nsw-srilanka-configs
 
 # Runtime settings — UID 1001 matches appuser, OpenShift-compatible
 USER appuser

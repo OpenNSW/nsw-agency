@@ -6,6 +6,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/OpenNSW/core/artifact/loaders"
+	"github.com/OpenNSW/core/artifact/loaders/github"
+	"github.com/OpenNSW/core/artifact/loaders/local"
+	"github.com/OpenNSW/core/artifact/loaders/s3"
 	"github.com/OpenNSW/nsw-agency/backend/internal/auth"
 	"github.com/OpenNSW/nsw-agency/backend/internal/database"
 	"github.com/OpenNSW/nsw-agency/backend/internal/web"
@@ -21,15 +25,14 @@ type NSWConfig struct {
 }
 
 type Config struct {
-	Port             string
-	DB               database.Config
-	TaskConfigsDir   string
-	FormTemplatesDir string
-	AllowedOrigins   []string
-	NSW              NSWConfig
-	Auth             auth.Config
-	Web              web.Config
-	MaxRequestBytes  int64
+	Port            string
+	DB              database.Config
+	ArtifactLoader  loaders.Config
+	AllowedOrigins  []string
+	NSW             NSWConfig
+	Auth            auth.Config
+	Web             web.Config
+	MaxRequestBytes int64
 }
 
 // LoadConfig loads configuration from environment variables
@@ -64,15 +67,37 @@ func LoadConfig() (Config, error) {
 		return Config{}, fmt.Errorf("unsupported database driver configured: %s", driver)
 	}
 
-	taskConfigsDir := envOrDefault("TASK_CONFIGS_DIR", "./data/task-configs")
-	formTemplatesDir := envOrDefault("FORM_TEMPLATES_DIR", "./data/forms")
-
 	cfg := Config{
-		Port:             envOrDefault("PORT", "8081"),
-		DB:               dbConfig,
-		TaskConfigsDir:   taskConfigsDir,
-		FormTemplatesDir: formTemplatesDir,
-		AllowedOrigins:   parseCommaSeparated(envOrDefault("ALLOWED_ORIGINS", "*")),
+		Port: envOrDefault("PORT", "8081"),
+		DB:   dbConfig,
+		ArtifactLoader: loaders.Config{
+			Type: envOrDefault("ARTIFACT_LOADER_TYPE", loaders.TypeLocal),
+			Local: local.Config{
+				// No default: artifacts live outside this repo, so the root must
+				// be provided explicitly (by start-dev.sh or the deployment env).
+				// An empty Root fails Validate with "Root is required".
+				Root: os.Getenv("ARTIFACT_LOCAL_ROOT"),
+			},
+			GitHub: github.Config{
+				Owner:      envOrDefault("ARTIFACT_GITHUB_OWNER", ""),
+				Repo:       envOrDefault("ARTIFACT_GITHUB_REPO", ""),
+				Ref:        envOrDefault("ARTIFACT_GITHUB_REF", ""),
+				BasePath:   envOrDefault("ARTIFACT_GITHUB_BASE_PATH", ""),
+				Token:      os.Getenv("ARTIFACT_GITHUB_TOKEN"),
+				BaseURL:    envOrDefault("ARTIFACT_GITHUB_BASE_URL", ""),
+				UseRawHost: getBoolOrDefault("ARTIFACT_GITHUB_USE_RAW_HOST", false),
+				RawBaseURL: envOrDefault("ARTIFACT_GITHUB_RAW_BASE_URL", ""),
+			},
+			S3: s3.Config{
+				Bucket:    envOrDefault("ARTIFACT_S3_BUCKET", ""),
+				Region:    envOrDefault("ARTIFACT_S3_REGION", ""),
+				Endpoint:  envOrDefault("ARTIFACT_S3_ENDPOINT", ""),
+				AccessKey: envOrDefault("ARTIFACT_S3_ACCESS_KEY", ""),
+				SecretKey: envOrDefault("ARTIFACT_S3_SECRET_KEY", ""),
+				Prefix:    envOrDefault("ARTIFACT_S3_PREFIX", ""),
+			},
+		},
+		AllowedOrigins: parseCommaSeparated(envOrDefault("ALLOWED_ORIGINS", "*")),
 		NSW: NSWConfig{
 			BaseURL:      os.Getenv("NSW_API_BASE_URL"),
 			ClientID:     os.Getenv("NSW_CLIENT_ID"),
@@ -122,6 +147,9 @@ func LoadConfig() (Config, error) {
 	}
 	cfg.Auth.InsecureSkipTLSVerify = authInsecureSkipTLSVerify
 
+	if err := cfg.ArtifactLoader.Validate(); err != nil {
+		return Config{}, err
+	}
 	if err := cfg.validateNSWOAuth2Config(); err != nil {
 		return Config{}, err
 	}
@@ -193,4 +221,15 @@ func parseInt64Env(key string, defaultValue int64) (int64, error) {
 	}
 
 	return value, nil
+}
+
+// getBoolOrDefault returns the boolean value of an environment variable or a default value.
+// Invalid values are silently ignored and the default is returned.
+func getBoolOrDefault(key string, defaultValue bool) bool {
+	if value := strings.TrimSpace(os.Getenv(key)); value != "" {
+		if boolValue, err := strconv.ParseBool(value); err == nil {
+			return boolValue
+		}
+	}
+	return defaultValue
 }

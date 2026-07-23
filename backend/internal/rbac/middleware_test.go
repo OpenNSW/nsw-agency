@@ -2,13 +2,17 @@ package rbac
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/OpenNSW/core/artifact"
+	"github.com/OpenNSW/core/artifact/testutil"
 	"github.com/OpenNSW/nsw-agency/backend/internal/auth"
 	"github.com/OpenNSW/nsw-agency/backend/internal/taskconfig"
+	"github.com/OpenNSW/nsw-agency/backend/internal/taskconfig/taskconfigart"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -115,13 +119,22 @@ func (m *mockTaskCodeResolver) GetTaskCode(_ context.Context, _ string) (string,
 	return m.taskCode, m.err
 }
 
-type mockTaskConfigProvider struct {
-	cfg *taskconfig.TaskConfig
-	err error
-}
-
-func (m *mockTaskConfigProvider) GetTaskConfig(_ string) (*taskconfig.TaskConfig, error) {
-	return m.cfg, m.err
+// newTestRegistry builds an artifact registry backed by an in-memory loader,
+// registering each task config under its map key as the artifact id.
+func newTestRegistry(t *testing.T, configs map[string]taskconfig.TaskConfig) *artifact.Registry {
+	t.Helper()
+	mem := testutil.MemLoader{}
+	reg := artifact.NewRegistry(mem)
+	for id, cfg := range configs {
+		data, err := json.Marshal(cfg)
+		if err != nil {
+			t.Fatalf("failed to marshal task config %q: %v", id, err)
+		}
+		path := id + ".json"
+		mem[path] = data
+		reg.RegisterArtifact(id, taskconfigart.Kind, "", path)
+	}
+	return reg
 }
 
 func newMiddlewareTestDB(t *testing.T) *RoleService {
@@ -148,10 +161,9 @@ func TestRequireAction_NoPermissionsInConfig_Allows(t *testing.T) {
 	svc := newMiddlewareTestDB(t)
 	m := NewMiddleware(svc,
 		&mockTaskCodeResolver{taskCode: "fcau_lab_test_v1"},
-		&mockTaskConfigProvider{cfg: &taskconfig.TaskConfig{
-			TaskCode:    "fcau_lab_test_v1",
-			Permissions: nil,
-		}},
+		newTestRegistry(t, map[string]taskconfig.TaskConfig{
+			"fcau_lab_test_v1": {TaskCode: "fcau_lab_test_v1", Permissions: nil},
+		}),
 	)
 
 	called := false
@@ -187,10 +199,12 @@ func TestRequireAction_UserHasRole_Allows(t *testing.T) {
 
 	m := NewMiddleware(svc,
 		&mockTaskCodeResolver{taskCode: "fcau_lab_test_v1"},
-		&mockTaskConfigProvider{cfg: &taskconfig.TaskConfig{
-			TaskCode:    "fcau_lab_test_v1",
-			Permissions: []taskconfig.Permission{{Role: "lab_officer", Actions: []string{"VIEW", "REVIEW"}}},
-		}},
+		newTestRegistry(t, map[string]taskconfig.TaskConfig{
+			"fcau_lab_test_v1": {
+				TaskCode:    "fcau_lab_test_v1",
+				Permissions: []taskconfig.Permission{{Role: "lab_officer", Actions: []string{"VIEW", "REVIEW"}}},
+			},
+		}),
 	)
 
 	called := false
@@ -220,10 +234,12 @@ func TestRequireAction_UserLacksRole_Forbidden(t *testing.T) {
 
 	m := NewMiddleware(svc,
 		&mockTaskCodeResolver{taskCode: "fcau_lab_test_v1"},
-		&mockTaskConfigProvider{cfg: &taskconfig.TaskConfig{
-			TaskCode:    "fcau_lab_test_v1",
-			Permissions: []taskconfig.Permission{{Role: "lab_officer", Actions: []string{"VIEW"}}},
-		}},
+		newTestRegistry(t, map[string]taskconfig.TaskConfig{
+			"fcau_lab_test_v1": {
+				TaskCode:    "fcau_lab_test_v1",
+				Permissions: []taskconfig.Permission{{Role: "lab_officer", Actions: []string{"VIEW"}}},
+			},
+		}),
 	)
 
 	handler := m.RequireAction("VIEW")(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -248,10 +264,12 @@ func TestRequireAction_NoAuthContext_Unauthorized(t *testing.T) {
 
 	m := NewMiddleware(svc,
 		&mockTaskCodeResolver{taskCode: "fcau_lab_test_v1"},
-		&mockTaskConfigProvider{cfg: &taskconfig.TaskConfig{
-			TaskCode:    "fcau_lab_test_v1",
-			Permissions: []taskconfig.Permission{{Role: "lab_officer", Actions: []string{"VIEW"}}},
-		}},
+		newTestRegistry(t, map[string]taskconfig.TaskConfig{
+			"fcau_lab_test_v1": {
+				TaskCode:    "fcau_lab_test_v1",
+				Permissions: []taskconfig.Permission{{Role: "lab_officer", Actions: []string{"VIEW"}}},
+			},
+		}),
 	)
 
 	handler := m.RequireAction("VIEW")(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -274,7 +292,7 @@ func TestRequireAction_ResolverError_InternalServerError(t *testing.T) {
 
 	m := NewMiddleware(svc,
 		&mockTaskCodeResolver{err: fmt.Errorf("db unavailable")},
-		&mockTaskConfigProvider{},
+		newTestRegistry(t, nil),
 	)
 
 	handler := m.RequireAction("VIEW")(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -288,5 +306,80 @@ func TestRequireAction_ResolverError_InternalServerError(t *testing.T) {
 
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("expected 500, got %d", w.Code)
+	}
+}
+
+// failingLoader is an artifact.Loader that returns a non-ErrNotFound I/O error
+// for every path, simulating a transient remote-store failure (network, rate
+// limit, expired credentials).
+type failingLoader struct{}
+
+func (failingLoader) Load(_ context.Context, _ string) ([]byte, error) {
+	return nil, fmt.Errorf("simulated remote store failure")
+}
+
+func TestRequireAction_ConfigNotFound_Allows(t *testing.T) {
+	svc := newMiddlewareTestDB(t)
+
+	// Empty registry: the resolved task code is not registered, so the loader
+	// reports ErrNotFound. A genuinely-absent config preserves the permissive
+	// default (allow all authenticated users).
+	m := NewMiddleware(svc,
+		&mockTaskCodeResolver{taskCode: "fcau_lab_test_v1"},
+		newTestRegistry(t, nil),
+	)
+
+	called := false
+	handler := m.RequireAction("VIEW")(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r.SetPathValue("taskId", "task-1")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if !called {
+		t.Error("expected handler to be called when no task config exists")
+	}
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+}
+
+func TestRequireAction_ConfigLoadError_FailsClosed(t *testing.T) {
+	svc := newMiddlewareTestDB(t)
+
+	// The task code is registered, but fetching its bytes fails with a real I/O
+	// error (not ErrNotFound). This must fail closed — allowing the request
+	// through would silently bypass RBAC on a transient loader failure.
+	reg := artifact.NewRegistry(failingLoader{})
+	reg.RegisterArtifact("fcau_lab_test_v1", taskconfigart.Kind, "", "fcau_lab_test_v1.json")
+
+	m := NewMiddleware(svc,
+		&mockTaskCodeResolver{taskCode: "fcau_lab_test_v1"},
+		reg,
+	)
+
+	called := false
+	handler := m.RequireAction("VIEW")(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r.SetPathValue("taskId", "task-1")
+	r = r.WithContext(auth.WithAuthContext(r.Context(), &auth.AuthContext{
+		User: &auth.UserContext{ID: "user-001"},
+	}))
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if called {
+		t.Error("expected handler NOT to be called when the task config fails to load")
+	}
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500 (fail closed), got %d", w.Code)
 	}
 }
