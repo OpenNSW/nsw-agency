@@ -35,16 +35,18 @@ func newTestStore(t *testing.T) *ApplicationStore {
 			t.Fatal("DB_PASSWORD is required for postgres driver")
 		}
 		dbCfg = database.Config{
-			Driver:   "postgres",
-			Host:     testEnvOrDefault("DB_HOST", "localhost"),
-			Port:     testEnvOrDefault("DB_PORT", "5432"),
-			User:     testEnvOrDefault("DB_USER", "postgres"),
-			Password: password,
-			Name:     testEnvOrDefault("DB_NAME", "nsw_agency_db"),
-			SSLMode:  testEnvOrDefault("DB_SSLMODE", "disable"),
+			Driver: "postgres",
+			Postgres: database.PostgresConfig{
+				Host:     testEnvOrDefault("DB_HOST", "localhost"),
+				Port:     testEnvOrDefault("DB_PORT", "5432"),
+				User:     testEnvOrDefault("DB_USER", "postgres"),
+				Password: password,
+				Name:     testEnvOrDefault("DB_NAME", "nsw_agency_db"),
+				SSLMode:  testEnvOrDefault("DB_SSLMODE", "disable"),
+			},
 		}
 	} else {
-		dbCfg = database.Config{Driver: "sqlite", Path: ":memory:"}
+		dbCfg = database.Config{Driver: "sqlite", SQLite: database.SQLiteConfig{Path: ":memory:"}}
 	}
 
 	store, err := NewApplicationStore(dbCfg)
@@ -57,7 +59,7 @@ func newTestStore(t *testing.T) *ApplicationStore {
 	}
 
 	// For persistent backends, clean tables before each test.
-	if dbCfg.Driver != "sqlite" || dbCfg.Path != ":memory:" {
+	if dbCfg.Driver != "sqlite" || dbCfg.SQLite.Path != ":memory:" {
 		if err := store.db.Exec("TRUNCATE TABLE applications").Error; err != nil {
 			t.Fatalf("failed to truncate applications table: %v", err)
 		}
@@ -94,7 +96,7 @@ func TestApplicationStore_SQLite_FileCreated(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test_agency.db")
 
-	store, err := NewApplicationStore(database.Config{Driver: "sqlite", Path: dbPath})
+	store, err := NewApplicationStore(database.Config{Driver: "sqlite", SQLite: database.SQLiteConfig{Path: dbPath}})
 	if err != nil {
 		t.Fatalf("NewApplicationStore failed: %v", err)
 	}

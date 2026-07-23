@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -29,9 +30,14 @@ func main() {
 		log.Fatalf("FATAL: failed to load configuration: %v", err)
 	}
 
+	dbTarget := cfg.DB.SQLite.Path
+	if cfg.DB.Driver == "postgres" {
+		dbTarget = net.JoinHostPort(cfg.DB.Postgres.Host, cfg.DB.Postgres.Port) + "/" + cfg.DB.Postgres.Name
+	}
+
 	slog.Info("NSW Agency service configuration",
 		"db_driver", cfg.DB.Driver,
-		"db_path", cfg.DB.Path,
+		"db_target", dbTarget,
 		"port", cfg.Port,
 	)
 
