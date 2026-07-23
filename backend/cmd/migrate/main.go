@@ -119,11 +119,11 @@ func openDB(cfg database.Config) (*sql.DB, error) {
 		return nil, fmt.Errorf("unsupported driver %q", cfg.Driver)
 	}
 	if err != nil {
-		return nil, database.SanitizeError(err, cfg.Postgres.Password)
+		return nil, err
 	}
 	if err := db.Ping(); err != nil {
 		db.Close() //nolint:errcheck
-		return nil, database.SanitizeError(fmt.Errorf("database unreachable: %w", err), cfg.Postgres.Password)
+		return nil, fmt.Errorf("database unreachable: %w", err)
 	}
 	return db, nil
 }
