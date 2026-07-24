@@ -556,7 +556,7 @@ func TestGetApplication_ConfigLoadError_FailsClosed(t *testing.T) {
 	reg.RegisterArtifact("alpha", taskconfigart.Kind, "", "alpha.json")
 
 	hc := httpclient.NewClientBuilder().Build()
-	svc := NewService(store, reg, hc, rbac.NewRoleService(store.db))
+	svc := NewService(store, reg, nswclient.NewWithClient(hc), rbac.NewRoleService(store.db))
 	t.Cleanup(func() { _ = svc.Close() })
 
 	app, err := svc.GetApplication(context.Background(), "t-load-fail")
