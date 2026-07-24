@@ -17,11 +17,11 @@ import (
 	"github.com/OpenNSW/nsw-agency/backend/internal/application"
 	"github.com/OpenNSW/nsw-agency/backend/internal/auth"
 	"github.com/OpenNSW/nsw-agency/backend/internal/feedback"
+	"github.com/OpenNSW/nsw-agency/backend/internal/nswclient"
 	"github.com/OpenNSW/nsw-agency/backend/internal/rbac"
 	"github.com/OpenNSW/nsw-agency/backend/internal/storage"
 	"github.com/OpenNSW/nsw-agency/backend/internal/user"
 	"github.com/OpenNSW/nsw-agency/backend/internal/web"
-	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 )
 
 func main() {
@@ -69,21 +69,9 @@ func main() {
 		}
 	}()
 
-	// Create OAuth2 Authenticator for NSW API
-	nswOAuth2Client := httpclient.NewOAuth2Authenticator(
-		cfg.NSW.ClientID,
-		cfg.NSW.ClientSecret,
-		cfg.NSW.TokenURL,
-		cfg.NSW.Scopes,
-	)
-
-	// Initialize HTTP client for NSW API integration with optional TLS configuration
-	nswHttpClient := httpclient.NewClientBuilder().
-		WithBaseURL(cfg.NSW.BaseURL).
-		WithTimeout(10 * time.Second).
-		WithAuthenticator(nswOAuth2Client).
-		WithTLS(&httpclient.TLSConfig{InsecureSkipVerify: cfg.NSW.TokenInsecureSkipVerify}).
-		Build()
+	// NSW client: anti-corruption layer that owns the NSW HTTP transport,
+	// OAuth2 credentials, and wire protocol.
+	nswClient := nswclient.New(cfg.NSW)
 
 	// Bound startup on the remote artifact store: a slow or unreachable backend
 	// (GitHub / S3) must fail fast with a clear error rather than hang the boot.
@@ -110,7 +98,7 @@ func main() {
 	rbacMiddleware := rbac.NewMiddleware(roleService, store, artifactRegistry)
 
 	// Initialize Agency service
-	service := application.NewService(store, artifactRegistry, nswHttpClient, roleService)
+	service := application.NewService(store, artifactRegistry, nswClient, roleService)
 	defer func() {
 		if err := service.Close(); err != nil {
 			slog.Error("failed to close service", "error", err)
@@ -127,9 +115,8 @@ func main() {
 	profileSvc := user.NewProfileService(roleService)
 	profileHandler := user.NewProfileHandler(profileSvc)
 
-	// Initialize storage service and handler
-	storageService := storage.NewService(nswHttpClient)
-	storageHandler := storage.NewHandler(storageService, cfg.MaxRequestBytes)
+	// Initialize storage handler (delegates NSW backend calls to nswClient)
+	storageHandler := storage.NewHandler(nswClient, cfg.MaxRequestBytes)
 
 	feedbackHandler := feedback.NewHandler(service)
 

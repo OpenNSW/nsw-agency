@@ -12,24 +12,16 @@ import (
 	"github.com/OpenNSW/core/artifact/loaders/s3"
 	"github.com/OpenNSW/nsw-agency/backend/internal/auth"
 	"github.com/OpenNSW/nsw-agency/backend/internal/database"
+	"github.com/OpenNSW/nsw-agency/backend/internal/nswclient"
 	"github.com/OpenNSW/nsw-agency/backend/internal/web"
 )
-
-type NSWConfig struct {
-	BaseURL                 string
-	ClientID                string
-	ClientSecret            string
-	TokenURL                string
-	Scopes                  []string
-	TokenInsecureSkipVerify bool
-}
 
 type Config struct {
 	Port            string
 	DB              database.Config
 	ArtifactLoader  loaders.Config
 	AllowedOrigins  []string
-	NSW             NSWConfig
+	NSW             nswclient.Config
 	Auth            auth.Config
 	Web             web.Config
 	MaxRequestBytes int64
@@ -86,7 +78,7 @@ func LoadConfig() (Config, error) {
 			},
 		},
 		AllowedOrigins: parseCommaSeparated(envOrDefault("ALLOWED_ORIGINS", "*")),
-		NSW: NSWConfig{
+		NSW: nswclient.Config{
 			BaseURL:      os.Getenv("NSW_API_BASE_URL"),
 			ClientID:     os.Getenv("NSW_CLIENT_ID"),
 			ClientSecret: os.Getenv("NSW_CLIENT_SECRET"),
@@ -141,7 +133,7 @@ func LoadConfig() (Config, error) {
 	if err := cfg.DB.Validate(); err != nil {
 		return Config{}, err
 	}
-	if err := cfg.validateNSWOAuth2Config(); err != nil {
+	if err := cfg.NSW.Validate(); err != nil {
 		return Config{}, err
 	}
 	if err := cfg.Auth.Validate(); err != nil {
@@ -149,22 +141,6 @@ func LoadConfig() (Config, error) {
 	}
 
 	return cfg, nil
-}
-
-func (c Config) validateNSWOAuth2Config() error {
-	if strings.TrimSpace(c.NSW.BaseURL) == "" {
-		return fmt.Errorf("NSW_API_BASE_URL is required")
-	}
-	if strings.TrimSpace(c.NSW.ClientID) == "" {
-		return fmt.Errorf("NSW_CLIENT_ID is required")
-	}
-	if strings.TrimSpace(c.NSW.ClientSecret) == "" {
-		return fmt.Errorf("NSW_CLIENT_SECRET is required")
-	}
-	if strings.TrimSpace(c.NSW.TokenURL) == "" {
-		return fmt.Errorf("NSW_TOKEN_URL is required")
-	}
-	return nil
 }
 
 func envOrDefault(key, defaultValue string) string {

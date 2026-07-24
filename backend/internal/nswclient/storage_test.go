@@ -1,4 +1,4 @@
-package storage
+package nswclient
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 )
 
-func TestService_CreateUploadURL(t *testing.T) {
+func TestClient_CreateUploadURL(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/storage", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -18,26 +18,19 @@ func TestService_CreateUploadURL(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"key":"123-abc", "name":"test.txt", "upload_url":"http://test/upload"}`))
+		_, _ = w.Write([]byte(`{"key":"123-abc", "name":"test.txt", "upload_url":"http://test/upload"}`))
 	})
 
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	client := httpclient.NewClientBuilder().
-		WithBaseURL(server.URL + "/").
-		Build()
+	client := NewWithClient(httpclient.NewClientBuilder().WithBaseURL(server.URL + "/").Build())
 
-	service := NewService(client)
-
-	req := UploadRequest{
+	result, err := client.CreateUploadURL(context.Background(), UploadRequest{
 		Filename: "test.txt",
 		MimeType: "text/plain",
 		Size:     123,
-	}
-	ctx := context.Background()
-
-	result, err := service.CreateUploadURL(ctx, req)
+	})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -50,7 +43,15 @@ func TestService_CreateUploadURL(t *testing.T) {
 	}
 }
 
-func TestService_GetDownloadURL(t *testing.T) {
+func TestClient_CreateUploadURL_InvalidRequest(t *testing.T) {
+	client := NewWithClient(httpclient.NewClientBuilder().Build())
+
+	if _, err := client.CreateUploadURL(context.Background(), UploadRequest{}); err == nil {
+		t.Fatal("expected error for missing required fields, got nil")
+	}
+}
+
+func TestClient_GetDownloadURL(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/storage/550e8400-e29b-41d4-a716-446655440000.pdf", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -59,20 +60,15 @@ func TestService_GetDownloadURL(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"download_url":"http://test/download", "expires_at": 1234567890}`))
+		_, _ = w.Write([]byte(`{"download_url":"http://test/download", "expires_at": 1234567890}`))
 	})
 
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	client := httpclient.NewClientBuilder().
-		WithBaseURL(server.URL + "/").
-		Build()
+	client := NewWithClient(httpclient.NewClientBuilder().WithBaseURL(server.URL + "/").Build())
 
-	service := NewService(client)
-	ctx := context.Background()
-
-	metadata, err := service.GetDownloadURL(ctx, "550e8400-e29b-41d4-a716-446655440000.pdf")
+	metadata, err := client.GetDownloadURL(context.Background(), "550e8400-e29b-41d4-a716-446655440000.pdf")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
