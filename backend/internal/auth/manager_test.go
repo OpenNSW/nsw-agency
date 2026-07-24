@@ -135,6 +135,7 @@ func TestNewManager_InvalidJWKSURL_Fails(t *testing.T) {
 }
 
 func TestNewManager_InsecureSkipTLSVerify_Succeeds(t *testing.T) {
+	t.Setenv("APP_ENV", "development") // insecure TLS is only honored in development
 	key := mgGenerateKey(t)
 	srv := mgJWKSServer(t, key)
 
@@ -146,6 +147,16 @@ func TestNewManager_InsecureSkipTLSVerify_Succeeds(t *testing.T) {
 		t.Fatalf("expected no error with InsecureSkipTLSVerify, got %v", err)
 	}
 	_ = m.Close()
+}
+
+func TestNewManager_InsecureSkipTLSVerify_FailsClosedOutsideDev(t *testing.T) {
+	t.Setenv("APP_ENV", "production") // not development -> must refuse to start
+	cfg := mgValidConfig("https://idp.example.com/oauth2/jwks")
+	cfg.InsecureSkipTLSVerify = true
+
+	if _, err := NewManager(nil, cfg); err == nil {
+		t.Fatalf("expected NewManager to fail closed when InsecureSkipTLSVerify is set outside development")
+	}
 }
 
 // ---------- Health ----------
