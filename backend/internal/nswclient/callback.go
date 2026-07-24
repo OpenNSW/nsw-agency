@@ -51,7 +51,5 @@ func buildCallbackURL(serviceURL, taskID string) string {
 	if err != nil {
 		return fmt.Sprintf("%s/%s", strings.TrimSuffix(serviceURL, "/"), url.PathEscape(taskID))
 	}
-	u.Path = strings.TrimSuffix(u.Path, "/") + "/" + taskID
-	u.RawPath = ""
-	return u.String()
+	return u.JoinPath(taskID).String()
 }

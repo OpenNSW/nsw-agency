@@ -39,7 +39,8 @@ const storageBasePath = "storage"
 // GetDownloadURL fetches a (possibly presigned) download URL for a key from the
 // NSW backend's storage metadata endpoint.
 func (c *Client) GetDownloadURL(ctx context.Context, key string) (*DownloadMetadata, error) {
-	apiURL := fmt.Sprintf("%s/%s", storageBasePath, url.PathEscape(key))
+	u, _ := url.Parse(storageBasePath)
+	apiURL := u.JoinPath(key).String()
 	resp, err := c.http.Get(apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch upload metadata: %w", err)
