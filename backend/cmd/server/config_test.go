@@ -130,6 +130,7 @@ func TestLoadConfig_ParsesTokenInsecureSkipVerify(t *testing.T) {
 	setBaseConfigEnv(t)
 	setRequiredNSWOAuth2Env(t)
 	setRequiredAuthEnv(t)
+	t.Setenv("APP_ENV", "development") // insecure TLS is only honored in development
 	t.Setenv("NSW_TOKEN_INSECURE_SKIP_VERIFY", "true")
 
 	cfg, err := LoadConfig()
@@ -138,6 +139,18 @@ func TestLoadConfig_ParsesTokenInsecureSkipVerify(t *testing.T) {
 	}
 	if !cfg.NSW.TokenInsecureSkipVerify {
 		t.Fatalf("expected TokenInsecureSkipVerify to be true")
+	}
+}
+
+func TestLoadConfig_TokenInsecureSkipVerify_FailsClosedOutsideDev(t *testing.T) {
+	setBaseConfigEnv(t)
+	setRequiredNSWOAuth2Env(t)
+	setRequiredAuthEnv(t)
+	t.Setenv("APP_ENV", "production") // not development -> must refuse
+	t.Setenv("NSW_TOKEN_INSECURE_SKIP_VERIFY", "true")
+
+	if _, err := LoadConfig(); err == nil {
+		t.Fatalf("expected LoadConfig to fail closed when NSW_TOKEN_INSECURE_SKIP_VERIFY is set outside development")
 	}
 }
 

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+
+	"github.com/OpenNSW/nsw-agency/backend/internal/tlsguard"
 )
 
 type Config struct {
@@ -36,6 +38,13 @@ func (c Config) Validate() error {
 	}
 	if strings.TrimSpace(c.ExpectedOU) == "" {
 		return fmt.Errorf("ExpectedOU is required")
+	}
+	if c.InsecureSkipTLSVerify {
+		// Refuse to skip JWKS TLS verification outside development: a forged
+		// signing-key response here means full JWT forgery / auth bypass.
+		if err := tlsguard.Guard("AUTH_JWKS_INSECURE_SKIP_VERIFY"); err != nil {
+			return err
+		}
 	}
 	return nil
 }

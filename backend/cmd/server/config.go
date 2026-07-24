@@ -12,6 +12,7 @@ import (
 	"github.com/OpenNSW/core/artifact/loaders/s3"
 	"github.com/OpenNSW/nsw-agency/backend/internal/auth"
 	"github.com/OpenNSW/nsw-agency/backend/internal/database"
+	"github.com/OpenNSW/nsw-agency/backend/internal/tlsguard"
 	"github.com/OpenNSW/nsw-agency/backend/internal/web"
 )
 
@@ -163,6 +164,13 @@ func (c Config) validateNSWOAuth2Config() error {
 	}
 	if strings.TrimSpace(c.NSW.TokenURL) == "" {
 		return fmt.Errorf("NSW_TOKEN_URL is required")
+	}
+	if c.NSW.TokenInsecureSkipVerify {
+		// Refuse to skip NSW token/API TLS verification outside development: a
+		// MITM here can steal client credentials or inject forged tokens.
+		if err := tlsguard.Guard("NSW_TOKEN_INSECURE_SKIP_VERIFY"); err != nil {
+			return err
+		}
 	}
 	return nil
 }
