@@ -3,6 +3,7 @@ node_modules/
 dist/
 *.tsbuildinfo
 .pnpm-store/
+/frontend/coverage/
 
 # Local-only bundled-serving test build (vite build --outDir ../backend/web).
 # In the image the frontend is copied to /app/web at build time, never committed.
