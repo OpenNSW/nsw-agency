@@ -4,10 +4,13 @@ package storage
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"path/filepath"
+	"strings"
 
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httpclient"
 )
@@ -88,10 +91,98 @@ func (s *service) GetDownloadURL(ctx context.Context, key string) (*DownloadMeta
 	return &metadata, nil
 }
 
+var (
+	ErrProhibitedFileType = errors.New("prohibited file type or extension")
+	ErrDisallowedMimeType = errors.New("disallowed MIME type")
+	ErrInvalidFilename    = errors.New("invalid or unsafe filename")
+	ErrFileSizeExceeded   = errors.New("file size exceeds maximum allowed limit")
+)
+
+// Allowed MIME types whitelist for customs documents and attachments.
+var allowedMimeTypes = map[string]struct{}{
+	"application/pdf":    {},
+	"image/jpeg":         {},
+	"image/jpg":          {},
+	"image/png":          {},
+	"image/tiff":         {},
+	"text/csv":           {},
+	"text/plain":         {},
+	"application/json":   {},
+	"application/msword": {},
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": {},
+	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":       {},
+}
+
+// Allowed extensions whitelist for customs documents and attachments.
+var allowedExtensions = map[string]struct{}{
+	".pdf":  {},
+	".jpg":  {},
+	".jpeg": {},
+	".png":  {},
+	".tiff": {},
+	".tif":  {},
+	".csv":  {},
+	".txt":  {},
+	".json": {},
+	".doc":  {},
+	".docx": {},
+	".xls":  {},
+	".xlsx": {},
+}
+
+// CleanFilename sanitizes input filename and validates its extension against allowed types.
+func CleanFilename(filename string) (string, error) {
+	if strings.Contains(filename, "\x00") {
+		return "", fmt.Errorf("%w: filename contains null byte", ErrInvalidFilename)
+	}
+
+	cleanName := filepath.Base(filepath.Clean(filename))
+	if cleanName == "." || cleanName == "/" || cleanName == "\\" || cleanName == "" {
+		return "", fmt.Errorf("%w: unsafe or empty filename", ErrInvalidFilename)
+	}
+
+	ext := strings.ToLower(filepath.Ext(cleanName))
+	if ext == "" {
+		return "", fmt.Errorf("%w: file extension required", ErrInvalidFilename)
+	}
+
+	if _, allowed := allowedExtensions[ext]; !allowed {
+		return "", fmt.Errorf("%w: extension %s is not permitted", ErrProhibitedFileType, ext)
+	}
+
+	return cleanName, nil
+}
+
+// validateUploadRequest performs multi-layered security validation on upload requests.
+func validateUploadRequest(req *UploadRequest) error {
+	if req.Filename == "" || req.MimeType == "" || req.Size <= 0 {
+		return fmt.Errorf("invalid upload request: missing required fields")
+	}
+
+	cleanName, err := CleanFilename(req.Filename)
+	if err != nil {
+		return err
+	}
+	req.Filename = cleanName
+
+	// Maximum single file size limit: 50MB
+	const maxFileSize int64 = 50 << 20
+	if req.Size > maxFileSize {
+		return fmt.Errorf("%w: %d bytes (max %d bytes)", ErrFileSizeExceeded, req.Size, maxFileSize)
+	}
+
+	mimeClean := strings.ToLower(strings.TrimSpace(strings.Split(req.MimeType, ";")[0]))
+	if _, allowed := allowedMimeTypes[mimeClean]; !allowed {
+		return fmt.Errorf("%w: %s", ErrDisallowedMimeType, req.MimeType)
+	}
+
+	return nil
+}
+
 // CreateUploadURL proxies an upload initialization request to the main backend.
 func (s *service) CreateUploadURL(ctx context.Context, req UploadRequest) (*FileMetadata, error) {
-	if req.Filename == "" || req.MimeType == "" || req.Size <= 0 {
-		return nil, fmt.Errorf("invalid upload request: missing required fields")
+	if err := validateUploadRequest(&req); err != nil {
+		return nil, err
 	}
 
 	payload, err := json.Marshal(req)
