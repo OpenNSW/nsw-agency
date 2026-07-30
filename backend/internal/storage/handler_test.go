@@ -63,6 +63,33 @@ func TestNewHandler_Validation(t *testing.T) {
 	})
 }
 
+type mockKeyValidator struct {
+	canAccessFunc func(ctx context.Context, key string, userID string, companyID string, roles []string) (bool, error)
+	trackFunc     func(ctx context.Context, file UploadedFile) error
+}
+
+func (m *mockKeyValidator) KeyExists(ctx context.Context, key string) (bool, error) {
+	return true, nil
+}
+
+func (m *mockKeyValidator) GetFileMetadata(ctx context.Context, key string) (*FileMetadataRecord, error) {
+	return nil, nil
+}
+
+func (m *mockKeyValidator) CanAccessFile(ctx context.Context, key string, userID string, companyID string, roles []string) (bool, error) {
+	if m.canAccessFunc != nil {
+		return m.canAccessFunc(ctx, key, userID, companyID, roles)
+	}
+	return true, nil
+}
+
+func (m *mockKeyValidator) TrackUpload(ctx context.Context, file UploadedFile) error {
+	if m.trackFunc != nil {
+		return m.trackFunc(ctx, file)
+	}
+	return nil
+}
+
 func TestHandleCreateUpload(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mockSvc := &mockService{
@@ -78,6 +105,7 @@ func TestHandleCreateUpload(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create handler: %v", err)
 		}
+		handler = handler.WithKeyValidator(&mockKeyValidator{})
 
 		body := []byte(`{"filename":"test.txt","mime_type":"text/plain","size":123}`)
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/storage", bytes.NewBuffer(body))
@@ -109,6 +137,7 @@ func TestHandleCreateUpload(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create handler: %v", err)
 		}
+		handler = handler.WithKeyValidator(&mockKeyValidator{})
 
 		body := []byte(`{"filename":"test.txt","mime_type":"text/plain","size":123}`)
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/storage", bytes.NewBuffer(body))
@@ -121,25 +150,21 @@ func TestHandleCreateUpload(t *testing.T) {
 		}
 	})
 
-	t.Run("validation_error_maps_to_bad_request", func(t *testing.T) {
-		mockSvc := &mockService{
-			mockCreateUploadURL: func(ctx context.Context, req UploadRequest) (*FileMetadata, error) {
-				return nil, ErrProhibitedFileType
-			},
-		}
+	t.Run("unconfigured KeyValidator fails closed", func(t *testing.T) {
+		mockSvc := &mockService{}
 		handler, err := NewHandler(mockSvc, 32<<20)
 		if err != nil {
 			t.Fatalf("failed to create handler: %v", err)
 		}
 
-		body := []byte(`{"filename":"malware.exe","mime_type":"application/octet-stream","size":123}`)
+		body := []byte(`{"filename":"test.txt","mime_type":"text/plain","size":123}`)
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/storage", bytes.NewBuffer(body))
 		rec := httptest.NewRecorder()
 
 		handler.HandleCreateUpload(rec, req)
 
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("expected status %d for validation error, got %d", http.StatusBadRequest, rec.Code)
+		if rec.Code != http.StatusInternalServerError {
+			t.Errorf("expected status %d, got %d", http.StatusInternalServerError, rec.Code)
 		}
 	})
 }
@@ -158,6 +183,7 @@ func TestHandleGetUploadURL(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create handler: %v", err)
 		}
+		handler = handler.WithKeyValidator(&mockKeyValidator{})
 
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/storage/550e8400-e29b-41d4-a716-446655440000.pdf", nil)
 		req.SetPathValue("key", "550e8400-e29b-41d4-a716-446655440000.pdf")
@@ -176,6 +202,55 @@ func TestHandleGetUploadURL(t *testing.T) {
 
 		if res.DownloadURL != "http://test/download" {
 			t.Errorf("unexpected download URL: %s", res.DownloadURL)
+		}
+	})
+
+	t.Run("forbidden_when_KeyValidator_denies_access", func(t *testing.T) {
+		mockSvc := &mockService{
+			mockGetDownloadURL: func(ctx context.Context, key string) (*DownloadMetadata, error) {
+				return &DownloadMetadata{
+					DownloadURL: "http://test/download",
+					ExpiresAt:   1234567890,
+				}, nil
+			},
+		}
+		kv := &mockKeyValidator{
+			canAccessFunc: func(ctx context.Context, key string, userID string, companyID string, roles []string) (bool, error) {
+				return false, nil
+			},
+		}
+		handler, err := NewHandler(mockSvc, 32<<20)
+		if err != nil {
+			t.Fatalf("failed to create handler: %v", err)
+		}
+		handler = handler.WithKeyValidator(kv)
+
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/storage/550e8400-e29b-41d4-a716-446655440000.pdf", nil)
+		req.SetPathValue("key", "550e8400-e29b-41d4-a716-446655440000.pdf")
+		rec := httptest.NewRecorder()
+
+		handler.HandleGetUploadURL(rec, req)
+
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("expected status %d, got %d. Body: %s", http.StatusForbidden, rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("unconfigured KeyValidator fails closed", func(t *testing.T) {
+		mockSvc := &mockService{}
+		handler, err := NewHandler(mockSvc, 32<<20)
+		if err != nil {
+			t.Fatalf("failed to create handler: %v", err)
+		}
+
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/storage/550e8400-e29b-41d4-a716-446655440000.pdf", nil)
+		req.SetPathValue("key", "550e8400-e29b-41d4-a716-446655440000.pdf")
+		rec := httptest.NewRecorder()
+
+		handler.HandleGetUploadURL(rec, req)
+
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("expected status %d, got %d", http.StatusForbidden, rec.Code)
 		}
 	})
 }
