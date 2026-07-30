@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/OpenNSW/nsw-agency/backend/internal/auth"
 	"github.com/OpenNSW/nsw-agency/backend/pkg/httputil"
 )
 
@@ -15,7 +14,6 @@ import (
 type Handler struct {
 	service         Service
 	MaxRequestBytes int64
-	KeyValidator    KeyValidator
 }
 
 // NewHandler creates a new storage handler instance.
@@ -29,43 +27,11 @@ func NewHandler(service Service, maxRequestBytes int64) (*Handler, error) {
 	}, nil
 }
 
-// WithKeyValidator registers a KeyValidator on the handler.
-func (h *Handler) WithKeyValidator(kv KeyValidator) *Handler {
-	h.KeyValidator = kv
-	return h
-}
-
 // HandleGetUploadURL returns a download URL for a file stored in the main backend.
 func (h *Handler) HandleGetUploadURL(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
 	if key == "" {
 		httputil.WriteJSONError(w, http.StatusBadRequest, "key is required")
-		return
-	}
-
-	if h.KeyValidator == nil {
-		slog.WarnContext(r.Context(), "storage handler: KeyValidator is unconfigured, denying download access by default", "key", key)
-		httputil.WriteJSONError(w, http.StatusForbidden, "forbidden")
-		return
-	}
-
-	var userID, companyID string
-	var roles []string
-	if authCtx := auth.GetAuthContext(r.Context()); authCtx != nil && authCtx.User != nil {
-		userID = authCtx.User.ID
-		companyID = authCtx.User.OUHandle
-		roles = authCtx.User.Roles
-	}
-
-	allowed, err := h.KeyValidator.CanAccessFile(r.Context(), key, userID, companyID, roles)
-	if err != nil {
-		slog.ErrorContext(r.Context(), "failed to validate storage key access", "key", key, "error", err)
-		httputil.WriteJSONError(w, http.StatusInternalServerError, "failed to validate key access")
-		return
-	}
-	if !allowed {
-		slog.WarnContext(r.Context(), "unauthorized download attempt: key access denied", "key", key, "userID", userID, "companyID", companyID)
-		httputil.WriteJSONError(w, http.StatusForbidden, "forbidden")
 		return
 	}
 
@@ -90,12 +56,6 @@ func (h *Handler) HandleCreateUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.KeyValidator == nil {
-		slog.WarnContext(r.Context(), "storage handler: KeyValidator is unconfigured, denying upload creation by default")
-		httputil.WriteJSONError(w, http.StatusInternalServerError, "Failed to create upload URL")
-		return
-	}
-
 	result, err := h.service.CreateUploadURL(r.Context(), req)
 	if err != nil {
 		if errors.Is(err, ErrInvalidUploadRequest) ||
@@ -107,22 +67,6 @@ func (h *Handler) HandleCreateUpload(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		slog.ErrorContext(r.Context(), "failed to create upload URL", "error", err)
-		httputil.WriteJSONError(w, http.StatusInternalServerError, "Failed to create upload URL")
-		return
-	}
-
-	var userID, companyID string
-	if authCtx := auth.GetAuthContext(r.Context()); authCtx != nil && authCtx.User != nil {
-		userID = authCtx.User.ID
-		companyID = authCtx.User.OUHandle
-	}
-	fileRecord := UploadedFile{
-		Key:        result.Key,
-		UploadedBy: userID,
-		CompanyID:  companyID,
-	}
-	if err := h.KeyValidator.TrackUpload(r.Context(), fileRecord); err != nil {
-		slog.ErrorContext(r.Context(), "failed to track upload key", "key", result.Key, "error", err)
 		httputil.WriteJSONError(w, http.StatusInternalServerError, "Failed to create upload URL")
 		return
 	}
