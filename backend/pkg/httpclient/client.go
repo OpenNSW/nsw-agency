@@ -48,6 +48,14 @@ func NewHTTPClient(config Config) *http.Client {
 	return &http.Client{
 		Timeout:   config.Timeout,
 		Transport: transport,
+		// The NSW client posts callbacks to a caller-supplied URL that is
+		// validated against a trusted origin (see
+		// application.validateServiceURLOrigin). Following redirects would let
+		// a redirect on that trusted origin retarget the request to an
+		// arbitrary host, bypassing the origin check (SSRF).
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
 	}
 }
 
@@ -162,7 +170,7 @@ func (c *Client) shouldAuthenticate(req *http.Request) bool {
 	if err != nil {
 		return false
 	}
-	return req.URL.Host == baseURL.Host && req.URL.Scheme == baseURL.Scheme
+	return strings.EqualFold(req.URL.Host, baseURL.Host) && strings.EqualFold(req.URL.Scheme, baseURL.Scheme)
 }
 
 // resolveURL joins the base URL with the provided path.
