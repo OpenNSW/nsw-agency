@@ -589,18 +589,20 @@ components:
         consignmentId:
           type: string
           example: cefda05e-3071-4e94-b001-328094e570a7
-        serviceUrl:
-          type: string
-          format: uri
-          example: http://localhost:8080/api/v1/tasks
         data:
           type: object
           additionalProperties: true
-          description: Trader-submitted data
+          description: |
+            Trader-submitted data. Only present on the single-application
+            response (GET /applications/{taskId}); omitted from list results.
+          nullable: true
         agencyActionData:
           type: object
           additionalProperties: true
-          description: Copy of the reviewer response payload sent back to NSW after review
+          description: |
+            Copy of the reviewer response payload sent back to NSW after
+            review. Only present on the single-application response
+            (GET /applications/{taskId}); omitted from list results.
           nullable: true
         title:
           type: string
